@@ -1,13 +1,20 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
+import 'firebase_options.dart';
 
-// הערה: בשלב 2 (חיבור Firebase) נוסיף כאן:
-// await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-// לפני runApp. כרגע האפליקציה עוד לא תלויה ב-Firebase כדי שנוכל
-// להריץ ולבדוק שהמבנה הבסיסי עובד.
+/// נקודת הכניסה של האפליקציה.
+///
+/// לפני הרצת ה-UI, מאתחלים חיבור בפועל לפרויקט Firebase שלנו
+/// (Home Manager). ה-`DefaultFirebaseOptions` נוצר אוטומטית על ידי
+/// `flutterfire configure` ומכיל את מפתחות/הגדרות הפרויקט הספציפי שלנו.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-void main() {
   runApp(
     const ProviderScope(
       child: HomeManagerApp(),
