@@ -17,6 +17,13 @@ class AppStrings {
   static const String register = 'הרשמה';
   static const String email = 'אימייל';
   static const String password = 'סיסמה';
+  static const String confirmPassword = 'אימות סיסמה';
+  static const String dontHaveAccount = 'אין לך חשבון? הירשם';
+  static const String alreadyHaveAccount = 'יש לך כבר חשבון? התחבר';
+  static const String createAccount = 'יצירת חשבון';
+  static const String signOut = 'התנתקות';
+  static const String passwordsDontMatch = 'הסיסמאות אינן תואמות';
+  static const String loggedInAs = 'מחובר/ת בתור';
 
   // Household
   static const String createHousehold = 'יצירת משק בית';
@@ -32,3 +39,4 @@ class AppStrings {
   static const String startShopping = 'התחל קנייה';
   static const String finishShopping = 'סיום קנייה';
 }
+

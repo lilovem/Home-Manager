@@ -6,10 +6,10 @@
 ---
 
 ## שלב נוכחי
-**שלב 2 — חיבור Firebase** ✅ הושלם (חובר בפועל, נבדק ורץ בהצלחה ב-GitHub Codespaces)
+**שלב 3 — Authentication** ✅ הושלם בקוד (טרם נבדק בפועל ע"י המשתמש)
 
 ## השלב הבא
-**שלב 3 — Authentication** (מסכי Login/Register אמיתיים, חיבור ל-Firebase Auth)
+**שלב 4 — Household** (יצירת household, מודל חברות, הזמנת בן/בת זוג)
 
 ---
 
@@ -44,13 +44,25 @@
 - `lib/firebase_options.dart` נוצר אוטומטית - **לא לערוך ידנית**, הוא מנוהל על ידי flutterfire CLI.
 - סביבת עבודה: GitHub Codespaces (לא מקומי) - repository: `lilovem/Home-Manager`.
 
+### Authentication (שלב 3)
+- `lib/services/firebase/firebase_auth_service.dart` — עטיפה דקה סביב FirebaseAuth (Service layer).
+- `lib/repositories/auth_repository.dart` — מתרגם שגיאות Firebase לעברית (AuthFailure), זו השכבה ש-UI קורא לה.
+- `lib/providers/auth_provider.dart` — Riverpod providers: `authRepositoryProvider`, `authStateChangesProvider` (Stream<User?>).
+- `lib/app/auth_gate.dart` — "השומר" הראשי: מאזין למצב ההתחברות ומציג אוטומטית Splash/Login/Home.
+- `lib/features/auth/login_screen.dart` — טופס התחברות אמיתי עם ולידציה, loading state, הצגת שגיאות.
+- `lib/features/auth/register_screen.dart` — טופס הרשמה עם אימות סיסמה כפול.
+- `lib/features/home/home_screen.dart` — מסך placeholder שמוצג אחרי התחברות מוצלחת, עם כפתור התנתקות.
+- `lib/app/router.dart` עודכן: '/' מציג AuthGate, '/register' הוא route נפרד.
+- זרימה: משתמש לא מחובר → Login (אפשרות לעבור ל-Register) → הרשמה/התחברות מצליחה → AuthGate מזהה אוטומטית ומעביר ל-Home. אין ניווט ידני אחרי login/register - זה קורה אוטומטית דרך ה-Stream.
+
 ---
 
 ## מה עדיין לא עובד / לא קיים
-- אין עדיין מסכי Login/Register אמיתיים (תיקיות `features/auth` עדיין ריקות עם README placeholder בלבד) - זה שלב 3.
+- טרם נבדק בפועל אצל המשתמש (Login/Register/Sign out) - צריך להריץ ולנסות.
 - Firestore Security Rules עדיין ברירת מחדל (production mode חוסם הכל) - יוגדרו rules מותאמים כשנבנה Household.
-- אין Household, אין Shopping List, אין Models, Services (מלבד Firebase config), Repositories, Providers — ימולאו בשלבים 3-5 ואילך.
+- אין Household, אין Shopping List, אין Models (מלבד User דרך Firebase עצמו), Services (מלבד Auth), Repositories (מלבד Auth), Providers (מלבד Auth) — ימולאו בשלבים 4-5 ואילך.
 - Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web) - להוסיף כשהמשתמש ירצה לבדוק על מכשיר אמיתי.
+- אין עדיין מנגנון ליצירת מסמך משתמש (`users/{uid}`) ב-Firestore בזמן הרשמה - זה יתווסף בשלב 4 (Household), כי שם נצטרך לשמור household IDs על המשתמש.
 
 ---
 
@@ -67,8 +79,10 @@
 4. **Firebase מאותחל ב-`main.dart` החל משלב 2** — בשלב 1 הושאר ללא Firebase בכוונה, כדי לוודא שהמבנה הבסיסי תקין לפני הכנסת תלות חיצונית אמיתית.
 5. **Secrets** — שום מפתח/סוד לא יישמר בצד ה-Flutter client לאורך כל הפרויקט; קריאות הדורשות secret (מחירי סופר, WhatsApp) יעברו תמיד דרך Cloud Functions.
 6. **סביבת הפיתוח: GitHub Codespaces (בענן), לא מקומי** — המשתמש עובד ללא Flutter SDK מותקן על המחשב האישי. כל הפיתוח וההרצה קורים דרך דפדפן ב-`github.com/lilovem/Home-Manager` (Code → Codespaces). זה משפיע על שלבים עתידיים: FCM/Push Notifications ידרוש בסופו של דבר מכשיר אמיתי או אמולטור מקומי לבדיקה מלאה (Web אינו תומך היטב ב-FCM), נדון בזה כשנגיע לשלב 8.
+7. **AuthGate במקום go_router redirect** — לניתוב לפי מצב התחברות בחרנו בווידג'ט (`AuthGate`) שמאזין ל-Stream ומחליף תוכן, במקום `redirect` מבוסס-Listenable של go_router. זה פשוט יותר להבנה ולתחזוקה עבור מי שאינו מתכנת מקצועי, במחיר קטן של גמישות ניתוב מתקדמת (שלא נדרשת כרגע).
 
 ---
 
 ## הוראות הפעלה (למשתמש)
 ראה קובץ `SETUP_INSTRUCTIONS.md` שנשלח יחד עם קבצי הפרויקט.
+
