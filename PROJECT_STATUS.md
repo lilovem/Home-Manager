@@ -6,10 +6,10 @@
 ---
 
 ## שלב נוכחי
-**שלב 3 — Authentication** ✅ הושלם בקוד (טרם נבדק בפועל ע"י המשתמש)
+**שלב 4 — Household** ✅ הושלם בקוד (טרם נבדק בפועל ע"י המשתמש, כולל פריסת Security Rules)
 
 ## השלב הבא
-**שלב 4 — Household** (יצירת household, מודל חברות, הזמנת בן/בת זוג)
+**שלב 5 — Shopping List** (CRUD בסיסי: הוספה/עריכה/מחיקה/סימון מוצרים)
 
 ---
 
@@ -55,14 +55,26 @@
 - `lib/app/router.dart` עודכן: '/' מציג AuthGate, '/register' הוא route נפרד.
 - זרימה: משתמש לא מחובר → Login (אפשרות לעבור ל-Register) → הרשמה/התחברות מצליחה → AuthGate מזהה אוטומטית ומעביר ל-Home. אין ניווט ידני אחרי login/register - זה קורה אוטומטית דרך ה-Stream.
 
+### Household (שלב 4)
+- `lib/models/household_model.dart` — מודל Household (id, name, createdBy, createdAt, memberIds).
+- `lib/services/firebase/household_service.dart` — קריאות Firestore גולמיות (יצירה, הצטרפות, מעקב).
+- `lib/repositories/household_repository.dart` — מתרגם שגיאות Firestore לעברית.
+- `lib/providers/household_provider.dart` — `myHouseholdProvider` (Stream<Household?>), תלוי אוטומטית ב-authState.
+- `lib/app/household_gate.dart` — "שומר" שני (אחרי AuthGate): מציג מסך יצירה/הצטרפות אם אין household, אחרת Home.
+- `lib/features/household/create_household_screen.dart` — מסך אחד עם toggle בין "יצירת household חדש" ל-"הצטרפות עם קוד הזמנה".
+- `lib/features/household/invite_partner_screen.dart` — מציג את קוד ההזמנה (=מזהה ה-household) עם כפתור העתקה.
+- `lib/features/home/home_screen.dart` עודכן — מציג שם household, מספר חברים, כפתור הזמנה, וכפתור התנתקות ב-AppBar.
+- **מודל ההזמנה:** מזהה ה-household המקורי (Firestore auto-ID, ארוך ואקראי) משמש גם כ"קוד ההזמנה" - אין collection נפרד ל-invites, ואין Cloud Function. מי שמקבל את הקוד (ידנית, לא דרך שיתוף אוטומטי) יכול "להצטרף" ע"י כתיבה ישירה, כפי שמאושר ב-Security Rules.
+- `firestore.rules`, `firebase.json`, `firestore.indexes.json` — נוצרו בשורש הפרויקט. **טרם נפרסו בפועל** (`firebase deploy --only firestore:rules`) - יש לוודא שזה בוצע לפני שממשיכים.
+
 ---
 
 ## מה עדיין לא עובד / לא קיים
-- טרם נבדק בפועל אצל המשתמש (Login/Register/Sign out) - צריך להריץ ולנסות.
-- Firestore Security Rules עדיין ברירת מחדל (production mode חוסם הכל) - יוגדרו rules מותאמים כשנבנה Household.
-- אין Household, אין Shopping List, אין Models (מלבד User דרך Firebase עצמו), Services (מלבד Auth), Repositories (מלבד Auth), Providers (מלבד Auth) — ימולאו בשלבים 4-5 ואילך.
+- טרם נבדק בפועל אצל המשתמש (יצירת household, הצטרפות עם קוד, הצגה במסך הבית).
+- **Security Rules טרם נפרסו** (`firestore.rules` קיים בקוד אבל לא הורץ `firebase deploy --only firestore:rules`) - עד אז Firestore עדיין ב-production mode דיפולטיבי שחוסם הכל, כלומר יצירת household תיכשל.
+- אין עדיין Shopping List, Models/Services/Repositories/Providers של קניות — שלב 5.
 - Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web) - להוסיף כשהמשתמש ירצה לבדוק על מכשיר אמיתי.
-- אין עדיין מנגנון ליצירת מסמך משתמש (`users/{uid}`) ב-Firestore בזמן הרשמה - זה יתווסף בשלב 4 (Household), כי שם נצטרך לשמור household IDs על המשתמש.
+- שני חברי household לא נבדקו בפועל יחד (תרחיש: משתמש א' יוצר, משתמש ב' מצטרף עם הקוד) - כדאי לבדוק עם שני חשבונות אימייל שונים.
 
 ---
 
@@ -80,6 +92,8 @@
 5. **Secrets** — שום מפתח/סוד לא יישמר בצד ה-Flutter client לאורך כל הפרויקט; קריאות הדורשות secret (מחירי סופר, WhatsApp) יעברו תמיד דרך Cloud Functions.
 6. **סביבת הפיתוח: GitHub Codespaces (בענן), לא מקומי** — המשתמש עובד ללא Flutter SDK מותקן על המחשב האישי. כל הפיתוח וההרצה קורים דרך דפדפן ב-`github.com/lilovem/Home-Manager` (Code → Codespaces). זה משפיע על שלבים עתידיים: FCM/Push Notifications ידרוש בסופו של דבר מכשיר אמיתי או אמולטור מקומי לבדיקה מלאה (Web אינו תומך היטב ב-FCM), נדון בזה כשנגיע לשלב 8.
 7. **AuthGate במקום go_router redirect** — לניתוב לפי מצב התחברות בחרנו בווידג'ט (`AuthGate`) שמאזין ל-Stream ומחליף תוכן, במקום `redirect` מבוסס-Listenable של go_router. זה פשוט יותר להבנה ולתחזוקה עבור מי שאינו מתכנת מקצועי, במחיר קטן של גמישות ניתוב מתקדמת (שלא נדרשת כרגע).
+8. **הזמנה ל-Household ללא Cloud Function** — במקום collection נפרד ל-invites עם תוקף/מעקב, השתמשנו במזהה ה-household עצמו (Firestore auto-ID) כ"קוד ההזמנה", והרשאת ההצטרפות ב-Security Rules בודקת שהעדכון היחיד הוא הוספת ה-uid של המצטרף למערך memberIds. זו פשרה מכוונת: מספיק מאובטח לאפליקציה משפחתית (המזהה ארוך ואקראי, לא ניתן לניחוש), אך פחות "קשיח" מפתרון מבוסס Cloud Function עם תוקף/שימוש חד-פעמי. אם בעתיד נרצה הקשחה (תפוגת קוד, הגבלת מספר הצטרפויות) - נעביר את הלוגיקה ל-Cloud Function.
+9. **HouseholdGate כשומר שני** — נוסף מעל AuthGate (לא בתוכו) כדי לשמור על אחריות יחידה לכל widget: AuthGate שואל "האם מחובר", HouseholdGate שואל "האם יש לו household". זה גם מקל להוסיף בעתיד שומרים נוספים (למשל "האם סיים onboarding") בלי לנפח widget אחד.
 
 ---
 

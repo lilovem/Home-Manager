@@ -29,6 +29,16 @@ class AppStrings {
   static const String createHousehold = 'יצירת משק בית';
   static const String householdName = 'שם משק הבית';
   static const String invitePartner = 'הזמנת בן/בת זוג';
+  static const String joinHousehold = 'הצטרפות למשק בית קיים';
+  static const String inviteCode = 'קוד הזמנה';
+  static const String noHouseholdYet = 'עדיין אין לך משק בית';
+  static const String createNewHousehold = 'צור משק בית חדש';
+  static const String haveInviteCode = 'יש לי קוד הזמנה';
+  static const String joinButton = 'הצטרף';
+  static const String copyCode = 'העתק קוד';
+  static const String codeCopied = 'הקוד הועתק!';
+  static const String shareThisCode = 'שתפו את הקוד הזה עם בן/בת הזוג';
+  static const String membersCount = 'חברים במשק הבית';
 
   // Shopping
   static const String shoppingList = 'רשימת קניות';

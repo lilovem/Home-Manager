@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// כללי האבטחה של Firestore.
+//
+// עקרון מפתח: משתמש יכול לקרוא/לכתוב רק מידע של household שהוא חבר בו.
+// ה-invite flow (הצטרפות ל-household) מבוסס על "הכרת ה-ID" של ה-household
+// (שמתפקד כקוד ההזמנה) - זהו מזהה אקראי וארוך של Firestore, ששקול
+// ברמת האבטחה שלו לקישור שיתוף (כמו ב-Google Drive).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // מסמך המשתמש עצמו - רק הוא יכול לקרוא/לכתוב אליו.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /households/{householdId} {
+      // קריאה פתוחה לכל משתמש מחובר - כדי לאפשר לו "לראות" household
+      // לפני שהוא מצטרף אליו (לפי קוד ההזמנה). המידע שנחשף (שם, מספר
+      // חברים) אינו רגיש.
+      allow read: if request.auth != null;
+
+      // יצירת household חדש - רק אם היוצר מגדיר את עצמו כחבר היחיד.
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() == 1
+        && request.resource.data.memberIds[0] == request.auth.uid;
+
+      // עדכון household קיים מותר בשני מקרים:
+      // 1. המשתמש כבר חבר (לעדכונים כלליים בעתיד).
+      // 2. המשתמש "מצטרף" - השינוי היחיד הוא הוספת ה-uid שלו למערך memberIds.
+      allow update: if request.auth != null && (
+        request.auth.uid in resource.data.memberIds
+        ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+          && request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid])
+        )
+      );
+
+      allow delete: if false;
+
+      // מסמך "חברות" אישי בתוך household - כל משתמש יכול ליצור/לעדכן
+      // רק את המסמך של עצמו. קריאה מותרת רק לחברי אותו household.
+      match /members/{memberId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds;
+        allow create: if request.auth != null && request.auth.uid == memberId;
+        allow update: if request.auth != null && request.auth.uid == memberId;
+        allow delete: if false;
+      }
+    }
+  }
+}
+

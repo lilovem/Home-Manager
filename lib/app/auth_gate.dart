@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/widgets/error_view.dart';
 import '../features/auth/login_screen.dart';
-import '../features/home/home_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../providers/auth_provider.dart';
+import 'household_gate.dart';
 
-/// "השומר" הראשי של האפליקציה.
+/// "השומר" הראשון של האפליקציה.
 ///
 /// מאזין למצב ההתחברות (authStateChangesProvider) ומציג אוטומטית
 /// את המסך המתאים:
 /// - עדיין בודק (loading) → Splash
 /// - לא מחובר (null) → Login
-/// - מחובר (User) → Home
+/// - מחובר (User) → HouseholdGate (שבודק אם יש לו household)
 ///
 /// כך שכל שינוי במצב ההתחברות (login/register/signOut) מתעדכן
 /// אוטומטית בכל האפליקציה, בלי ניווט ידני.
@@ -32,7 +32,7 @@ class AuthGate extends ConsumerWidget {
         if (user == null) {
           return const LoginScreen();
         }
-        return const HomeScreen();
+        return const HouseholdGate();
       },
     );
   }
