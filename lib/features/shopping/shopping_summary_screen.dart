@@ -19,6 +19,7 @@ class ShoppingSummaryScreen extends ConsumerStatefulWidget {
   final List<ShoppingItem> purchasedItems;
   final List<ShoppingItem> notFoundItems;
   final int totalItemsCount;
+  final String? activeSessionId;
 
   const ShoppingSummaryScreen({
     super.key,
@@ -27,6 +28,7 @@ class ShoppingSummaryScreen extends ConsumerStatefulWidget {
     required this.purchasedItems,
     required this.notFoundItems,
     required this.totalItemsCount,
+    this.activeSessionId,
   });
 
   @override
@@ -60,6 +62,7 @@ class _ShoppingSummaryScreenState extends ConsumerState<ShoppingSummaryScreen> {
             notFoundItemsToCarryOver: toCarryOver,
             notFoundItemsToDrop: toDrop,
             totalItemsCount: widget.totalItemsCount,
+            activeSessionId: widget.activeSessionId,
           );
       if (mounted) Navigator.of(context).pop();
     } on Failure catch (e) {

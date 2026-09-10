@@ -10,6 +10,7 @@ import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_indicator.dart';
 import '../../models/shopping_item_model.dart';
+import '../../models/shopping_list_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shopping_provider.dart';
 import 'add_edit_product_screen.dart';
@@ -17,15 +18,25 @@ import 'shopping_history_screen.dart';
 import 'shopping_summary_screen.dart';
 
 /// מסך רשימת הקניות הראשי.
+///
 /// מציג את הפריטים בזמן אמת (StreamProvider), עם אפשרות
 /// להוסיף/לערוך/למחוק/לשנות סטטוס - הכל מתעדכן מיידית אצל
 /// כל חברי ה-household בזכות Firestore streams.
+///
+/// כולל גם מצב "קנייה פעילה": כשמישהו לוחץ "התחל קנייה", מוצג
+/// באנר לכל חברי ה-household, וכל מוצר שנוסף בזמן הזה מסומן
+/// "חדש" (addedDuringShopping). "סיום קנייה" סוגר את ה-session.
 class ShoppingListScreen extends ConsumerWidget {
   final String householdId;
 
   const ShoppingListScreen({super.key, required this.householdId});
 
-  Future<void> _openAddProduct(BuildContext context, WidgetRef ref, String listId) async {
+  Future<void> _openAddProduct(
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    bool isSessionActive,
+  ) async {
     final result = await Navigator.of(context).push<ProductFormResult>(
       MaterialPageRoute(builder: (_) => const AddEditProductScreen()),
     );
@@ -43,6 +54,7 @@ class ShoppingListScreen extends ConsumerWidget {
             unit: result.unit,
             addedBy: user.uid,
             addedByName: user.email ?? '',
+            addedDuringShopping: isSessionActive,
           );
     } on Failure catch (e) {
       if (context.mounted) {
@@ -125,11 +137,30 @@ class ShoppingListScreen extends ConsumerWidget {
         );
   }
 
+  Future<void> _startShopping(BuildContext context, WidgetRef ref, String listId) async {
+    final user = ref.read(authStateChangesProvider).value;
+    if (user == null) return;
+
+    try {
+      await ref.read(shoppingRepositoryProvider).startShoppingSession(
+            householdId: householdId,
+            listId: listId,
+            startedBy: user.uid,
+            startedByName: user.email ?? '',
+          );
+    } on Failure catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _openFinishShopping(
     BuildContext context,
     WidgetRef ref,
     String listId,
     List<ShoppingItem> items,
+    String? activeSessionId,
   ) async {
     final purchasedItems = items.where((i) => i.status == ItemStatus.purchased).toList();
     final notFoundItems = items.where((i) => i.status == ItemStatus.notFound).toList();
@@ -148,6 +179,7 @@ class ShoppingListScreen extends ConsumerWidget {
           purchasedItems: purchasedItems,
           notFoundItems: notFoundItems,
           totalItemsCount: items.length,
+          activeSessionId: activeSessionId,
         ),
       ),
     );
@@ -157,10 +189,17 @@ class ShoppingListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listIdAsync = ref.watch(shoppingListIdProvider);
     final listId = listIdAsync.value;
+
     final itemsAsync = listId == null
         ? const AsyncValue<List<ShoppingItem>>.loading()
         : ref.watch(shoppingItemsProvider((householdId: householdId, listId: listId)));
     final currentItems = itemsAsync.value;
+
+    final listMetaAsync = listId == null
+        ? const AsyncValue<ShoppingList>.loading()
+        : ref.watch(shoppingListMetaProvider((householdId: householdId, listId: listId)));
+    final activeSessionId = listMetaAsync.value?.activeSessionId;
+    final isSessionActive = activeSessionId != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -180,85 +219,126 @@ class ShoppingListScreen extends ConsumerWidget {
             tooltip: AppStrings.finishShopping,
             onPressed: listId == null || currentItems == null
                 ? null
-                : () => _openFinishShopping(context, ref, listId, currentItems),
+                : () => _openFinishShopping(
+                      context,
+                      ref,
+                      listId,
+                      currentItems,
+                      activeSessionId,
+                    ),
           ),
         ],
       ),
-      body: listIdAsync.when(
-        loading: () => const LoadingIndicator(),
-        error: (e, st) => const ErrorView(),
-        data: (listId) {
-          if (listId == null) return const LoadingIndicator();
-
-          return itemsAsync.when(
-            loading: () => const LoadingIndicator(),
-            error: (e, st) => const ErrorView(),
-            data: (items) {
-              if (items.isEmpty) {
-                return const EmptyState(
-                  message: AppStrings.noItemsYet,
-                  icon: Icons.shopping_cart_outlined,
-                );
-              }
-
-              // קיבוץ הפריטים לפי קטגוריה, בסדר תצוגה קבוע.
-              // קטגוריה מוצגת רק אם יש בה לפחות פריט אחד.
-              final itemsByCategory = <ProductCategory, List<ShoppingItem>>{};
-              for (final item in items) {
-                itemsByCategory.putIfAbsent(item.category, () => []).add(item);
-              }
-              final categoriesToShow = ProductCategorizer.displayOrder
-                  .where((category) => itemsByCategory.containsKey(category))
-                  .toList();
-
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: categoriesToShow.length,
-                itemBuilder: (context, categoryIndex) {
-                  final category = categoriesToShow[categoryIndex];
-                  final categoryItems = itemsByCategory[category]!;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _CategoryHeader(category: category),
-                      ...categoryItems.map(
-                        (item) => Column(
-                          children: [
-                            _ShoppingItemTile(
-                              item: item,
-                              onTogglePurchased: () => _setStatus(
-                                ref,
-                                listId,
-                                item,
-                                item.status == ItemStatus.purchased
-                                    ? ItemStatus.pending
-                                    : ItemStatus.purchased,
-                              ),
-                              onMarkNotFound: () =>
-                                  _setStatus(ref, listId, item, ItemStatus.notFound),
-                              onBackToPending: () =>
-                                  _setStatus(ref, listId, item, ItemStatus.pending),
-                              onEdit: () => _openEditProduct(context, ref, listId, item),
-                              onDelete: () => _confirmDelete(context, ref, listId, item),
-                            ),
-                            const Divider(height: 1),
-                          ],
+      body: Column(
+        children: [
+          // באנר קנייה פעילה / כפתור התחלת קנייה.
+          if (listId != null)
+            isSessionActive
+                ? Container(
+                    width: double.infinity,
+                    color: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppStrings.activeShoppingBanner,
+                          style: AppTextStyles.body.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
-        },
+                      ],
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: OutlinedButton.icon(
+                      onPressed: () => _startShopping(context, ref, listId),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text(AppStrings.startShopping),
+                    ),
+                  ),
+          Expanded(
+            child: listIdAsync.when(
+              loading: () => const LoadingIndicator(),
+              error: (e, st) => const ErrorView(),
+              data: (listId) {
+                if (listId == null) return const LoadingIndicator();
+
+                return itemsAsync.when(
+                  loading: () => const LoadingIndicator(),
+                  error: (e, st) => const ErrorView(),
+                  data: (items) {
+                    if (items.isEmpty) {
+                      return const EmptyState(
+                        message: AppStrings.noItemsYet,
+                        icon: Icons.shopping_cart_outlined,
+                      );
+                    }
+
+                    // קיבוץ הפריטים לפי קטגוריה, בסדר תצוגה קבוע.
+                    // קטגוריה מוצגת רק אם יש בה לפחות פריט אחד.
+                    final itemsByCategory = <ProductCategory, List<ShoppingItem>>{};
+                    for (final item in items) {
+                      itemsByCategory.putIfAbsent(item.category, () => []).add(item);
+                    }
+                    final categoriesToShow = ProductCategorizer.displayOrder
+                        .where((category) => itemsByCategory.containsKey(category))
+                        .toList();
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: categoriesToShow.length,
+                      itemBuilder: (context, categoryIndex) {
+                        final category = categoriesToShow[categoryIndex];
+                        final categoryItems = itemsByCategory[category]!;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CategoryHeader(category: category),
+                            ...categoryItems.map(
+                              (item) => Column(
+                                children: [
+                                  _ShoppingItemTile(
+                                    item: item,
+                                    onTogglePurchased: () => _setStatus(
+                                      ref,
+                                      listId,
+                                      item,
+                                      item.status == ItemStatus.purchased
+                                          ? ItemStatus.pending
+                                          : ItemStatus.purchased,
+                                    ),
+                                    onMarkNotFound: () =>
+                                        _setStatus(ref, listId, item, ItemStatus.notFound),
+                                    onBackToPending: () =>
+                                        _setStatus(ref, listId, item, ItemStatus.pending),
+                                    onEdit: () => _openEditProduct(context, ref, listId, item),
+                                    onDelete: () => _confirmDelete(context, ref, listId, item),
+                                  ),
+                                  const Divider(height: 1),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: listIdAsync.maybeWhen(
         data: (listId) => listId == null
             ? null
             : FloatingActionButton(
-                onPressed: () => _openAddProduct(context, ref, listId),
+                onPressed: () => _openAddProduct(context, ref, listId, isSessionActive),
                 backgroundColor: AppColors.primary,
                 child: const Icon(Icons.add, color: Colors.white),
               ),
@@ -328,13 +408,36 @@ class _ShoppingItemTile extends StatelessWidget {
         activeColor: AppColors.itemPurchased,
         onChanged: (_) => onTogglePurchased(),
       ),
-      title: Text(
-        item.name,
-        style: AppTextStyles.body.copyWith(
-          color: _statusColor,
-          decoration:
-              item.status == ItemStatus.purchased ? TextDecoration.lineThrough : null,
-        ),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              item.name,
+              style: AppTextStyles.body.copyWith(
+                color: _statusColor,
+                decoration:
+                    item.status == ItemStatus.purchased ? TextDecoration.lineThrough : null,
+              ),
+            ),
+          ),
+          if (item.addedDuringShopping && item.status == ItemStatus.pending) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.itemNewBadge,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                AppStrings.newBadge,
+                style: AppTextStyles.bodySecondary.copyWith(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
       subtitle: Text(
         '$quantityText$unitText · ${AppStrings.addedByLabel} ${item.addedByName} · '

@@ -1,3 +1,6 @@
+bash setup_badge_fix.sh#!/bin/bash
+set -e
+cat > 'lib/services/firebase/shopping_service.dart' << 'HMEOF'
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/household_model.dart';
 import '../../models/shopping_history_model.dart';
@@ -216,3 +219,5 @@ class ShoppingService {
   }
 }
 
+HMEOF
+echo 'DONE - carried-over items no longer keep the new badge!'

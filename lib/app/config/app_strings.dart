@@ -74,5 +74,8 @@ class AppStrings {
   static const String confirmFinishShopping = 'אישור וסיום';
   static const String nothingToFinish = 'אין עדיין מוצרים שנקנו או שלא נמצאו';
   static const String itemsCountLabel = 'מוצרים';
+  static const String activeShoppingBanner = 'קנייה פעילה';
+  static const String newBadge = 'חדש';
+  static const String startedByLabel = 'התחילה על ידי';
 }
 

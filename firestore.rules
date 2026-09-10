@@ -67,6 +67,11 @@ service cloud.firestore {
         match /items/{itemId} {
           allow read, write: if isHouseholdMember(householdId);
         }
+
+        // sessions של קנייה פעילה - אותה הרשאה: רק חברי ה-household.
+        match /sessions/{sessionId} {
+          allow read, write: if isHouseholdMember(householdId);
+        }
       }
 
       // היסטוריית קניות - רק חברי ה-household יכולים לקרוא/לכתוב.

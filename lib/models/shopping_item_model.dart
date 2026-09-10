@@ -83,6 +83,7 @@ class ShoppingItem {
     String? unit,
     required String addedBy,
     required String addedByName,
+    bool addedDuringShopping = false,
   }) {
     return {
       'name': name,
@@ -92,7 +93,7 @@ class ShoppingItem {
       'addedBy': addedBy,
       'addedByName': addedByName,
       'addedAt': FieldValue.serverTimestamp(),
-      'addedDuringShopping': false,
+      'addedDuringShopping': addedDuringShopping,
       'purchasedAt': null,
       'notFoundAt': null,
     };

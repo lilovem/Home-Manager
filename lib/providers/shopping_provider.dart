@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_history_model.dart';
 import '../models/shopping_item_model.dart';
+import '../models/shopping_list_model.dart';
 import '../repositories/shopping_repository.dart';
 import '../services/firebase/shopping_service.dart';
 import 'household_provider.dart';
@@ -35,5 +36,14 @@ final shoppingItemsProvider =
 final shoppingHistoryProvider =
     StreamProvider.family<List<ShoppingHistoryEntry>, String>((ref, householdId) {
   return ref.watch(shoppingRepositoryProvider).watchHistory(householdId);
+});
+
+/// מידע חי על הרשימה עצמה (כולל activeSessionId) - כדי שכל
+/// חברי ה-household יראו מיידית כשקנייה פעילה מתחילה/מסתיימת.
+final shoppingListMetaProvider =
+    StreamProvider.family<ShoppingList, ShoppingItemsArgs>((ref, args) {
+  return ref
+      .watch(shoppingRepositoryProvider)
+      .watchListMeta(args.householdId, args.listId);
 });
 

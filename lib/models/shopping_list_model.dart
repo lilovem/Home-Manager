@@ -6,11 +6,13 @@ class ShoppingList {
   final String id;
   final String name;
   final DateTime? createdAt;
+  final String? activeSessionId;
 
   const ShoppingList({
     required this.id,
     required this.name,
     required this.createdAt,
+    this.activeSessionId,
   });
 
   factory ShoppingList.fromFirestore(String id, Map<String, dynamic> data) {
@@ -18,6 +20,7 @@ class ShoppingList {
       id: id,
       name: data['name'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      activeSessionId: data['activeSessionId'] as String?,
     );
   }
 

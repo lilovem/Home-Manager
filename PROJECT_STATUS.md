@@ -6,10 +6,10 @@
 ---
 
 ## שלב נוכחי
-**שלב 9 — Shopping Completion + History** ✅ הושלם בקוד (טרם נבדק בפועל)
+**שלב 7 — Active Shopping (צד לקוח)** ✅ הושלם בקוד (טרם נבדק). **שלב 8 (Push Notifications) עדיין לא התחיל** - דורש שדרוג ל-Firebase Blaze plan ופריסת Cloud Function, וייבנה בנפרד עם אישור מפורש לפני שדרוג התוכנית.
 
 ## השלב הבא
-**שלב 7+8 יחד — Active Shopping + Push Notifications** (מצב "קנייה פעילה" עם התראות בזמן אמת כשמוסיפים מוצר - שני השלבים יחד כי הערך האמיתי הוא השילוב ביניהם)
+**שלב 8 — Push Notifications** (דורש: שדרוג Firebase לתוכנית Blaze, Cloud Functions, FCM web push + הרשאת התראות בדפדפן)
 
 ---
 
@@ -85,6 +85,22 @@
 ### עיצוב מסכי כניסה - באנר ירוק
 - `lib/features/auth/login_screen.dart`, `lib/features/household/create_household_screen.dart`, `lib/features/home/home_screen.dart` — כולם משתפים עכשיו את אותו באנר עליון: אייקון בית + "Home Manager" ברקע ירוק מעוגל. הוסר כותרת כפולה מה-AppBar של מסך הבית (היה מוצג פעמיים).
 
+### Active Shopping - צד לקוח בלבד (שלב 7)
+- `lib/models/shopping_session_model.dart` — מודל session (startedAt, startedBy/Name, endedAt, status).
+- `lib/models/shopping_list_model.dart` עודכן — שדה `activeSessionId` (null = אין קנייה פעילה).
+- `lib/services/firebase/shopping_service.dart` — `watchListMeta()` (stream של metadata הרשימה, כולל activeSessionId), `startShoppingSession()`.
+- `addItem()` מקבל כעת `addedDuringShopping: bool`, נקבע לפי `activeSessionId != null` בזמן ההוספה.
+- `finishShopping()` עודכן — מקבל `activeSessionId` אופציונלי; אם קיים, סוגר גם את ה-session (status='completed', endedAt) **באותו batch אטומי** יחד עם שאר הפעולות.
+- `lib/features/shopping/shopping_list_screen.dart` עודכן — באנר ירוק "קנייה פעילה" כשיש session פעיל, כפתור "התחל קנייה" כשאין, ותגית "חדש" (כחולה) על פריטים שנוספו בזמן קנייה פעילה.
+- `firestore.rules` עודכן — הרשאה ל-`households/{id}/shoppingLists/{id}/sessions/{sessionId}`.
+- **חסר עדיין (שלב 8):** שום Push Notification בפועל. הבאנר/תגית הם רק UI - אף אחד לא מקבל התראה כרגע כשמוצר נוסף בזמן קנייה פעילה.
+
+### דרישות מתועדות לשלב 8 (Push Notifications) - מהמשתמש
+1. **בזמן קנייה פעילה:** כשמוסיפים מוצר, שאר חברי ה-household (לא כולל מי שהוסיף) מקבלים Push "🔔 מוצר חדש נוסף".
+2. **בסיום קנייה:** Push נוסף לשאר החברים עם רשימת `notFoundItemNames` (כבר נשמר בהיסטוריה) - "🛒 הקנייה הסתיימה, לא נמצאו: X, Y".
+3. **כלל מפתח:** הנמען תמיד "חברי ה-household חוץ מהמשתמש שביצע את הפעולה" - לא כולם, ולא רק מי שהתחיל את ה-session. אצל household עם 2 חברים (המקרה הנפוץ), זה תמיד "הצד השני".
+4. שני סוגי ההתראות ישתמשו באותה תשתית Cloud Function גנרית, מובחנות ע"י `type` בפיילוד - כפי שכבר תוכנן בארכיטקטורה המקורית.
+
 ### Shopping Completion + History (שלב 9)
 - `lib/models/shopping_history_model.dart` — רשומת סיכום קנייה (תאריך, סה"כ מוצרים, כמה נקנו, כמה לא נמצאו, שמות המוצרים שלא נמצאו).
 - `lib/services/firebase/shopping_service.dart` — `finishShopping()` מבצע הכל ב-**WriteBatch אחד אטומי**: מוחק פריטים שנקנו, מטפל בפריטים שלא נמצאו (מחזיר ל"ממתין" את מה שסומן להעברה, מוחק את השאר), ושומר רשומת היסטוריה. גם `watchHistory()` (stream, ordered by date).
@@ -100,8 +116,8 @@
 ---
 
 ## מה עדיין לא עובד / לא קיים
-- טרם נבדק בפועל אצל המשתמש (סיום קנייה, בחירת פריטים להעברה, היסטוריה).
-- אין עדיין "קנייה פעילה" (Active Shopping) ואין Push Notifications - שלב 7+8 יבואו יחד.
+- טרם נבדק בפועל אצל המשתמש (התחלת/סיום קנייה פעילה, תגית "חדש").
+- **אין שום Push Notification בפועל עדיין** - שלב 8, דורש שדרוג ל-Blaze plan (אישור מפורש נדרש לפני תחילת השלב).
 - Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web).
 
 ## בעיה ידועה - Cache ישן בדפדפן על מכשירים נוספים
@@ -128,7 +144,7 @@
 10. **רשימה אחת בלבד ל-household ב-MVP** — `household.shoppingListId` נשמר ישירות על מסמך ה-household (ולא כשאילתה נפרדת), כדי לבטל כל race condition/צורך ביצירה כפולה. נוצרת אוטומטית בזמן `createHousehold`, ובאופן retroactive (lazy) עבור households ישנים יותר שנוצרו לפני השלב הזה.
 11. **addedDuringShopping נכלל כבר עכשיו** — למרות ש"קנייה פעילה" היא שלב 7, השדה כבר קיים במודל (ברירת מחדל false) כדי להימנע ממיגרציית נתונים עתידית על מסמכים קיימים.
 12. **מערכת מודולים לדף הבית (HomeModule)** — נבחרה כדי לממש את הדרישה "בעתיד להוסיף מודולים בלי לשכתב את האפליקציה" ברמת ה-UI, במקביל לעיקרון שכבר יושם ב-branding. כל מודול עתידי (ביטוחים, רישיונות, חוגים...) הוא רשומה אחת ב-`home_modules.dart`; אם `isAvailable: false` הוא מוצג "בקרוב" בלי מימוש בפועל. זה מאפשר "להראות" את חזון המוצר המלא במסך הבית מהיום הראשון.
-13. **שלבים 7+8 (Active Shopping + Push Notifications) ממוזגים** — שלב 9 (Shopping Completion) נבנה לפני 7/8 כי הוא עומד בפני עצמו ונותן ערך מיידי. "קנייה פעילה" בלי התראות היא רק דגל טכני חסר תועלת מורגשת - נבנה את שניהם יחד כדי שהערך (התראה בזמן אמת) יהיה מורגש מהרגע הראשון.
+13. **שלב 7 (Active Shopping) נבנה בנפרד משלב 8 (Push Notifications), בניגוד לכוונה הראשונית** — בזמן המימוש הסתבר ש-Push Notifications דורש שדרוג ל-Firebase Blaze plan (כרטיס אשראי) ופריסת Cloud Functions - החלטה משמעותית שראוי לאשר במפורש מול המשתמש לפני שמתחילים, ולא "לגלוש" אליה כחלק מ-session פיתוח רגיל. לכן שלב 7 (session state, UI, "חדש" badge) נבנה ונבדק באופן עצמאי; שלב 8 ימתין לאישור מפורש.
 14. **finishShopping כ-WriteBatch אטומי** — כל הפעולות של סיום קנייה (מחיקת פריטים שנקנו, טיפול בלא-נמצאו, שמירת היסטוריה) מתבצעות ב-batch אחד, כדי שלא יהיה מצב ביניים לא עקבי (למשל: פריטים נמחקו אבל ההיסטוריה לא נשמרה) אם החיבור נופל באמצע.
 
 ---
