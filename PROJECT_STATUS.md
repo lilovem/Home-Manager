@@ -6,10 +6,10 @@
 ---
 
 ## שלב נוכחי
-**שלב 4 — Household** ✅ הושלם בקוד (טרם נבדק בפועל ע"י המשתמש, כולל פריסת Security Rules)
+**שלב 5 — Shopping List** ✅ הושלם בקוד (טרם נבדק בפועל ע"י המשתמש)
 
 ## השלב הבא
-**שלב 5 — Shopping List** (CRUD בסיסי: הוספה/עריכה/מחיקה/סימון מוצרים)
+**שלב 6 — Real-time synchronization** (כבר קיים בפועל דרך Firestore streams; השלב הזה יתמקד בבדיקה מקיפה בין 2 משתמשים + טיפול בקצוות כמו התנגשויות עריכה)
 
 ---
 
@@ -55,26 +55,41 @@
 - `lib/app/router.dart` עודכן: '/' מציג AuthGate, '/register' הוא route נפרד.
 - זרימה: משתמש לא מחובר → Login (אפשרות לעבור ל-Register) → הרשמה/התחברות מצליחה → AuthGate מזהה אוטומטית ומעביר ל-Home. אין ניווט ידני אחרי login/register - זה קורה אוטומטית דרך ה-Stream.
 
-### Household (שלב 4)
-- `lib/models/household_model.dart` — מודל Household (id, name, createdBy, createdAt, memberIds).
+### Household (שלב 4) — ✅ נבדק בפועל עם 2 משתמשים אמיתיים
+- `lib/models/household_model.dart` — מודל Household (id, name, createdBy, createdAt, memberIds, shoppingListId).
 - `lib/services/firebase/household_service.dart` — קריאות Firestore גולמיות (יצירה, הצטרפות, מעקב).
 - `lib/repositories/household_repository.dart` — מתרגם שגיאות Firestore לעברית.
 - `lib/providers/household_provider.dart` — `myHouseholdProvider` (Stream<Household?>), תלוי אוטומטית ב-authState.
 - `lib/app/household_gate.dart` — "שומר" שני (אחרי AuthGate): מציג מסך יצירה/הצטרפות אם אין household, אחרת Home.
 - `lib/features/household/create_household_screen.dart` — מסך אחד עם toggle בין "יצירת household חדש" ל-"הצטרפות עם קוד הזמנה".
 - `lib/features/household/invite_partner_screen.dart` — מציג את קוד ההזמנה (=מזהה ה-household) עם כפתור העתקה.
-- `lib/features/home/home_screen.dart` עודכן — מציג שם household, מספר חברים, כפתור הזמנה, וכפתור התנתקות ב-AppBar.
-- **מודל ההזמנה:** מזהה ה-household המקורי (Firestore auto-ID, ארוך ואקראי) משמש גם כ"קוד ההזמנה" - אין collection נפרד ל-invites, ואין Cloud Function. מי שמקבל את הקוד (ידנית, לא דרך שיתוף אוטומטי) יכול "להצטרף" ע"י כתיבה ישירה, כפי שמאושר ב-Security Rules.
-- `firestore.rules`, `firebase.json`, `firestore.indexes.json` — נוצרו בשורש הפרויקט. **טרם נפרסו בפועל** (`firebase deploy --only firestore:rules`) - יש לוודא שזה בוצע לפני שממשיכים.
+- **נבדק בהצלחה:** משתמש א' יצר household, משתמש ב' (מייל שונה, חלון incognito) הצטרף עם הקוד - שניהם רואים "חברים במשק הבית: 2" בזמן אמת.
+- `firestore.rules`, `firebase.json`, `firestore.indexes.json` — נפרסו בהצלחה (`firebase deploy --only firestore:rules`).
+
+### Shopping List (שלב 5)
+- `lib/models/shopping_list_model.dart` — מודל רשימה (id, name, createdAt). MVP: רשימה אחת בלבד ל-household, ה-id שלה נשמר על `household.shoppingListId`.
+- `lib/models/shopping_item_model.dart` — מודל מוצר מלא: name, quantity, unit, status (pending/purchased/notFound), addedBy/addedByName/addedAt, purchasedAt/notFoundAt, וגם `addedDuringShopping` (ברירת מחדל false - מוכן לשלב 7 בלי מיגרציה עתידית).
+- `lib/core/utils/date_formatter.dart` — פורמט תאריך פשוט (ללא תלות ב-locale init של intl).
+- `lib/services/firebase/shopping_service.dart` — כולל `getOrCreateDefaultListId` שיוצר רשימה אוטומטית אם עדיין אין ל-household אחת (backward-compatible עם households שנוצרו לפני שלב זה).
+- `lib/repositories/shopping_repository.dart`, `lib/providers/shopping_provider.dart` — כולל `shoppingItemsProvider` (StreamProvider.family לפי household+list, real-time).
+- `lib/features/shopping/shopping_list_screen.dart` — מסך ראשי: רשימה, checkbox לסימון "נקנה", תפריט (⋮) לכל פריט עם "סמן כלא נמצא"/"החזר לרשימה"/"עריכה"/"מחיקה" (עם דיאלוג אישור).
+- `lib/features/shopping/add_edit_product_screen.dart` — טופס משותף להוספה ועריכה (name, quantity, unit אופציונלי).
+- `lib/features/home/home_screen.dart` עודכן — כפתור "רשימת קניות" חדש.
+- `firestore.rules` עודכן — הרשאות ל-`households/{id}/shoppingLists/{id}/items/{id}`, מוגבל לחברי household בלבד (פונקציית עזר `isHouseholdMember` משותפת).
+
+### Home Dashboard - עיצוב מחדש
+- `lib/features/home/home_module.dart` — מודל `HomeModule` (title, subtitle, icon, isAvailable, screenBuilder).
+- `lib/features/home/home_modules.dart` — **המקום היחיד** להוספת מודולים עתידיים (רכבים, ביטוחים, רישיונות, חוגים, חשבונות, מסמכים, משימות/תזכורות). מודול חדש = תוספת אחת ברשימה כאן, לא צריך לגעת ב-home_screen.dart.
+- `lib/features/home/home_screen.dart` עוצב מחדש כ-Dashboard: כרטיסיית household עליונה (שם, מספר חברים, כפתור הזמנה עגול), ומתחתיה רשת (grid) של אריחי מודולים - "רשימת קניות" פעיל ולחיץ, שאר המודולים מוצגים מעומעמים עם תווית "בקרוב".
 
 ---
 
 ## מה עדיין לא עובד / לא קיים
-- טרם נבדק בפועל אצל המשתמש (יצירת household, הצטרפות עם קוד, הצגה במסך הבית).
-- **Security Rules טרם נפרסו** (`firestore.rules` קיים בקוד אבל לא הורץ `firebase deploy --only firestore:rules`) - עד אז Firestore עדיין ב-production mode דיפולטיבי שחוסם הכל, כלומר יצירת household תיכשל.
-- אין עדיין Shopping List, Models/Services/Repositories/Providers של קניות — שלב 5.
-- Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web) - להוסיף כשהמשתמש ירצה לבדוק על מכשיר אמיתי.
-- שני חברי household לא נבדקו בפועל יחד (תרחיש: משתמש א' יוצר, משתמש ב' מצטרף עם הקוד) - כדאי לבדוק עם שני חשבונות אימייל שונים.
+- טרם נבדק בפועל אצל המשתמש (הוספה/עריכה/מחיקה/סימון מוצרים, וסנכרון בין 2 משתמשים).
+- אין עדיין "קנייה פעילה" (Active Shopping) - שלב 7. כרגע `addedDuringShopping` תמיד false.
+- אין Push Notifications - שלב 8.
+- אין Shopping Completion / History - שלבים 9-10.
+- Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web).
 
 ---
 
@@ -94,6 +109,9 @@
 7. **AuthGate במקום go_router redirect** — לניתוב לפי מצב התחברות בחרנו בווידג'ט (`AuthGate`) שמאזין ל-Stream ומחליף תוכן, במקום `redirect` מבוסס-Listenable של go_router. זה פשוט יותר להבנה ולתחזוקה עבור מי שאינו מתכנת מקצועי, במחיר קטן של גמישות ניתוב מתקדמת (שלא נדרשת כרגע).
 8. **הזמנה ל-Household ללא Cloud Function** — במקום collection נפרד ל-invites עם תוקף/מעקב, השתמשנו במזהה ה-household עצמו (Firestore auto-ID) כ"קוד ההזמנה", והרשאת ההצטרפות ב-Security Rules בודקת שהעדכון היחיד הוא הוספת ה-uid של המצטרף למערך memberIds. זו פשרה מכוונת: מספיק מאובטח לאפליקציה משפחתית (המזהה ארוך ואקראי, לא ניתן לניחוש), אך פחות "קשיח" מפתרון מבוסס Cloud Function עם תוקף/שימוש חד-פעמי. אם בעתיד נרצה הקשחה (תפוגת קוד, הגבלת מספר הצטרפויות) - נעביר את הלוגיקה ל-Cloud Function.
 9. **HouseholdGate כשומר שני** — נוסף מעל AuthGate (לא בתוכו) כדי לשמור על אחריות יחידה לכל widget: AuthGate שואל "האם מחובר", HouseholdGate שואל "האם יש לו household". זה גם מקל להוסיף בעתיד שומרים נוספים (למשל "האם סיים onboarding") בלי לנפח widget אחד.
+10. **רשימה אחת בלבד ל-household ב-MVP** — `household.shoppingListId` נשמר ישירות על מסמך ה-household (ולא כשאילתה נפרדת), כדי לבטל כל race condition/צורך ביצירה כפולה. נוצרת אוטומטית בזמן `createHousehold`, ובאופן retroactive (lazy) עבור households ישנים יותר שנוצרו לפני השלב הזה.
+11. **addedDuringShopping נכלל כבר עכשיו** — למרות ש"קנייה פעילה" היא שלב 7, השדה כבר קיים במודל (ברירת מחדל false) כדי להימנע ממיגרציית נתונים עתידית על מסמכים קיימים.
+12. **מערכת מודולים לדף הבית (HomeModule)** — נבחרה כדי לממש את הדרישה "בעתיד להוסיף מודולים בלי לשכתב את האפליקציה" ברמת ה-UI, במקביל לעיקרון שכבר יושם ב-branding. כל מודול עתידי (ביטוחים, רישיונות, חוגים...) הוא רשומה אחת ב-`home_modules.dart`; אם `isAvailable: false` הוא מוצג "בקרוב" בלי מימוש בפועל. זה מאפשר "להראות" את חזון המוצר המלא במסך הבית מהיום הראשון.
 
 ---
 

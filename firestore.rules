@@ -9,6 +9,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // פונקציית עזר: האם המשתמש חבר ב-household הנתון?
+    // משמשת בכל מקום שדורש בדיקת חברות (members, shoppingLists, items).
+    function isHouseholdMember(householdId) {
+      return request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds;
+    }
+
     // מסמך המשתמש עצמו - רק הוא יכול לקרוא/לכתוב אליו.
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
@@ -30,7 +37,7 @@ service cloud.firestore {
         && request.resource.data.memberIds[0] == request.auth.uid;
 
       // עדכון household קיים מותר בשני מקרים:
-      // 1. המשתמש כבר חבר (לעדכונים כלליים בעתיד).
+      // 1. המשתמש כבר חבר (לעדכונים כלליים, כמו shoppingListId).
       // 2. המשתמש "מצטרף" - השינוי היחיד הוא הוספת ה-uid שלו למערך memberIds.
       allow update: if request.auth != null && (
         request.auth.uid in resource.data.memberIds
@@ -46,11 +53,20 @@ service cloud.firestore {
       // מסמך "חברות" אישי בתוך household - כל משתמש יכול ליצור/לעדכן
       // רק את המסמך של עצמו. קריאה מותרת רק לחברי אותו household.
       match /members/{memberId} {
-        allow read: if request.auth != null
-          && request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds;
+        allow read: if isHouseholdMember(householdId);
         allow create: if request.auth != null && request.auth.uid == memberId;
         allow update: if request.auth != null && request.auth.uid == memberId;
         allow delete: if false;
+      }
+
+      // רשימות קניות - רק חברי ה-household יכולים לקרוא/לכתוב.
+      match /shoppingLists/{listId} {
+        allow read, write: if isHouseholdMember(householdId);
+
+        // פריטים בתוך רשימה - אותה הרשאה: רק חברי ה-household.
+        match /items/{itemId} {
+          allow read, write: if isHouseholdMember(householdId);
+        }
       }
     }
   }

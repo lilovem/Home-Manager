@@ -39,14 +39,29 @@ class AppStrings {
   static const String codeCopied = 'הקוד הועתק!';
   static const String shareThisCode = 'שתפו את הקוד הזה עם בן/בת הזוג';
   static const String membersCount = 'חברים במשק הבית';
+  static const String comingSoon = 'בקרוב';
 
   // Shopping
   static const String shoppingList = 'רשימת קניות';
   static const String addProduct = 'הוספת מוצר';
+  static const String editProduct = 'עריכת מוצר';
   static const String productName = 'שם המוצר';
   static const String quantity = 'כמות';
+  static const String unit = 'יחידת מידה (אופציונלי)';
   static const String noItemsYet = 'אין עדיין מוצרים ברשימה';
   static const String startShopping = 'התחל קנייה';
   static const String finishShopping = 'סיום קנייה';
+  static const String save = 'שמירה';
+  static const String cancel = 'ביטול';
+  static const String delete = 'מחיקה';
+  static const String edit = 'עריכה';
+  static const String markPurchased = 'סמן כנקנה';
+  static const String markNotFound = 'סמן כלא נמצא';
+  static const String backToPending = 'החזר לרשימה';
+  static const String addedByLabel = 'נוסף ע״י';
+  static const String confirmDeleteTitle = 'למחוק מוצר?';
+  static const String confirmDeleteMessage = 'הפעולה לא ניתנת לביטול';
+  static const String statusNotFound = 'לא נמצא';
+  static const String statusPurchased = 'נקנה';
 }
 
