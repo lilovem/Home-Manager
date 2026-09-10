@@ -5,6 +5,7 @@ import '../../app/config/app_strings.dart';
 import '../../app/config/app_text_styles.dart';
 import '../../core/errors/failures.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/utils/product_categorizer.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_indicator.dart';
@@ -149,26 +150,52 @@ class ShoppingListScreen extends ConsumerWidget {
                 );
               }
 
-              return ListView.separated(
+              // קיבוץ הפריטים לפי קטגוריה, בסדר תצוגה קבוע.
+              // קטגוריה מוצגת רק אם יש בה לפחות פריט אחד.
+              final itemsByCategory = <ProductCategory, List<ShoppingItem>>{};
+              for (final item in items) {
+                itemsByCategory.putIfAbsent(item.category, () => []).add(item);
+              }
+              final categoriesToShow = ProductCategorizer.displayOrder
+                  .where((category) => itemsByCategory.containsKey(category))
+                  .toList();
+
+              return ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return _ShoppingItemTile(
-                    item: item,
-                    onTogglePurchased: () => _setStatus(
-                      ref,
-                      listId,
-                      item,
-                      item.status == ItemStatus.purchased
-                          ? ItemStatus.pending
-                          : ItemStatus.purchased,
-                    ),
-                    onMarkNotFound: () => _setStatus(ref, listId, item, ItemStatus.notFound),
-                    onBackToPending: () => _setStatus(ref, listId, item, ItemStatus.pending),
-                    onEdit: () => _openEditProduct(context, ref, listId, item),
-                    onDelete: () => _confirmDelete(context, ref, listId, item),
+                itemCount: categoriesToShow.length,
+                itemBuilder: (context, categoryIndex) {
+                  final category = categoriesToShow[categoryIndex];
+                  final categoryItems = itemsByCategory[category]!;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _CategoryHeader(category: category),
+                      ...categoryItems.map(
+                        (item) => Column(
+                          children: [
+                            _ShoppingItemTile(
+                              item: item,
+                              onTogglePurchased: () => _setStatus(
+                                ref,
+                                listId,
+                                item,
+                                item.status == ItemStatus.purchased
+                                    ? ItemStatus.pending
+                                    : ItemStatus.purchased,
+                              ),
+                              onMarkNotFound: () =>
+                                  _setStatus(ref, listId, item, ItemStatus.notFound),
+                              onBackToPending: () =>
+                                  _setStatus(ref, listId, item, ItemStatus.pending),
+                              onEdit: () => _openEditProduct(context, ref, listId, item),
+                              onDelete: () => _confirmDelete(context, ref, listId, item),
+                            ),
+                            const Divider(height: 1),
+                          ],
+                        ),
+                      ),
+                    ],
                   );
                 },
               );
@@ -185,6 +212,25 @@ class ShoppingListScreen extends ConsumerWidget {
                 child: const Icon(Icons.add, color: Colors.white),
               ),
         orElse: () => null,
+      ),
+    );
+  }
+}
+
+class _CategoryHeader extends StatelessWidget {
+  final ProductCategory category;
+
+  const _CategoryHeader({required this.category});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        ProductCategorizer.categoryNames[category] ?? '',
+        style: AppTextStyles.heading2.copyWith(fontSize: 14, color: AppColors.primary),
       ),
     );
   }

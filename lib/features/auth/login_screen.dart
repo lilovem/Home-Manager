@@ -66,12 +66,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.home_rounded, size: 56, color: AppColors.primary),
-                  const SizedBox(height: 12),
-                  const Text(
-                    AppStrings.appName,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.heading1,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.home_rounded, size: 56, color: Colors.white),
+                        const SizedBox(height: 12),
+                        const Text(
+                          AppStrings.appName,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(

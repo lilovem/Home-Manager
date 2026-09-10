@@ -1,3 +1,6 @@
+bash setup_logo_fix3.sh#!/bin/bash
+set -e
+cat > 'lib/features/home/home_screen.dart' << 'HMEOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/config/app_colors.dart';
@@ -271,3 +274,5 @@ class _ModuleTile extends StatelessWidget {
   }
 }
 
+HMEOF
+echo 'DONE - duplicate title removed!'

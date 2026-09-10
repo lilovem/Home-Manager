@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'lib/features/home/home_screen.dart' << 'HMEOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/config/app_colors.dart';
@@ -33,6 +36,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
+        title: const Text(AppStrings.appName),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -271,3 +275,5 @@ class _ModuleTile extends StatelessWidget {
   }
 }
 
+HMEOF
+echo 'DONE - dashboard logo banner added!'

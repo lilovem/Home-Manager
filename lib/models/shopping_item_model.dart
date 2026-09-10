@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/utils/product_categorizer.dart';
 
 /// סטטוס של מוצר ברשימת הקניות.
 enum ItemStatus { pending, purchased, notFound }
@@ -55,6 +56,10 @@ class ShoppingItem {
     this.purchasedAt,
     this.notFoundAt,
   });
+
+  /// הקטגוריה מחושבת תמיד מחדש משם המוצר - לא נשמרת ב-Firestore,
+  /// כך שעריכת שם מוצר מעדכנת אוטומטית גם את הקטגוריה שלו.
+  ProductCategory get category => ProductCategorizer.categorize(name);
 
   factory ShoppingItem.fromFirestore(String id, Map<String, dynamic> data) {
     return ShoppingItem(
