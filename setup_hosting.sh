@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'firebase.json' << 'HMEOF'
 {
   "firestore": {
     "rules": "firestore.rules",
@@ -19,3 +22,5 @@
   }
 }
 
+HMEOF
+echo 'DONE - firebase.json updated with hosting config!'
