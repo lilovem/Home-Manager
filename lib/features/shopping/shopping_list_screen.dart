@@ -13,6 +13,8 @@ import '../../models/shopping_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shopping_provider.dart';
 import 'add_edit_product_screen.dart';
+import 'shopping_history_screen.dart';
+import 'shopping_summary_screen.dart';
 
 /// מסך רשימת הקניות הראשי.
 /// מציג את הפריטים בזמן אמת (StreamProvider), עם אפשרות
@@ -123,21 +125,70 @@ class ShoppingListScreen extends ConsumerWidget {
         );
   }
 
+  Future<void> _openFinishShopping(
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    List<ShoppingItem> items,
+  ) async {
+    final purchasedItems = items.where((i) => i.status == ItemStatus.purchased).toList();
+    final notFoundItems = items.where((i) => i.status == ItemStatus.notFound).toList();
+
+    if (purchasedItems.isEmpty && notFoundItems.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text(AppStrings.nothingToFinish)));
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShoppingSummaryScreen(
+          householdId: householdId,
+          listId: listId,
+          purchasedItems: purchasedItems,
+          notFoundItems: notFoundItems,
+          totalItemsCount: items.length,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listIdAsync = ref.watch(shoppingListIdProvider);
+    final listId = listIdAsync.value;
+    final itemsAsync = listId == null
+        ? const AsyncValue<List<ShoppingItem>>.loading()
+        : ref.watch(shoppingItemsProvider((householdId: householdId, listId: listId)));
+    final currentItems = itemsAsync.value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.shoppingList)),
+      appBar: AppBar(
+        title: const Text(AppStrings.shoppingList),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: AppStrings.shoppingHistory,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ShoppingHistoryScreen(householdId: householdId),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: AppStrings.finishShopping,
+            onPressed: listId == null || currentItems == null
+                ? null
+                : () => _openFinishShopping(context, ref, listId, currentItems),
+          ),
+        ],
+      ),
       body: listIdAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, st) => const ErrorView(),
         data: (listId) {
           if (listId == null) return const LoadingIndicator();
-
-          final itemsAsync = ref.watch(
-            shoppingItemsProvider((householdId: householdId, listId: listId)),
-          );
 
           return itemsAsync.when(
             loading: () => const LoadingIndicator(),

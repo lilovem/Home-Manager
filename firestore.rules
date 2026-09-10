@@ -68,6 +68,11 @@ service cloud.firestore {
           allow read, write: if isHouseholdMember(householdId);
         }
       }
+
+      // היסטוריית קניות - רק חברי ה-household יכולים לקרוא/לכתוב.
+      match /shoppingHistory/{historyId} {
+        allow read, write: if isHouseholdMember(householdId);
+      }
     }
   }
 }

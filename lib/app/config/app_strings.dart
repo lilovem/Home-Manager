@@ -63,5 +63,16 @@ class AppStrings {
   static const String confirmDeleteMessage = 'הפעולה לא ניתנת לביטול';
   static const String statusNotFound = 'לא נמצא';
   static const String statusPurchased = 'נקנה';
+  static const String shoppingSummary = 'סיכום קנייה';
+  static const String shoppingHistory = 'היסטוריית קניות';
+  static const String noHistoryYet = 'אין עדיין היסטוריית קניות';
+  static const String purchasedItemsLabel = 'נקנו';
+  static const String notFoundItemsLabel = 'לא נמצאו';
+  static const String carryOverHint = 'סמנו אילו מוצרים להעביר לקנייה הבאה';
+  static const String selectAll = 'בחר הכל';
+  static const String clearAll = 'נקה הכל';
+  static const String confirmFinishShopping = 'אישור וסיום';
+  static const String nothingToFinish = 'אין עדיין מוצרים שנקנו או שלא נמצאו';
+  static const String itemsCountLabel = 'מוצרים';
 }
 

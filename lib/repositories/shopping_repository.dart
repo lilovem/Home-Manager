@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/errors/failures.dart';
 import '../models/household_model.dart';
+import '../models/shopping_history_model.dart';
 import '../models/shopping_item_model.dart';
 import '../services/firebase/shopping_service.dart';
 
@@ -95,6 +96,32 @@ class ShoppingRepository {
     } on FirebaseException {
       throw const UnknownFailure('שגיאה במחיקת המוצר');
     }
+  }
+
+  Future<void> finishShopping({
+    required String householdId,
+    required String listId,
+    required List<ShoppingItem> purchasedItems,
+    required List<ShoppingItem> notFoundItemsToCarryOver,
+    required List<ShoppingItem> notFoundItemsToDrop,
+    required int totalItemsCount,
+  }) async {
+    try {
+      await _service.finishShopping(
+        householdId: householdId,
+        listId: listId,
+        purchasedItems: purchasedItems,
+        notFoundItemsToCarryOver: notFoundItemsToCarryOver,
+        notFoundItemsToDrop: notFoundItemsToDrop,
+        totalItemsCount: totalItemsCount,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בסיום הקנייה');
+    }
+  }
+
+  Stream<List<ShoppingHistoryEntry>> watchHistory(String householdId) {
+    return _service.watchHistory(householdId);
   }
 }
 

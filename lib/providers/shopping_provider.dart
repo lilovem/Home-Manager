@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/shopping_history_model.dart';
 import '../models/shopping_item_model.dart';
 import '../repositories/shopping_repository.dart';
 import '../services/firebase/shopping_service.dart';
@@ -28,5 +29,11 @@ final shoppingItemsProvider =
   return ref
       .watch(shoppingRepositoryProvider)
       .watchItems(args.householdId, args.listId);
+});
+
+/// היסטוריית קניות של household מסוים.
+final shoppingHistoryProvider =
+    StreamProvider.family<List<ShoppingHistoryEntry>, String>((ref, householdId) {
+  return ref.watch(shoppingRepositoryProvider).watchHistory(householdId);
 });
 

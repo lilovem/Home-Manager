@@ -6,10 +6,10 @@
 ---
 
 ## שלב נוכחי
-**שלב 5 — Shopping List** ✅ הושלם ונבדק בהצלחה, כולל סנכרון בזמן אמת בין מחשב לטלפון (2 מכשירים אמיתיים, לא רק 2 חלונות)
+**שלב 9 — Shopping Completion + History** ✅ הושלם בקוד (טרם נבדק בפועל)
 
 ## השלב הבא
-**שלב 6 — Real-time synchronization** — כבר עובד בפועל (Firestore streams); השלב הזה יתמקד בחיזוקים: אינדיקטור "מסך לא מעודכן" למקרה של cache ישן בדפדפן, וטיפול בקצוות נוספים
+**שלב 7+8 יחד — Active Shopping + Push Notifications** (מצב "קנייה פעילה" עם התראות בזמן אמת כשמוסיפים מוצר - שני השלבים יחד כי הערך האמיתי הוא השילוב ביניהם)
 
 ---
 
@@ -83,7 +83,14 @@
 - `lib/features/shopping/shopping_list_screen.dart` עודכן — הפריטים מקובצים לפי קטגוריה; **קטגוריה מוצגת רק אם יש בה לפחות מוצר אחד ברשימה**.
 
 ### עיצוב מסכי כניסה - באנר ירוק
-- `lib/features/auth/login_screen.dart` ו-`lib/features/household/create_household_screen.dart` עודכנו — הבלוק העליון (אייקון + כותרת) בשניהם עטוף בבאנר ירוק מעוגל, בעוד שדות הטופס נשארים על רקע רגיל מתחתיו. עיצוב אחיד בין שני המסכים הראשונים שהמשתמש רואה.
+- `lib/features/auth/login_screen.dart`, `lib/features/household/create_household_screen.dart`, `lib/features/home/home_screen.dart` — כולם משתפים עכשיו את אותו באנר עליון: אייקון בית + "Home Manager" ברקע ירוק מעוגל. הוסר כותרת כפולה מה-AppBar של מסך הבית (היה מוצג פעמיים).
+
+### Shopping Completion + History (שלב 9)
+- `lib/models/shopping_history_model.dart` — רשומת סיכום קנייה (תאריך, סה"כ מוצרים, כמה נקנו, כמה לא נמצאו, שמות המוצרים שלא נמצאו).
+- `lib/services/firebase/shopping_service.dart` — `finishShopping()` מבצע הכל ב-**WriteBatch אחד אטומי**: מוחק פריטים שנקנו, מטפל בפריטים שלא נמצאו (מחזיר ל"ממתין" את מה שסומן להעברה, מוחק את השאר), ושומר רשומת היסטוריה. גם `watchHistory()` (stream, ordered by date).
+- `lib/features/shopping/shopping_summary_screen.dart` — מסך סיכום: סטטיסטיקות (סה"כ/נקנו/לא נמצאו), רשימת "לא נמצאו" עם checkbox לכל פריט (ברירת מחדל: מסומן = יועבר לקנייה הבאה) + כפתורי "בחר הכל"/"נקה הכל", ורשימת "נקנו" למידע.
+- `lib/features/shopping/shopping_history_screen.dart` — רשימת קניות עבר, פורמט "תאריך - X מוצרים - Y נקנו - Z לא נמצאו".
+- `lib/features/shopping/shopping_list_screen.dart` עודכן — 2 כפתורים חדשים ב-AppBar: היסטוריה (🕐) וסיום קנייה (✓✓, מושבת אם אין פריטים שנקנו/לא נמצאו).
 
 ### Home Dashboard - עיצוב מחדש
 - `lib/features/home/home_module.dart` — מודל `HomeModule` (title, subtitle, icon, isAvailable, screenBuilder).
@@ -93,9 +100,8 @@
 ---
 
 ## מה עדיין לא עובד / לא קיים
-- אין עדיין "קנייה פעילה" (Active Shopping) - שלב 7. כרגע `addedDuringShopping` תמיד false.
-- אין Push Notifications - שלב 8.
-- אין Shopping Completion / History - שלבים 9-10.
+- טרם נבדק בפועל אצל המשתמש (סיום קנייה, בחירת פריטים להעברה, היסטוריה).
+- אין עדיין "קנייה פעילה" (Active Shopping) ואין Push Notifications - שלב 7+8 יבואו יחד.
 - Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web).
 
 ## בעיה ידועה - Cache ישן בדפדפן על מכשירים נוספים
@@ -122,6 +128,8 @@
 10. **רשימה אחת בלבד ל-household ב-MVP** — `household.shoppingListId` נשמר ישירות על מסמך ה-household (ולא כשאילתה נפרדת), כדי לבטל כל race condition/צורך ביצירה כפולה. נוצרת אוטומטית בזמן `createHousehold`, ובאופן retroactive (lazy) עבור households ישנים יותר שנוצרו לפני השלב הזה.
 11. **addedDuringShopping נכלל כבר עכשיו** — למרות ש"קנייה פעילה" היא שלב 7, השדה כבר קיים במודל (ברירת מחדל false) כדי להימנע ממיגרציית נתונים עתידית על מסמכים קיימים.
 12. **מערכת מודולים לדף הבית (HomeModule)** — נבחרה כדי לממש את הדרישה "בעתיד להוסיף מודולים בלי לשכתב את האפליקציה" ברמת ה-UI, במקביל לעיקרון שכבר יושם ב-branding. כל מודול עתידי (ביטוחים, רישיונות, חוגים...) הוא רשומה אחת ב-`home_modules.dart`; אם `isAvailable: false` הוא מוצג "בקרוב" בלי מימוש בפועל. זה מאפשר "להראות" את חזון המוצר המלא במסך הבית מהיום הראשון.
+13. **שלבים 7+8 (Active Shopping + Push Notifications) ממוזגים** — שלב 9 (Shopping Completion) נבנה לפני 7/8 כי הוא עומד בפני עצמו ונותן ערך מיידי. "קנייה פעילה" בלי התראות היא רק דגל טכני חסר תועלת מורגשת - נבנה את שניהם יחד כדי שהערך (התראה בזמן אמת) יהיה מורגש מהרגע הראשון.
+14. **finishShopping כ-WriteBatch אטומי** — כל הפעולות של סיום קנייה (מחיקת פריטים שנקנו, טיפול בלא-נמצאו, שמירת היסטוריה) מתבצעות ב-batch אחד, כדי שלא יהיה מצב ביניים לא עקבי (למשל: פריטים נמחקו אבל ההיסטוריה לא נשמרה) אם החיבור נופל באמצע.
 
 ---
 

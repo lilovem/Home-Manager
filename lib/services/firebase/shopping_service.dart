@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/household_model.dart';
+import '../../models/shopping_history_model.dart';
 import '../../models/shopping_item_model.dart';
 import '../../models/shopping_list_model.dart';
 
@@ -20,6 +21,9 @@ class ShoppingService {
     String listId,
   ) =>
       _listsCollection(householdId).doc(listId).collection('items');
+
+  CollectionReference<Map<String, dynamic>> _historyCollection(String householdId) =>
+      _householdDoc(householdId).collection('shoppingHistory');
 
   /// מחזיר את מזהה רשימת הקניות של ה-household.
   /// אם עדיין אין לו רשימה (households שנוצרו לפני שלב זה), יוצר
@@ -107,6 +111,56 @@ class ShoppingService {
     required String itemId,
   }) {
     return _itemsCollection(householdId, listId).doc(itemId).delete();
+  }
+
+  /// מסיים קנייה: מוחק את כל הפריטים שנקנו, מטפל בפריטים שלא נמצאו
+  /// (מעביר חזרה ל"ממתין" את אלה שנבחרו, מוחק את השאר), ושומר
+  /// רשומת סיכום בהיסטוריה - הכל בפעולה אטומית אחת (WriteBatch).
+  Future<void> finishShopping({
+    required String householdId,
+    required String listId,
+    required List<ShoppingItem> purchasedItems,
+    required List<ShoppingItem> notFoundItemsToCarryOver,
+    required List<ShoppingItem> notFoundItemsToDrop,
+    required int totalItemsCount,
+  }) async {
+    final batch = _firestore.batch();
+    final itemsRef = _itemsCollection(householdId, listId);
+
+    for (final item in purchasedItems) {
+      batch.delete(itemsRef.doc(item.id));
+    }
+    for (final item in notFoundItemsToDrop) {
+      batch.delete(itemsRef.doc(item.id));
+    }
+    for (final item in notFoundItemsToCarryOver) {
+      batch.update(itemsRef.doc(item.id), ShoppingItem.statusUpdate(ItemStatus.pending));
+    }
+
+    final historyRef = _historyCollection(householdId).doc();
+    batch.set(
+      historyRef,
+      ShoppingHistoryEntry.toFirestoreForCreate(
+        totalItems: totalItemsCount,
+        purchasedCount: purchasedItems.length,
+        notFoundCount: notFoundItemsToCarryOver.length + notFoundItemsToDrop.length,
+        notFoundItemNames: [
+          ...notFoundItemsToCarryOver.map((e) => e.name),
+          ...notFoundItemsToDrop.map((e) => e.name),
+        ],
+      ),
+    );
+
+    await batch.commit();
+  }
+
+  Stream<List<ShoppingHistoryEntry>> watchHistory(String householdId) {
+    return _historyCollection(householdId)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ShoppingHistoryEntry.fromFirestore(doc.id, doc.data()))
+            .toList());
   }
 }
 
