@@ -14,21 +14,29 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.home_rounded, size: 72, color: Colors.white),
-            const SizedBox(height: 16),
-            Text(
-              AppConfig.appName,
-              style: AppTextStyles.heading1.copyWith(
-                color: Colors.white,
-                fontSize: 26,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.primaryDark],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.home_rounded, size: 72, color: Colors.white),
+              const SizedBox(height: 16),
+              Text(
+                AppConfig.appName,
+                style: AppTextStyles.heading1.copyWith(
+                  color: Colors.white,
+                  fontSize: 26,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

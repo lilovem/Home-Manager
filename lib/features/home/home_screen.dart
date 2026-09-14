@@ -176,7 +176,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primary, AppColors.primaryDark],
+                  ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Column(
@@ -438,6 +442,15 @@ class _ModuleTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.divider, width: 1),
+            boxShadow: available
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
           ),
           padding: const EdgeInsets.all(16),
           child: Opacity(
@@ -452,7 +465,14 @@ class _ModuleTile extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: available ? AppColors.primaryLight : AppColors.surface,
+                        gradient: available
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [AppColors.primaryLight, Color(0xFFCDEBF7)],
+                              )
+                            : null,
+                        color: available ? null : AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
