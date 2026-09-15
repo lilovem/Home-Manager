@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 /// סגנונות טקסט מרכזיים.
@@ -37,5 +38,17 @@ class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: Colors.white,
   );
+
+  /// סגנון מעודן לטאגליין ("ניהול הבית שלכם") - גופן סריף עברי
+  /// אלגנטי (Frank Ruhl Libre). הערה: אין גופני "כתב-יד" אמיתיים
+  /// לעברית ב-Google Fonts כרגע - זו הקירוב הכי אלגנטי הזמין.
+  static TextStyle tagline({Color color = AppColors.textSecondary, double fontSize = 13}) {
+    return GoogleFonts.frankRuhlLibre(
+      fontSize: fontSize,
+      color: color,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0.2,
+    );
+  }
 }
 

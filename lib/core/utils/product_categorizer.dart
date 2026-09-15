@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// קטגוריות מוצרים אפשריות לרשימת קניות של הבית.
 enum ProductCategory {
   produce,
@@ -53,6 +55,22 @@ class ProductCategorizer {
     ProductCategory.toiletries,
     ProductCategory.other,
   ];
+
+  /// אייקון קטן לכל קטגוריה, מוצג ליד שם המוצר ברשימה.
+  static const Map<ProductCategory, IconData> categoryIcons = {
+    ProductCategory.produce: Icons.eco_outlined,
+    ProductCategory.dairy: Icons.icecream_outlined,
+    ProductCategory.meatFishPoultry: Icons.set_meal_outlined,
+    ProductCategory.bakery: Icons.bakery_dining_outlined,
+    ProductCategory.frozen: Icons.ac_unit,
+    ProductCategory.pantry: Icons.rice_bowl_outlined,
+    ProductCategory.spicesAndSauces: Icons.liquor_outlined,
+    ProductCategory.beverages: Icons.local_drink_outlined,
+    ProductCategory.snacks: Icons.cookie_outlined,
+    ProductCategory.cleaning: Icons.cleaning_services_outlined,
+    ProductCategory.toiletries: Icons.soap_outlined,
+    ProductCategory.other: Icons.shopping_bag_outlined,
+  };
 
   static const Map<ProductCategory, List<String>> _keywords = {
     ProductCategory.dairy: [

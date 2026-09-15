@@ -32,6 +32,29 @@ class ShoppingService {
   ) =>
       _listsCollection(householdId).doc(listId).collection('sessions');
 
+  /// מאזין לכל רשימות הקניות של household, מהחדשה לישנה.
+  Stream<List<ShoppingList>> watchLists(String householdId) {
+    return _listsCollection(householdId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ShoppingList.fromFirestore(doc.id, doc.data()))
+            .toList());
+  }
+
+  /// יוצר רשימת קניות חדשה, עם שם ותאריך אופציונלי.
+  Future<ShoppingList> createList({
+    required String householdId,
+    required String name,
+    DateTime? date,
+  }) async {
+    final docRef = await _listsCollection(householdId).add(
+      ShoppingList.toFirestoreForCreate(name, date: date),
+    );
+    final snapshot = await docRef.get();
+    return ShoppingList.fromFirestore(snapshot.id, snapshot.data()!);
+  }
+
   /// מאזין למידע של הרשימה עצמה (כולל activeSessionId) בזמן אמת -
   /// כך שכל חברי ה-household רואים מיידית אם קנייה פעילה החלה/הסתיימה.
   Stream<ShoppingList> watchListMeta(String householdId, String listId) {

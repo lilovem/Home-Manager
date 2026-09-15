@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/widgets/error_view.dart';
-import '../features/home/home_screen.dart';
+import '../features/home/main_shell_screen.dart';
 import '../features/household/create_household_screen.dart';
 import '../features/shopping/shopping_notifications_listener.dart';
 import '../features/splash/splash_screen.dart';
@@ -56,7 +56,7 @@ class HouseholdGate extends ConsumerWidget {
 
         return ShoppingNotificationsListener(
           householdId: current.id,
-          child: const HomeScreen(),
+          child: const MainShellScreen(),
         );
       },
     );

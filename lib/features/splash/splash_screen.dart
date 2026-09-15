@@ -27,13 +27,16 @@ class SplashScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.home_rounded, size: 72, color: Colors.white),
-              const SizedBox(height: 16),
               Text(
                 AppConfig.appName,
                 style: AppTextStyles.heading1.copyWith(
                   color: Colors.white,
                   fontSize: 26,
                 ),
+              ),
+              Text(
+                AppConfig.appTagline,
+                style: AppTextStyles.tagline(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),

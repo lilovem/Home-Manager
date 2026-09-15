@@ -129,7 +129,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       children: [
                         const Icon(Icons.home_rounded, size: 56, color: Colors.white),
-                        const SizedBox(height: 12),
                         const Text(
                           AppStrings.appName,
                           textAlign: TextAlign.center,
@@ -138,6 +137,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                        ),
+                        Text(
+                          AppStrings.appTagline,
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.tagline(color: Colors.white70, fontSize: 14),
                         ),
                       ],
                     ),

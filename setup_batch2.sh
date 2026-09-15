@@ -1,3 +1,32 @@
+bash setup_batch2.sh#!/bin/bash
+set -e
+cat > 'lib/core/utils/date_formatter.dart' << 'HMEOF'
+/// עיצוב תאריכים פשוט, בלי תלות באתחול locale של intl.
+class DateFormatter {
+  DateFormatter._();
+
+  /// למשל: "09/09 14:30"
+  static String short(DateTime? date) {
+    if (date == null) return '';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final h = date.hour.toString().padLeft(2, '0');
+    final min = date.minute.toString().padLeft(2, '0');
+    return '$d/$m $h:$min';
+  }
+
+  /// למשל: "09/09/2026" - בלי שעה, לתאריכים שהשעה בהם לא רלוונטית
+  /// (כמו התאריך המתוכנן של רשימת קניות).
+  static String dateOnly(DateTime? date) {
+    if (date == null) return '';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
+  }
+}
+
+HMEOF
+cat > 'lib/features/home/home_screen.dart' << 'HMEOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/config/app_colors.dart';
@@ -47,7 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showInviteFriendSheet(BuildContext context, WidgetRef ref) {
-    const message = 'בוא תנסה את Home Manager - אפליקציה לניהול משק הבית! 🏠\n'
+    final message = 'בוא תנסה את ${AppStrings.appName} - אפליקציה לניהול משק הבית! 🏠\n'
         '${AppConfig.publicUrl}';
 
     showModalBottomSheet(
@@ -171,29 +200,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [AppColors.primary, AppColors.primaryDark],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Column(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.home_rounded, size: 44, color: Colors.white),
-                    SizedBox(height: 8),
+                    const Icon(Icons.home_rounded, size: 40, color: Colors.white),
+                    const SizedBox(height: 2),
                     Text(
                       AppStrings.appName,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 22,
+                      style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      AppStrings.appTagline,
+                      style: AppTextStyles.bodySecondary.copyWith(
+                        color: Colors.white70,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -201,7 +238,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               child: _HouseholdCard(
                 name: household.name,
                 membersCount: household.memberIds.length,
@@ -238,13 +275,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => ref.read(browserNotificationServiceProvider).show(
-                          title: AppStrings.testNotificationTitle,
-                          body: AppStrings.testNotificationBody,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => ref.read(browserNotificationServiceProvider).show(
+                              title: AppStrings.testNotificationTitle,
+                              body: AppStrings.testNotificationBody,
+                            ),
+                        icon: const Icon(Icons.notifications_active_outlined, size: 18),
+                        label: const Text(AppStrings.notificationsLabel),
+                      ),
+                      Tooltip(
+                        message: AppStrings.notificationsInfoTooltip,
+                        triggerMode: TooltipTriggerMode.tap,
+                        showDuration: const Duration(seconds: 4),
+                        child: const Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                    icon: const Icon(Icons.notifications_active_outlined, size: 18),
-                    label: const Text(AppStrings.testNotificationButton),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -336,28 +391,28 @@ class _HouseholdCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 44,
+            height: 44,
             decoration: const BoxDecoration(
               color: AppColors.primaryLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.home_rounded, color: AppColors.primary, size: 28),
+            child: const Icon(Icons.home_rounded, color: AppColors.primary, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -521,3 +576,268 @@ class _ModuleTile extends StatelessWidget {
   }
 }
 
+HMEOF
+cat > 'lib/features/shopping/existing_shopping_lists_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../core/utils/date_formatter.dart';
+import '../../core/widgets/empty_state.dart';
+import '../../core/widgets/error_view.dart';
+import '../../core/widgets/loading_indicator.dart';
+import '../../providers/shopping_provider.dart';
+import 'shopping_list_screen.dart';
+
+/// מסך "קנייה נוכחית" - רשימת כל הקניות הקיימות של ה-household,
+/// לבחירה. יצירת קנייה חדשה נעשית דרך המסך השני (NewShoppingCalendarScreen),
+/// לא כאן.
+class ExistingShoppingListsScreen extends ConsumerWidget {
+  final String householdId;
+
+  const ExistingShoppingListsScreen({super.key, required this.householdId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listsAsync = ref.watch(shoppingListsProvider(householdId));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.currentShoppingOption)),
+      body: listsAsync.when(
+        loading: () => const LoadingIndicator(),
+        error: (e, st) => const ErrorView(),
+        data: (lists) {
+          // מציגים רק רשימות שיש בהן בפועל לפחות מוצר אחד - רשימות
+          // ריקות (למשל שאריות ישנות מבדיקות) לא מבלבלות את הבחירה.
+          final nonEmptyLists = lists.where((list) {
+            final itemsAsync = ref.watch(
+              shoppingItemsProvider((householdId: householdId, listId: list.id)),
+            );
+            return (itemsAsync.value ?? const []).isNotEmpty;
+          }).toList();
+
+          if (nonEmptyLists.isEmpty) {
+            return const EmptyState(
+              message: AppStrings.noListsYet,
+              icon: Icons.shopping_cart_outlined,
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: nonEmptyLists.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final list = nonEmptyLists[index];
+              final isActive = list.activeSessionId != null;
+
+              return ListTile(
+                leading: Icon(
+                  Icons.shopping_cart,
+                  color: isActive ? AppColors.primary : AppColors.textSecondary,
+                ),
+                title: Text(list.name),
+                subtitle: list.date != null
+                    ? Text(DateFormatter.dateOnly(list.date), style: AppTextStyles.bodySecondary)
+                    : null,
+                trailing: isActive
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          AppStrings.activeSessionBadge,
+                          style: TextStyle(color: AppColors.primary, fontSize: 11),
+                        ),
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ShoppingListScreen(householdId: householdId, listId: list.id),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/shopping/new_shopping_calendar_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../core/errors/failures.dart';
+import '../../core/utils/date_formatter.dart';
+import '../../providers/shopping_provider.dart';
+import 'shopping_list_screen.dart';
+
+/// מסך "קנייה חדשה" - לוח שנה אמיתי של החודש הנוכחי, בחירת תאריך
+/// ואישור יוצרים רשימת קניות חדשה לתאריך שנבחר.
+class NewShoppingCalendarScreen extends ConsumerStatefulWidget {
+  final String householdId;
+
+  const NewShoppingCalendarScreen({super.key, required this.householdId});
+
+  @override
+  ConsumerState<NewShoppingCalendarScreen> createState() =>
+      _NewShoppingCalendarScreenState();
+}
+
+class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarScreen> {
+  late final DateTime _month;
+  DateTime? _selectedDate;
+  bool _isLoading = false;
+
+  static const List<String> _weekdayLabels = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month, 1);
+  }
+
+  Future<void> _confirm() async {
+    final date = _selectedDate;
+    if (date == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final newList = await ref.read(shoppingRepositoryProvider).createList(
+            householdId: widget.householdId,
+            name: DateFormatter.dateOnly(date),
+            date: date,
+          );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ShoppingListScreen(
+              householdId: widget.householdId,
+              listId: newList.id,
+            ),
+          ),
+        );
+      }
+    } on Failure catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
+  Widget build(BuildContext context) {
+    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
+    // יישור כך שראשון (Sunday) יהיה העמודה הראשונה: DateTime.weekday
+    // מחזיר שני=1...ראשון=7, אז %7 הופך את ראשון ל-0.
+    final leadingEmptyCells = _month.weekday % 7;
+    final monthLabel = '${_month.month}/${_month.year}';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.newShoppingOption)),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                AppStrings.selectDateForNewList,
+                style: AppTextStyles.bodySecondary,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(monthLabel, style: AppTextStyles.heading2),
+              const SizedBox(height: 16),
+              Row(
+                children: _weekdayLabels
+                    .map((label) => Expanded(
+                          child: Center(
+                            child: Text(
+                              label,
+                              style: AppTextStyles.bodySecondary.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 6,
+                  ),
+                  itemCount: leadingEmptyCells + daysInMonth,
+                  itemBuilder: (context, index) {
+                    if (index < leadingEmptyCells) {
+                      return const SizedBox.shrink();
+                    }
+                    final day = index - leadingEmptyCells + 1;
+                    final date = DateTime(_month.year, _month.month, day);
+                    final isSelected =
+                        _selectedDate != null && _isSameDay(_selectedDate!, date);
+                    final isToday = _isSameDay(date, DateTime.now());
+
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => setState(() => _selectedDate = date),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : AppColors.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: isToday && !isSelected
+                              ? Border.all(color: AppColors.primary, width: 1.4)
+                              : null,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$day',
+                          style: AppTextStyles.body.copyWith(
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _selectedDate == null || _isLoading ? null : _confirm,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(AppStrings.confirmDateButton, style: AppTextStyles.button),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+echo 'DONE - icon size, non-empty list filter, date-only display!'

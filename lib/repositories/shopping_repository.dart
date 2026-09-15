@@ -15,6 +15,22 @@ class ShoppingRepository {
     return _service.getOrCreateDefaultListId(household);
   }
 
+  Stream<List<ShoppingList>> watchLists(String householdId) {
+    return _service.watchLists(householdId);
+  }
+
+  Future<ShoppingList> createList({
+    required String householdId,
+    required String name,
+    DateTime? date,
+  }) async {
+    try {
+      return await _service.createList(householdId: householdId, name: name, date: date);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה ביצירת הרשימה');
+    }
+  }
+
   Stream<ShoppingList> watchListMeta(String householdId, String listId) {
     return _service.watchListMeta(householdId, listId);
   }

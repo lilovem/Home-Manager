@@ -28,7 +28,7 @@ class InvitePartnerScreen extends ConsumerWidget {
   }
 
   String get _inviteMessage =>
-      'הצטרפ/י אליי ב-Home Manager! 🏠\n'
+      'הצטרפ/י אליי ב-${AppStrings.appName}! 🏠\n'
       'פתח/י את הקישור, הירשמ/י, ואז לחצ/י על "יש לי קוד הזמנה" עם הקוד:\n'
       '$householdId\n\n'
       '${AppConfig.publicUrl}';

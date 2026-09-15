@@ -25,14 +25,16 @@ class ShoppingNotificationsListener extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final listId = ref.watch(shoppingListIdProvider).value;
+    final activeListId = ref.watch(activeSessionListIdProvider(householdId));
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
     final notificationService = ref.watch(browserNotificationServiceProvider);
 
-    if (listId != null) {
-      // מוצר חדש שנוסף על ידי מישהו אחר בזמן קנייה פעילה.
+    // מוצר חדש שנוסף על ידי מישהו אחר בזמן קנייה פעילה - רק אם יש
+    // כרגע רשימה כלשהי עם session פעיל (activeListId מחושב אוטומטית
+    // מבין כל הרשימות של ה-household, ראה activeSessionListIdProvider).
+    if (activeListId != null) {
       ref.listen(
-        shoppingItemsProvider((householdId: householdId, listId: listId)),
+        shoppingItemsProvider((householdId: householdId, listId: activeListId)),
         (previous, next) {
           if (previous == null) return;
           final prevIds = (previous.value ?? []).map((e) => e.id).toSet();
@@ -48,27 +50,28 @@ class ShoppingNotificationsListener extends ConsumerWidget {
           }
         },
       );
-
-      // קנייה שהסתיימה על ידי מישהו אחר.
-      ref.listen(
-        shoppingHistoryProvider(householdId),
-        (previous, next) {
-          if (previous == null) return;
-          final prevIds = (previous.value ?? []).map((e) => e.id).toSet();
-          for (final entry in next.value ?? []) {
-            if (!prevIds.contains(entry.id) && entry.completedBy != myUid) {
-              final body = entry.notFoundItemNames.isEmpty
-                  ? null
-                  : '${AppStrings.notFoundNotificationBody}: ${entry.notFoundItemNames.join(", ")}';
-              notificationService.show(
-                title: AppStrings.shoppingDoneNotificationTitle,
-                body: body,
-              );
-            }
-          }
-        },
-      );
     }
+
+    // קנייה שהסתיימה על ידי מישהו אחר - לא תלוי ברשימה ספציפית,
+    // תמיד מאזין להיסטוריה הכללית של ה-household.
+    ref.listen(
+      shoppingHistoryProvider(householdId),
+      (previous, next) {
+        if (previous == null) return;
+        final prevIds = (previous.value ?? []).map((e) => e.id).toSet();
+        for (final entry in next.value ?? []) {
+          if (!prevIds.contains(entry.id) && entry.completedBy != myUid) {
+            final body = entry.notFoundItemNames.isEmpty
+                ? null
+                : '${AppStrings.notFoundNotificationBody}: ${entry.notFoundItemNames.join(", ")}';
+            notificationService.show(
+              title: AppStrings.shoppingDoneNotificationTitle,
+              body: body,
+            );
+          }
+        }
+      },
+    );
 
     return child;
   }

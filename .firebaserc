@@ -1,0 +1,16 @@
+{
+  "projects": {},
+  "targets": {
+    "home-manager-9407a": {
+      "hosting": {
+        "default": [
+          "home-manager-9407a"
+        ],
+        "leehome": [
+          "leehome-app"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

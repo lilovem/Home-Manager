@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'lib/app/config/app_config.dart' << 'HMEOF'
 /// כל ההגדרות הכלליות של האפליקציה מרוכזות כאן.
 ///
 /// זהו המקום היחיד ששם המותג, הגדרות ברירת המחדל וכדומה מוגדרים בו.
@@ -27,3 +30,5 @@ class AppConfig {
   static const String publicUrl = 'https://leehome-app.web.app';
 }
 
+HMEOF
+echo 'DONE - share link now points to leehome-app.web.app!'

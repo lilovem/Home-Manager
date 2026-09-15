@@ -14,12 +14,50 @@ final shoppingRepositoryProvider = Provider<ShoppingRepository>((ref) {
   return ShoppingRepository(ref.watch(shoppingServiceProvider));
 });
 
-/// מזהה רשימת הקניות של ה-household הנוכחי - נוצר אוטומטית אם עדיין
-/// לא קיים (households שנוצרו לפני שהרשימה נתמכה).
-final shoppingListIdProvider = FutureProvider<String?>((ref) async {
-  final household = ref.watch(myHouseholdProvider).value;
-  if (household == null) return null;
-  return ref.watch(shoppingRepositoryProvider).getOrCreateDefaultListId(household);
+/// כל רשימות הקניות של household מסוים.
+final shoppingListsProvider =
+    StreamProvider.family<List<ShoppingList>, String>((ref, householdId) {
+  return ref.watch(shoppingRepositoryProvider).watchLists(householdId);
+});
+
+/// מזהה הרשימה שיש לה כרגע session פעיל (אם יש) - בין כל הרשימות
+/// של ה-household. משמש להאזנת התראות גלובלית (ShoppingNotificationsListener)
+/// בלי לדעת מראש איזו רשימה ספציפית פעילה.
+final activeSessionListIdProvider =
+    Provider.family<String?, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
+  for (final list in lists) {
+    if (list.activeSessionId != null) return list.id;
+  }
+  return null;
+});
+
+/// סך כל הפריטים ה"ממתינים" (עוד לא נקנו) בכל רשימות ה-household
+/// יחד - משמש לתג המספר בכרטיסיית "קניות" ב-Dashboard.
+final totalPendingItemsCountProvider = Provider.family<int, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
+  var count = 0;
+  for (final list in lists) {
+    final items =
+        ref.watch(shoppingItemsProvider((householdId: householdId, listId: list.id))).value ??
+            const [];
+    count += items.where((i) => i.status == ItemStatus.pending).length;
+  }
+  return count;
+});
+
+/// רשימות קניות עם תאריך עתידי (או היום), ממוינות מהקרוב לרחוק -
+/// משמש לכרטיסיית "לוח שנה" ב-Dashboard (מבוסס על תאריכים שכבר
+/// קיימים במערכת, לא על מודול "לוח שנה" עצמאי).
+final upcomingShoppingDatesProvider =
+    Provider.family<List<ShoppingList>, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
+  final today = DateTime.now();
+  final todayStart = DateTime(today.year, today.month, today.day);
+
+  final upcoming = lists.where((l) => l.date != null && !l.date!.isBefore(todayStart)).toList();
+  upcoming.sort((a, b) => a.date!.compareTo(b.date!));
+  return upcoming;
 });
 
 /// פרמטרים ל-watch של פריטי רשימה מסוימת.

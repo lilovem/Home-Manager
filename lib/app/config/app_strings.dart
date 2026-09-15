@@ -7,7 +7,8 @@ class AppStrings {
   AppStrings._();
 
   // כללי
-  static const String appName = 'Home Manager';
+  static const String appName = 'LeeHome';
+  static const String appTagline = 'ניהול הבית שלכם';
   static const String loading = 'טוען...';
   static const String errorGeneric = 'משהו השתבש. נסו שוב.';
   static const String retry = 'נסה שוב';
@@ -45,7 +46,7 @@ class AppStrings {
   static const String shareThisCode = 'שתפו את הקוד הזה עם בן/בת הזוג';
   static const String shareViaWhatsApp = 'שתף בוואטסאפ';
   static const String shareViaEmail = 'שלח במייל';
-  static const String inviteMessageTitle = 'הזמנה ל-Home Manager';
+  static const String inviteMessageTitle = 'הזמנה ל-LeeHome';
   static const String inviteFriendToApp = 'הזמן חבר לאפליקציה';
   static const String inviteFriendBody = 'שתפו איתם את הקישור, והם יוכלו להירשם וליצור משק בית משלהם';
   static const String membersCount = 'חברים במשק הבית';
@@ -98,6 +99,36 @@ class AppStrings {
   static const String confirmFinishShopping = 'אישור וסיום';
   static const String nothingToFinish = 'אין עדיין מוצרים שנקנו או שלא נמצאו';
   static const String itemsCountLabel = 'מוצרים';
+  static const String myShoppingLists = 'רשימות הקניות שלי';
+  static const String newShoppingList = 'רשימת קניות חדשה';
+  static const String listNameLabel = 'שם הרשימה';
+  static const String listDateLabel = 'תאריך (אופציונלי)';
+  static const String chooseDate = 'בחר תאריך';
+  static const String createList = 'צור רשימה';
+  static const String noListsYet = 'עדיין אין רשימות קניות';
+  static const String activeSessionBadge = 'פעילה';
+  static const String currentShoppingOption = 'קנייה נוכחית';
+  static const String currentShoppingSubtitle = 'בחרו מתוך קניות קיימות';
+  static const String newShoppingOption = 'קנייה חדשה';
+  static const String newShoppingSubtitle = 'בחרו תאריך והתחילו רשימה חדשה';
+  static const String selectDateForNewList = 'בחרו תאריך לקנייה החדשה';
+  static const String confirmDateButton = 'אישור';
+  static const String greetingPrefix = 'שלום, משפחת';
+  static const String greetingSubtitle = 'הנה מה שקורה בבית היום';
+  static const String comingSoonSectionTitle = 'בקרוב באפליקציה';
+  static const String calendarCardTitle = 'לוח שנה';
+  static const String upcomingEventsTitle = 'האירועים הקרובים';
+  static const String noUpcomingEvents = 'אין עדיין קניות מתוכננות בחודש הזה';
+  static const String tabHome = 'בית';
+  static const String tabShopping = 'קניות';
+  static const String tabCalendar = 'לוח שנה';
+  static const String tabTasks = 'משימות';
+  static const String tabMore = 'עוד';
+  static const String confirmSignOutTitle = 'להתנתק?';
+  static const String confirmSignOutMessage = 'תצטרך להתחבר שוב כדי להיכנס לאפליקציה.';
+  static const String tasksComingSoonBody = 'ניהול משימות ותזכורות יומיומיות למשק הבית - בקרוב.';
+  static const String noEventOnThisDay = 'אין כלום מתוכנן ביום הזה';
+  static const String selectedDayDetailsTitle = 'מתוכנן ליום זה';
   static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';
   static const String droppedSectionTitle = 'לא נמצאו - לא הועברו';
   static const String activeShoppingBanner = 'קנייה פעילה';
@@ -113,5 +144,7 @@ class AppStrings {
   static const String testNotificationButton = 'שלח התראת בדיקה';
   static const String testNotificationTitle = 'התראת בדיקה';
   static const String testNotificationBody = 'אם אתה רואה את זה, ההתראות עובדות!';
+  static const String notificationsLabel = 'התראות';
+  static const String notificationsInfoTooltip = 'זה מאפשר קבלת התראות מהאפליקציה לטלפון';
 }
 

@@ -11,5 +11,14 @@ class DateFormatter {
     final min = date.minute.toString().padLeft(2, '0');
     return '$d/$m $h:$min';
   }
+
+  /// למשל: "09/09/2026" - בלי שעה, לתאריכים שהשעה בהם לא רלוונטית
+  /// (כמו התאריך המתוכנן של רשימת קניות).
+  static String dateOnly(DateTime? date) {
+    if (date == null) return '';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
+  }
 }
 
