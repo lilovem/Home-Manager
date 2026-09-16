@@ -33,9 +33,9 @@ class BillsService {
 
   /// שומר סכום+אמצעי תשלום, ותמיד מסמן את התקופה כ"שולם" (אין
   /// יותר מנגנון קבלות - השמירה עצמה היא אישור התשלום).
-  /// שומר סכום+אמצעי תשלום. מסמן "שולם" (paidManually) **רק אם**
-  /// הוזן סכום בפועל - שמירה בלי סכום (למשל רק כדי לשמור תזכורת)
-  /// לא אמורה לסמן וי ירוק.
+  /// שומר סכום+אמצעי תשלום+תזכורת. `markPaid` קובע במפורש את
+  /// סטטוס "שולם" - **לא** אוטומטי לפי נוכחות סכום; זה נשלט רק
+  /// ע"י כפתור "שולם" הייעודי בחלונית העריכה.
   Future<void> saveBillDetails({
     required String householdId,
     required BillCategory category,
@@ -43,6 +43,7 @@ class BillsService {
     required int periodStartMonth,
     double? amount,
     String? paymentMethod,
+    required bool markPaid,
   }) async {
     final id = _docId(category, year, periodStartMonth);
     final data = <String, dynamic>{
@@ -51,9 +52,9 @@ class BillsService {
       'periodStartMonth': periodStartMonth,
       if (amount != null) 'amount': amount,
       if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      'paidManually': markPaid,
     };
-    if (amount != null) {
-      data['paidManually'] = true;
+    if (markPaid) {
       data['paidAt'] = FieldValue.serverTimestamp();
     }
     await _billsCollection(householdId).doc(id).set(data, SetOptions(merge: true));
@@ -119,6 +120,24 @@ class BillsService {
 
   /// כמו watchAllReminders, אבל **בלי** לסנן reminderShown - משמש
   /// לתצוגה בלוח השנה (רוצים להראות תזכורות גם אחרי שכבר "צלצלו").
+  /// מוחק את **כל** רשומות התשלום של מים/ארנונה (כל הצורות - ביחד
+  /// ובנפרד, כל השנים) - קורה כשמאפסים את בחירת "ביחד/בנפרד",
+  /// כי מעבר בין המבנים "מאבד" גישה לרשומות הישנות (הן נשמרות תחת
+  /// שם קטגוריה שונה ב-Firestore) - עדיף למחוק בפועל מאשר להשאיר
+  /// נתונים יתומים שאף מסך לא יראה יותר.
+  Future<void> clearWaterTaxPayments(String householdId) async {
+    const categories = ['waterAndTax', 'water', 'tax'];
+    final batch = _firestore.batch();
+    for (final cat in categories) {
+      final snapshot =
+          await _billsCollection(householdId).where('category', isEqualTo: cat).get();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+    await batch.commit();
+  }
+
   Stream<List<BillPayment>> watchAllScheduledReminders(String householdId) {
     return _billsCollection(householdId)
         .where('reminderAt', isNull: false)

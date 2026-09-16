@@ -70,8 +70,9 @@ class _VaadBayitScreenState extends ConsumerState<VaadBayitScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),

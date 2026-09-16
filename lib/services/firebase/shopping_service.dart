@@ -32,6 +32,23 @@ class ShoppingService {
   ) =>
       _listsCollection(householdId).doc(listId).collection('sessions');
 
+  /// מוחק רשימת קניות שלמה - כולל כל הפריטים וכל ה-sessions שלה
+  /// (מחיקה רקורסיבית, כמו שכבר עשינו ל-household עצמו).
+  Future<void> deleteList({required String householdId, required String listId}) async {
+    final itemsSnapshot = await _itemsCollection(householdId, listId).get();
+    final sessionsSnapshot = await _sessionsCollection(householdId, listId).get();
+
+    final batch = _firestore.batch();
+    for (final doc in itemsSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    for (final doc in sessionsSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(_listsCollection(householdId).doc(listId));
+    await batch.commit();
+  }
+
   /// מאזין לכל רשימות הקניות של household, מהחדשה לישנה.
   Stream<List<ShoppingList>> watchLists(String householdId) {
     return _listsCollection(householdId)

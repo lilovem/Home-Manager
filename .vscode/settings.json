@@ -1,0 +1,31 @@
+{
+  "VsCodeTaskButtons.showCounter": false,
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "🚀 הרץ",
+      "task": "🚀 הרץ אפליקציה (Flutter Web)",
+      "alignment": "left"
+    },
+    {
+      "label": "💾 שמור",
+      "task": "💾 שמור ל-Git (add + commit + push)",
+      "alignment": "left"
+    },
+    {
+      "label": "📦 פרוס",
+      "task": "📦 בנה ופרוס לאתר (build + deploy hosting)",
+      "alignment": "left"
+    },
+    {
+      "label": "🔒 כללים",
+      "task": "🔒 פרוס כללי אבטחה (Firestore Rules)",
+      "alignment": "left"
+    },
+    {
+      "label": "📥 תלויות",
+      "task": "📥 התקן תלויות (flutter pub get)",
+      "alignment": "left"
+    }
+  ]
+}
+

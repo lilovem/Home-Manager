@@ -56,6 +56,22 @@ class BillsRepository {
     }
   }
 
+  Future<void> resetWaterTaxChoice(String householdId) async {
+    try {
+      await _settingsService.resetWaterTaxChoice(householdId);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה באיפוס ההגדרה');
+    }
+  }
+
+  Future<void> clearWaterTaxPayments(String householdId) async {
+    try {
+      await _billsService.clearWaterTaxPayments(householdId);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה במחיקת התשלומים');
+    }
+  }
+
   Stream<List<BillPayment>> watchBills({
     required String householdId,
     required BillCategory category,
@@ -71,6 +87,7 @@ class BillsRepository {
     required int periodStartMonth,
     double? amount,
     String? paymentMethod,
+    required bool markPaid,
   }) async {
     try {
       await _billsService.saveBillDetails(
@@ -80,6 +97,7 @@ class BillsRepository {
         periodStartMonth: periodStartMonth,
         amount: amount,
         paymentMethod: paymentMethod,
+        markPaid: markPaid,
       );
     } on FirebaseException {
       throw const UnknownFailure('שגיאה בשמירת הפרטים');

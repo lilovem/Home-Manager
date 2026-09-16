@@ -48,5 +48,12 @@ class BillSettingsService {
       'taxUrl': taxUrl,
     }, SetOptions(merge: true));
   }
+
+  /// מאפס את הבחירה המבנית (ביחד/בנפרד) - חוזר לשאול מחדש בכניסה
+  /// הבאה. הקישורים השמורים נשארים (לא נמחקים) למקרה שיבחרו שוב
+  /// אותה אפשרות.
+  Future<void> resetWaterTaxChoice(String householdId) {
+    return _doc(householdId).set({'waterAndTaxCombined': null}, SetOptions(merge: true));
+  }
 }
 

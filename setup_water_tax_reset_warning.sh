@@ -1,3 +1,7 @@
+bash setup_water_tax_reset_warning.sh#!/bin/bash
+set -e
+mkdir -p lib/services/firebase lib/repositories lib/features/bills
+cat > 'PROJECT_STATUS.md' << 'HMEOF'
 # PROJECT_STATUS.md — Home Manager
 
 > קובץ זה מתעדכן אחרי כל שלב משמעותי. אם פותחים שיחה/session חדש/ה,
@@ -411,20 +415,788 @@
 14. **finishShopping כ-WriteBatch אטומי** — כל הפעולות של סיום קנייה (מחיקת פריטים שנקנו, טיפול בלא-נמצאו, שמירת היסטוריה) מתבצעות ב-batch אחד, כדי שלא יהיה מצב ביניים לא עקבי (למשל: פריטים נמחקו אבל ההיסטוריה לא נשמרה) אם החיבור נופל באמצע.
 15. **Push Notifications: חלופה חינמית מבוססת-לקוח, לא Cloud Functions** — המשתמש בחר במפורש להימנע משדרוג Blaze (דורש כרטיס אשראי, גם אם ללא חיוב צפוי בפועל). במקום זאת, האפליקציה מזהה שינויים חדשים ב-Firestore streams שכבר קיימים (אותו מנגנון של real-time sync) ומציגה Web Notification ישירות מהדפדפן. מגבלה מודעת: עובד רק כשהאפליקציה פתוחה. הקוד בנוי עם conditional export (web/stub) כך שאפשר להוסיף בעתיד מימוש Cloud Functions + FCM אמיתי (למובייל, ולכיסוי "אפליקציה סגורה") בלי לשכתב את השכבות הקיימות - רק להוסיף שכבה נוספת.
 
-### תיקונים אחרונים ברשימות קניות
-- **תוקן:** תאריך כפול הוצג ב"קנייה נוכחית" כאשר שם הרשימה עצמו הוא התאריך (רשימות שנוצרו דרך לוח השנה) - עכשיו מוצג רק פעם אחת.
-- **הוסרו** תגי המספרים ("8", "1" וכו') מכרטיסיות "קניות" ו"לוח שנה" ב-Dashboard.
-- **נוסף:** אפשרות לבטל/למחוק קנייה שלמה - `ShoppingService.deleteList()` מוחק רקורסיבית פריטים+sessions+הרשימה עצמה. אייקון פח אשפה ב-AppBar של מסך הרשימה, עם דיאלוג אישור לפני מחיקה.
-
-### שינוי חשוב: כפתור "שולם" מפורש, לא אוטומטי לפי סכום
-- **הבעיה שתוקנה:** "שולם" (החוג הירוק) הוגדר קודם אוטומטית ברגע שהיה סכום שמור - אין הבחנה בין "הזנתי סכום/תזכורת" ל"באמת שילמתי".
-- **הפתרון:** נוסף כפתור מפורש **"סמן כשולם"** בחלונית העריכה (כל הקטגוריות - ועד בית/חשמל/מים/ארנונה). `BillsService.saveBillDetails()` קיבל בחזרה פרמטר `markPaid` (חובה, לא אופציונלי) שקובע את `paidManually` **במפורש**, לא לפי נוכחות סכום.
-- **התנהגות:** לחיצה על "סמן כשולם" מסמנת (state מקומי בלבד); לחיצה חוזרת מבטלת **מיד** עם הודעת SnackBar "בוטל הסימון כשולם". בשני המקרים, השינוי בפועל נשמר ל-Firestore **רק** בלחיצה על "שמור" הראשי - עקבי עם תזכורת וסכום.
-- **אימות עודכן:** השגיאה "חסר סכום" מוצגת עכשיו כשמנסים לשמור עם "סמן כשולם" פעיל אבל בלי סכום - לא קשור יותר לתזכורת.
-- **ניקוי תזכורת אוטומטי:** ברגע שמסמנים "שולם" (לוחצים על הכפתור), התזכורת המקומית (אם הייתה) מתאפסת מיד - אין טעם להזכיר תשלום ששולם. זה גם מוחק את אייקון השעון הירוק ברשימה לאחר השמירה.
-
 ---
 
 ## הוראות הפעלה (למשתמש)
 ראה קובץ `SETUP_INSTRUCTIONS.md` שנשלח יחד עם קבצי הפרויקט.
 
+HMEOF
+cat > 'lib/app/config/app_strings.dart' << 'HMEOF'
+/// טקסטים מרכזיים בממשק.
+///
+/// בשלב זה כל הטקסטים בעברית קשיחים כאן (לא בתוך ה-widgets עצמם).
+/// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
+/// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
+class AppStrings {
+  AppStrings._();
+
+  // כללי
+  static const String appName = 'LeeHome';
+  static const String appTagline = 'ניהול הבית שלכם';
+  static const String loading = 'טוען...';
+  static const String errorGeneric = 'משהו השתבש. נסו שוב.';
+  static const String retry = 'נסה שוב';
+
+  // Auth
+  static const String login = 'התחברות';
+  static const String register = 'הרשמה';
+  static const String email = 'אימייל';
+  static const String password = 'סיסמה';
+  static const String confirmPassword = 'אימות סיסמה';
+  static const String dontHaveAccount = 'אין לך חשבון? הירשם';
+  static const String alreadyHaveAccount = 'יש לך כבר חשבון? התחבר';
+  static const String createAccount = 'יצירת חשבון';
+  static const String signOut = 'התנתקות';
+  static const String passwordsDontMatch = 'הסיסמאות אינן תואמות';
+  static const String loggedInAs = 'מחובר/ת בתור';
+  static const String forgotPassword = 'שכחת סיסמה?';
+  static const String resetPasswordTitle = 'איפוס סיסמה';
+  static const String resetPasswordBody = 'נשלח אליך קישור לאיפוס הסיסמה בכתובת האימייל שלך';
+  static const String sendResetLink = 'שלח קישור';
+  static const String resetLinkSent = 'קישור לאיפוס סיסמה נשלח לאימייל שלך';
+
+  // Household
+  static const String createHousehold = 'יצירת משק בית';
+  static const String householdName = 'שם משק הבית';
+  static const String invitePartner = 'הזמנת בן/בת זוג';
+  static const String joinHousehold = 'הצטרפות למשק בית קיים';
+  static const String inviteCode = 'קוד הזמנה';
+  static const String noHouseholdYet = 'עדיין אין לך משק בית';
+  static const String createNewHousehold = 'צור משק בית חדש';
+  static const String haveInviteCode = 'יש לי קוד הזמנה';
+  static const String joinButton = 'הצטרף';
+  static const String copyCode = 'העתק קוד';
+  static const String codeCopied = 'הקוד הועתק!';
+  static const String shareThisCode = 'שתפו את הקוד הזה עם בן/בת הזוג';
+  static const String shareViaWhatsApp = 'שתף בוואטסאפ';
+  static const String shareViaEmail = 'שלח במייל';
+  static const String inviteMessageTitle = 'הזמנה ל-LeeHome';
+  static const String inviteFriendToApp = 'הזמן חבר לאפליקציה';
+  static const String inviteFriendBody = 'שתפו איתם את הקישור, והם יוכלו להירשם וליצור משק בית משלהם';
+  static const String membersCount = 'חברים במשק הבית';
+  static const String comingSoon = 'בקרוב';
+  static const String manageMembers = 'ניהול חברים';
+  static const String removeMember = 'הסר מהמשק בית';
+  static const String confirmRemoveMemberTitle = 'להסיר את החבר?';
+  static const String confirmRemoveMemberMessage = 'הם לא יראו יותר את הרשימה ואת פרטי משק הבית';
+  static const String ownerLabel = 'בעלים';
+  static const String memberLabel = 'חבר';
+  static const String addAnotherHousehold = 'הצטרפ/י או צור/י משק בית נוסף';
+  static const String myHouseholds = 'משקי הבית שלי';
+  static const String switchHousehold = 'החלף משק בית';
+  static const String deleteHousehold = 'מחק משק בית';
+  static const String confirmDeleteHouseholdTitle = 'למחוק את משק הבית?';
+  static const String confirmDeleteHouseholdMessage =
+      'פעולה זו תמחק לצמיתות את הרשימה, ההיסטוריה וכל החברים. לא ניתן לבטל.';
+
+  // Shopping
+  static const String shoppingList = 'רשימת קניות';
+  static const String addProduct = 'הוספת מוצר';
+  static const String editProduct = 'עריכת מוצר';
+  static const String productName = 'שם המוצר';
+  static const String quantity = 'כמות';
+  static const String unit = 'יחידת מידה (אופציונלי)';
+  static const String noteLabel = 'הערה (אופציונלי)';
+  static const String noItemsYet = 'אין עדיין מוצרים ברשימה';
+  static const String startShopping = 'התחל קנייה';
+  static const String finishShopping = 'סיום קנייה';
+  static const String save = 'שמירה';
+  static const String cancel = 'ביטול';
+  static const String delete = 'מחיקה';
+  static const String edit = 'עריכה';
+  static const String markPurchased = 'סמן כנקנה';
+  static const String markNotFound = 'סמן כלא נמצא';
+  static const String backToPending = 'החזר לרשימה';
+  static const String addedByLabel = 'נוסף ע״י';
+  static const String confirmDeleteTitle = 'למחוק מוצר?';
+  static const String confirmDeleteMessage = 'הפעולה לא ניתנת לביטול';
+  static const String statusNotFound = 'לא נמצא';
+  static const String statusPurchased = 'נקנה';
+  static const String shoppingSummary = 'סיכום קנייה';
+  static const String shoppingHistory = 'היסטוריית קניות';
+  static const String noHistoryYet = 'אין עדיין היסטוריית קניות';
+  static const String purchasedItemsLabel = 'נקנו';
+  static const String notFoundItemsLabel = 'לא נמצאו';
+  static const String carryOverHint = 'סמנו אילו מוצרים להעביר לקנייה הבאה';
+  static const String selectAll = 'בחר הכל';
+  static const String clearAll = 'נקה הכל';
+  static const String confirmFinishShopping = 'אישור וסיום';
+  static const String nothingToFinish = 'אין עדיין מוצרים שנקנו או שלא נמצאו';
+  static const String itemsCountLabel = 'מוצרים';
+  static const String myShoppingLists = 'רשימות הקניות שלי';
+  static const String newShoppingList = 'רשימת קניות חדשה';
+  static const String listNameLabel = 'שם הרשימה';
+  static const String listDateLabel = 'תאריך (אופציונלי)';
+  static const String chooseDate = 'בחר תאריך';
+  static const String createList = 'צור רשימה';
+  static const String noListsYet = 'עדיין אין רשימות קניות';
+  static const String activeSessionBadge = 'פעילה';
+  static const String currentShoppingOption = 'קנייה נוכחית';
+  static const String currentShoppingSubtitle = 'בחרו מתוך קניות קיימות';
+  static const String newShoppingOption = 'קנייה חדשה';
+  static const String newShoppingSubtitle = 'בחרו תאריך והתחילו רשימה חדשה';
+  static const String selectDateForNewList = 'בחרו תאריך לקנייה החדשה';
+  static const String confirmDateButton = 'אישור';
+  static const String greetingPrefix = 'שלום, משפחת';
+  static const String greetingSubtitle = 'הנה מה שקורה בבית היום';
+  static const String comingSoonSectionTitle = 'בקרוב באפליקציה';
+  static const String calendarCardTitle = 'לוח שנה';
+  static const String upcomingEventsTitle = 'האירועים הקרובים';
+  static const String noUpcomingEvents = 'אין עדיין קניות מתוכננות בחודש הזה';
+  static const String tabHome = 'בית';
+  static const String tabShopping = 'קניות';
+  static const String tabCalendar = 'לוח שנה';
+  static const String tabTasks = 'משימות';
+  static const String tabMore = 'עוד';
+  static const String confirmSignOutTitle = 'להתנתק?';
+  static const String confirmSignOutMessage = 'תצטרך להתחבר שוב כדי להיכנס לאפליקציה.';
+  static const String tasksComingSoonBody = 'ניהול משימות ותזכורות יומיומיות למשק הבית - בקרוב.';
+  static const String noEventOnThisDay = 'אין כלום מתוכנן ביום הזה';
+  static const String selectedDayDetailsTitle = 'מתוכנן ליום זה';
+  static const String billsSectionTitle = 'חשבונות';
+  static const String vaadBayitTitle = 'ועד בית';
+  static const String electricityTitle = 'חשמל';
+  static const String waterAndTaxTitle = 'מים + ארנונה';
+  static const String paidStatus = 'שולם';
+  static const String notPaidStatus = 'לא שולם';
+  static const String amountLabel = 'סכום';
+  static const String paymentMethodLabel = 'אמצעי תשלום';
+  static const String saveButton = 'שמור';
+  static const String monthNames = 'ינואר,פברואר,מרץ,אפריל,מאי,יוני,יולי,אוגוסט,ספטמבר,אוקטובר,נובמבר,דצמבר';
+  static const String paymentMethodBit = 'ביט';
+  static const String paymentMethodPaybox = 'פייבוקס';
+  static const String paymentMethodBankTransfer = 'העברה בנקאית';
+  static const String paymentMethodCash = 'מזומן';
+  static const String paymentMethodOther = 'אחר';
+  static const String enterPaymentUrlTitle = 'הגדרת קישור תשלום';
+  static const String enterPaymentUrlBody = 'הכניסו את כתובת האתר שבו אתם משלמים - נשמור אותה כדי לפתוח אותה בלחיצה בכל פעם.';
+  static const String paymentUrlLabel = 'כתובת האתר';
+  static const String saveAndContinue = 'שמור והמשך';
+  static const String waterTaxCombinedQuestion = 'מים וארנונה משולמים אצלכם יחד או בנפרד?';
+  static const String combinedOption = 'ביחד';
+  static const String separateOption = 'בנפרד';
+  static const String waterUrlLabel = 'כתובת אתר תשלום מים';
+  static const String taxUrlLabel = 'כתובת אתר תשלום ארנונה';
+  static const String payNowButton = 'שלם עכשיו';
+  static const String payWaterButton = 'שלם מים';
+  static const String payTaxButton = 'שלם ארנונה';
+  static const String editLinkButton = 'ערוך קישור';
+  static const String openAppPrefix = 'פתח את';
+  static const String enterAppLinkTitlePrefix = 'הזן קישור ל-';
+  static const String close = 'סגור';
+  static const String cancelPaymentAction = 'בטל תשלום';
+  static const String scanBarcodeButton = 'סרוק ברקוד משובר תשלום';
+  static const String scanBarcodeTitle = 'סריקת ברקוד';
+  static const String scanBarcodeHint = 'כוונו את המצלמה לברקוד שעל שובר התשלום';
+  static const String paymentMethodBarcode = 'נסרק מברקוד';
+  static const String payByLinkButton = 'שלם בקישור לאתר';
+  static const String paymentMethodLink = 'שולם באתר';
+  static const String reminderButton = 'הוסף תזכורת לתשלום';
+  static const String reminderSetLabel = 'תזכורת מוגדרת ל-';
+  static const String editReminderButton = 'ערוך תזכורת';
+  static const String clearReminderButton = 'בטל תזכורת';
+  static const String pickReminderDateTitle = 'בחר תאריך לתזכורת';
+  static const String pickReminderTimeTitle = 'בחר שעה לתזכורת';
+  static const String billReminderTitle = 'תזכורת תשלום';
+  static const String billReminderBody = 'הגיע הזמן לשלם - בדקו את מסך החשבונות';
+  static const String reminderInPastError = 'התאריך/שעה שנבחרו כבר עברו';
+  static const String shoppingEventLabel = 'קנייה';
+  static const String reminderNeedsAmountTitle = 'חסר סכום';
+  static const String reminderNeedsAmountBody = 'כדי לשמור תזכורת יש להזין קודם סכום.';
+  static const String swipeHintMessage = 'טיפ: אפשר לבטל תשלום קיים בהחלקה ימינה על השורה';
+  static const String resetWaterTaxChoiceButton = 'איפוס הגדרת ביחד/בנפרד';
+  static const String resetWaterTaxWarningTitle = 'לאפס את ההגדרה?';
+  static const String resetWaterTaxWarningBody = 'פעולה זו תמחק את כל התשלומים שכבר סומנו כשולמו במים/ארנונה, כי הם שמורים לפי המבנה הנוכחי (ביחד/בנפרד). לא ניתן לשחזר.';
+  static const String resetWaterTaxConfirmButton = 'כן, אפס ומחק';
+  static const String timeModeWheel = 'עבור לגלגל';
+  static const String timeModeManual = 'עבור להקלדה';
+  static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';
+  static const String droppedSectionTitle = 'לא נמצאו - לא הועברו';
+  static const String activeShoppingBanner = 'קנייה פעילה';
+  static const String newBadge = 'חדש';
+  static const String startedByLabel = 'התחילה על ידי';
+  static const String newItemNotificationTitle = 'מוצר חדש נוסף לרשימה';
+  static const String shoppingDoneNotificationTitle = 'הקנייה הסתיימה';
+  static const String notFoundNotificationBody = 'לא נמצאו';
+  static const String enableNotificationsTitle = 'הפעלת התראות';
+  static const String enableNotificationsBody = 'קבלו התראה מיידית כשבן/בת הזוג מוסיפים מוצר בזמן קנייה';
+  static const String enableNotificationsButton = 'הפעל התראות';
+  static const String notificationsBlockedBody = 'התראות חסומות בדפדפן. יש לאפשר אותן ידנית בהגדרות האתר.';
+  static const String testNotificationButton = 'שלח התראת בדיקה';
+  static const String testNotificationTitle = 'התראת בדיקה';
+  static const String testNotificationBody = 'אם אתה רואה את זה, ההתראות עובדות!';
+  static const String notificationsLabel = 'התראות';
+  static const String notificationsInfoTooltip = 'זה מאפשר קבלת התראות מהאפליקציה לטלפון';
+}
+
+HMEOF
+cat > 'lib/services/firebase/bills_service.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/bill_payment_model.dart';
+
+/// שירות Firestore לרשומות תשלום חשבונות (ועד בית/חשמל/מים+ארנונה).
+/// כל רשומה מזוהה באמצעות מזהה קבוע (לא auto-id) - כך אפשר
+/// לכתוב עליה מחדש (get-or-create) בלי לחפש קודם.
+class BillsService {
+  final FirebaseFirestore _firestore;
+
+  BillsService(this._firestore);
+
+  CollectionReference<Map<String, dynamic>> _billsCollection(String householdId) {
+    return _firestore.collection('households').doc(householdId).collection('bills');
+  }
+
+  String _docId(BillCategory category, int year, int periodStartMonth) {
+    return '${billCategoryToString(category)}_${year}_$periodStartMonth';
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsCollection(householdId)
+        .where('category', isEqualTo: billCategoryToString(category))
+        .where('year', isEqualTo: year)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BillPayment.fromFirestore(doc.id, doc.data()))
+            .toList());
+  }
+
+  /// שומר סכום+אמצעי תשלום, ותמיד מסמן את התקופה כ"שולם" (אין
+  /// יותר מנגנון קבלות - השמירה עצמה היא אישור התשלום).
+  /// שומר סכום+אמצעי תשלום. מסמן "שולם" (paidManually) **רק אם**
+  /// הוזן סכום בפועל - שמירה בלי סכום (למשל רק כדי לשמור תזכורת)
+  /// לא אמורה לסמן וי ירוק.
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    final data = <String, dynamic>{
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      if (amount != null) 'amount': amount,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+    };
+    if (amount != null) {
+      data['paidManually'] = true;
+      data['paidAt'] = FieldValue.serverTimestamp();
+    }
+    await _billsCollection(householdId).doc(id).set(data, SetOptions(merge: true));
+  }
+
+  /// מבטל תשלום שכבר סומן - מחזיר את התקופה למצב "לא שולם" (ה-חוג
+  /// הירוק נעלם), מנקה את הסכום ואמצעי התשלום, **וגם מבטל תזכורת**
+  /// אם הייתה מוגדרת - איפוס מלא ושלם של התקופה.
+  Future<void> cancelPayment({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).update({
+      'paidManually': false,
+      'paidAt': null,
+      'amount': null,
+      'paymentMethod': null,
+      'reminderAt': null,
+      'reminderShown': false,
+    });
+  }
+
+  /// שומר תזכורת לתאריך+שעה עתידיים לתקופה מסוימת.
+  Future<void> saveReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    required DateTime reminderAt,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).set({
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      'reminderAt': Timestamp.fromDate(reminderAt),
+      'reminderShown': false,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> clearReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).update({
+      'reminderAt': null,
+      'reminderShown': false,
+    });
+  }
+
+  Future<void> markReminderShown({
+    required String householdId,
+    required String billDocId,
+  }) async {
+    await _billsCollection(householdId).doc(billDocId).update({'reminderShown': true});
+  }
+
+  /// כמו watchAllReminders, אבל **בלי** לסנן reminderShown - משמש
+  /// לתצוגה בלוח השנה (רוצים להראות תזכורות גם אחרי שכבר "צלצלו").
+  /// מוחק את **כל** רשומות התשלום של מים/ארנונה (כל הצורות - ביחד
+  /// ובנפרד, כל השנים) - קורה כשמאפסים את בחירת "ביחד/בנפרד",
+  /// כי מעבר בין המבנים "מאבד" גישה לרשומות הישנות (הן נשמרות תחת
+  /// שם קטגוריה שונה ב-Firestore) - עדיף למחוק בפועל מאשר להשאיר
+  /// נתונים יתומים שאף מסך לא יראה יותר.
+  Future<void> clearWaterTaxPayments(String householdId) async {
+    const categories = ['waterAndTax', 'water', 'tax'];
+    final batch = _firestore.batch();
+    for (final cat in categories) {
+      final snapshot =
+          await _billsCollection(householdId).where('category', isEqualTo: cat).get();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+    await batch.commit();
+  }
+
+  Stream<List<BillPayment>> watchAllScheduledReminders(String householdId) {
+    return _billsCollection(householdId)
+        .where('reminderAt', isNull: false)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => BillPayment.fromFirestore(doc.id, doc.data())).toList());
+  }
+
+  /// מאזין לכל התזכורות שהוגדרו ב-household (בכל הקטגוריות יחד) -
+  /// משמש כדי לבדוק ברקע אילו תזכורות "הגיע זמנן". הסינון של
+  /// reminderShown נעשה בצד הלקוח (לא בשאילתה) כדי להימנע מהצורך
+  /// ב-composite index ב-Firestore.
+  Stream<List<BillPayment>> watchAllReminders(String householdId) {
+    return _billsCollection(householdId)
+        .where('reminderAt', isNull: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BillPayment.fromFirestore(doc.id, doc.data()))
+            .where((bill) => !bill.reminderShown)
+            .toList());
+  }
+
+  String billDocId(BillCategory category, int year, int periodStartMonth) =>
+      _docId(category, year, periodStartMonth);
+}
+
+HMEOF
+cat > 'lib/repositories/bills_repository.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/errors/failures.dart';
+import '../models/bill_link_settings_model.dart';
+import '../models/bill_payment_model.dart';
+import '../services/firebase/bill_settings_service.dart';
+import '../services/firebase/bills_service.dart';
+
+class BillsRepository {
+  final BillsService _billsService;
+  final BillSettingsService _settingsService;
+
+  BillsRepository(this._billsService, this._settingsService);
+
+  Stream<BillLinkSettings> watchSettings(String householdId) {
+    return _settingsService.watchSettings(householdId);
+  }
+
+  Future<void> saveBitUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveBitUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> savePayboxUrl(String householdId, String url) async {
+    try {
+      await _settingsService.savePayboxUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveElectricityUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveElectricityUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveCombinedWaterTaxUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveCombinedWaterTaxUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveSeparateWaterTaxUrls(
+      String householdId, String waterUrl, String taxUrl) async {
+    try {
+      await _settingsService.saveSeparateWaterTaxUrls(householdId, waterUrl, taxUrl);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישורים');
+    }
+  }
+
+  Future<void> resetWaterTaxChoice(String householdId) async {
+    try {
+      await _settingsService.resetWaterTaxChoice(householdId);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה באיפוס ההגדרה');
+    }
+  }
+
+  Future<void> clearWaterTaxPayments(String householdId) async {
+    try {
+      await _billsService.clearWaterTaxPayments(householdId);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה במחיקת התשלומים');
+    }
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsService.watchBills(householdId: householdId, category: category, year: year);
+  }
+
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+  }) async {
+    try {
+      await _billsService.saveBillDetails(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+        amount: amount,
+        paymentMethod: paymentMethod,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הפרטים');
+    }
+  }
+
+  Future<void> saveReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    required DateTime reminderAt,
+  }) async {
+    try {
+      await _billsService.saveReminder(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+        reminderAt: reminderAt,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת התזכורת');
+    }
+  }
+
+  Future<void> clearReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    try {
+      await _billsService.clearReminder(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בביטול התזכורת');
+    }
+  }
+
+  Future<void> markReminderShown({required String householdId, required String billDocId}) {
+    return _billsService.markReminderShown(householdId: householdId, billDocId: billDocId);
+  }
+
+  Stream<List<BillPayment>> watchAllReminders(String householdId) {
+    return _billsService.watchAllReminders(householdId);
+  }
+
+  Stream<List<BillPayment>> watchAllScheduledReminders(String householdId) {
+    return _billsService.watchAllScheduledReminders(householdId);
+  }
+
+  Future<void> cancelPayment({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    try {
+      await _billsService.cancelPayment(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בביטול התשלום');
+    }
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/water_and_tax_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך מים+ארנונה - בפעם הראשונה שואל שאלה מבנית אחת (ביחד או
+/// בנפרד), ושומר אותה לצמיתות. בכל כניסה הבאה נכנסים ישר לפי
+/// ההגדרה השמורה - עם כפתור "איפוס" (בפינה) שמחזיר לשאלה מחדש
+/// אם רוצים לשנות בעתיד.
+class WaterAndTaxScreen extends ConsumerWidget {
+  final String householdId;
+
+  const WaterAndTaxScreen({super.key, required this.householdId});
+
+  Future<void> _reset(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 48),
+            const SizedBox(height: 12),
+            Text(AppStrings.resetWaterTaxWarningTitle, style: AppTextStyles.heading2),
+            const SizedBox(height: 8),
+            const Text(
+              AppStrings.resetWaterTaxWarningBody,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySecondary,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              AppStrings.resetWaterTaxConfirmButton,
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final repo = ref.read(billsRepositoryProvider);
+    await repo.clearWaterTaxPayments(householdId);
+    await repo.resetWaterTaxChoice(householdId);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(billLinkSettingsProvider(householdId));
+
+    return settingsAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => const Scaffold(body: Center(child: Text('שגיאה בטעינה'))),
+      data: (settings) {
+        if (!settings.isWaterTaxConfigured) {
+          return _CombinedOrSeparateChoiceScreen(householdId: householdId);
+        }
+
+        if (settings.waterAndTaxCombined == true) {
+          return _WithResetButton(
+            title: AppStrings.waterAndTaxTitle,
+            onReset: () => _reset(context, ref),
+            child: BillPeriodTableScreen(
+              householdId: householdId,
+              category: BillCategory.waterAndTax,
+            ),
+          );
+        }
+
+        return _WithResetButton(
+          title: AppStrings.waterAndTaxTitle,
+          onReset: () => _reset(context, ref),
+          child: Scaffold(
+            appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
+            body: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                _CategoryLink(
+                  icon: Icons.water_drop_outlined,
+                  label: 'מים',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BillPeriodTableScreen(
+                          householdId: householdId, category: BillCategory.water),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _CategoryLink(
+                  icon: Icons.account_balance_outlined,
+                  label: 'ארנונה',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          BillPeriodTableScreen(householdId: householdId, category: BillCategory.tax),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// עוטף מסך קיים ומוסיף כפתור "איפוס הגדרה" צף בפינה, בלי לגעת
+/// במסך המקורי עצמו (שכולל כבר Scaffold+AppBar משלו).
+class _WithResetButton extends StatelessWidget {
+  final String title;
+  final VoidCallback onReset;
+  final Widget child;
+
+  const _WithResetButton({required this.title, required this.onReset, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          top: 4,
+          left: 4,
+          child: SafeArea(
+            child: IconButton(
+              icon: const Icon(Icons.restart_alt),
+              tooltip: AppStrings.resetWaterTaxChoiceButton,
+              onPressed: onReset,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// שאלה מבנית חד-פעמית: מים וארנונה משולמים ביחד או בנפרד. נשמרת
+/// לצמיתות (עד שילחצו על כפתור האיפוס).
+class _CombinedOrSeparateChoiceScreen extends ConsumerWidget {
+  final String householdId;
+
+  const _CombinedOrSeparateChoiceScreen({required this.householdId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(AppStrings.waterTaxCombinedQuestion, style: AppTextStyles.heading2),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                await ref.read(billsRepositoryProvider).saveCombinedWaterTaxUrl(householdId, '');
+              },
+              child: const Text(AppStrings.combinedOption, style: AppTextStyles.button),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () async {
+                await ref
+                    .read(billsRepositoryProvider)
+                    .saveSeparateWaterTaxUrls(householdId, '', '');
+              },
+              child: const Text(AppStrings.separateOption),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryLink extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _CategoryLink({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: AppTextStyles.heading2.copyWith(fontSize: 15))),
+              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+echo 'DONE - reset now shows a styled red warning and actually clears old payments!'

@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'lib/features/bills/bill_period_table_screen.dart' << 'HMEOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: avoid_web_libraries_in_flutter
@@ -714,3 +717,5 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
   }
 }
 
+HMEOF
+echo 'DONE - amount now required for reminder too, not just marking paid!'

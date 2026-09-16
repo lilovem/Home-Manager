@@ -36,6 +36,40 @@ class ShoppingListScreen extends ConsumerWidget {
     required this.listId,
   });
 
+  Future<void> _confirmDeleteList(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.confirmDeleteListTitle),
+        content: const Text(AppStrings.confirmDeleteListMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.delete, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(shoppingRepositoryProvider).deleteList(
+            householdId: householdId,
+            listId: listId,
+          );
+      if (context.mounted) Navigator.of(context).pop();
+    } on Failure catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _openAddProduct(
     BuildContext context,
     WidgetRef ref,
@@ -217,6 +251,11 @@ class ShoppingListScreen extends ConsumerWidget {
                 ? null
                 : () => _openFinishShopping(context, ref, currentItems, activeSessionId),
           ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: AppStrings.deleteListTooltip,
+            onPressed: () => _confirmDeleteList(context, ref),
+          ),
         ],
       ),
       body: Column(
@@ -385,12 +424,26 @@ class _ShoppingItemTile extends StatelessWidget {
       ),
       title: Row(
         children: [
-          Icon(
-            ProductCategorizer.categoryIcons[item.category],
-            size: 18,
-            color: _statusColor.withValues(alpha: 0.7),
-          ),
-          const SizedBox(width: 6),
+          Builder(builder: (context) {
+            final emoji = ProductCategorizer.productEmoji(item.name);
+            if (emoji != null) {
+              return Text(emoji, style: const TextStyle(fontSize: 20));
+            }
+            return Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: ProductCategorizer.categoryColors[item.category],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                ProductCategorizer.categoryIcons[item.category],
+                size: 15,
+                color: Colors.white,
+              ),
+            );
+          }),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
               item.name,

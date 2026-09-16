@@ -56,7 +56,85 @@ class ProductCategorizer {
     ProductCategory.other,
   ];
 
-  /// אייקון קטן לכל קטגוריה, מוצג ליד שם המוצר ברשימה.
+  /// אימוג'י ספציפי למוצר, אם השם מזהה משהו מוכר (חלב, דג וכו') -
+  /// null אם לא זוהה כלום ספציפי, ואז נופלים חזרה לאייקון הקטגוריה
+  /// הכללי. בדיקה לפי הכלה (contains) בשם המוצר, לא התאמה מדויקת.
+  static String? productEmoji(String name) {
+    final n = name.trim();
+    const map = <String, String>{
+      'חלב': '🥛',
+      'קוטג': '🧀',
+      'גבינה': '🧀',
+      'יוגורט': '🥣',
+      'חמאה': '🧈',
+      'ביצ': '🥚',
+      'דג': '🐟',
+      'סלמון': '🐟',
+      'טונה': '🐟',
+      'עוף': '🍗',
+      'הודו': '🍗',
+      'בשר': '🥩',
+      'סטייק': '🥩',
+      'המבורגר': '🍔',
+      'נקניק': '🌭',
+      'לחם': '🍞',
+      'פיתה': '🍞',
+      'בגט': '🍞',
+      'חלה': '🍞',
+      'עגבני': '🍅',
+      'מלפפון': '🥒',
+      'גזר': '🥕',
+      'בצל': '🧅',
+      'שום': '🧄',
+      'פלפל': '🫑',
+      'תפוח אדמה': '🥔',
+      'תפו"א': '🥔',
+      'חסה': '🥬',
+      'תרד': '🥬',
+      'ברוקולי': '🥦',
+      'אבוקדו': '🥑',
+      'תפוח': '🍎',
+      'בננה': '🍌',
+      'תפוז': '🍊',
+      'קלמנטינה': '🍊',
+      'לימון': '🍋',
+      'ענב': '🍇',
+      'אבטיח': '🍉',
+      'תות': '🍓',
+      'אננס': '🍍',
+      'אורז': '🍚',
+      'פסטה': '🍝',
+      'ספגטי': '🍝',
+      'שוקולד': '🍫',
+      'עוגי': '🍪',
+      'עוגה': '🍰',
+      'גלידה': '🍦',
+      'קפה': '☕',
+      'תה': '🍵',
+      'מים': '💧',
+      'מיץ': '🧃',
+      'יין': '🍷',
+      'בירה': '🍺',
+      'סוכר': '🍬',
+      'ממתק': '🍬',
+      'קמח': '🌾',
+      'שמן': '🫒',
+      'ביסלי': '🍟',
+      'צ\'יפס': '🍟',
+      'פופקורן': '🍿',
+      'סבון': '🧼',
+      'שמפו': '🧴',
+      'נייר טואלט': '🧻',
+    };
+
+    for (final entry in map.entries) {
+      if (n.contains(entry.key)) return entry.value;
+    }
+    return null;
+  }
+
+  /// אייקון קטן לכל קטגוריה, מוצג ליד שם המוצר ברשימה - נופל אליו
+  /// productEmoji() כשלא זוהה מוצר ספציפי.
   static const Map<ProductCategory, IconData> categoryIcons = {
     ProductCategory.produce: Icons.eco_outlined,
     ProductCategory.dairy: Icons.icecream_outlined,
@@ -70,6 +148,22 @@ class ProductCategorizer {
     ProductCategory.cleaning: Icons.cleaning_services_outlined,
     ProductCategory.toiletries: Icons.soap_outlined,
     ProductCategory.other: Icons.shopping_bag_outlined,
+  };
+
+  /// צבע חי וייחודי לכל קטגוריה - לרקע העיגול הקטן ליד כל מוצר.
+  static const Map<ProductCategory, Color> categoryColors = {
+    ProductCategory.produce: Color(0xFF43A047), // ירוק
+    ProductCategory.dairy: Color(0xFF1E88E5), // כחול
+    ProductCategory.meatFishPoultry: Color(0xFFE53935), // אדום
+    ProductCategory.bakery: Color(0xFFB8600B), // חום-כתום
+    ProductCategory.frozen: Color(0xFF00ACC1), // תכלת
+    ProductCategory.pantry: Color(0xFFFB8C00), // כתום
+    ProductCategory.spicesAndSauces: Color(0xFF8E24AA), // סגול
+    ProductCategory.beverages: Color(0xFF00897B), // טורקיז
+    ProductCategory.snacks: Color(0xFFF4511E), // כתום-אדום
+    ProductCategory.cleaning: Color(0xFF3949AB), // כחול-סגול
+    ProductCategory.toiletries: Color(0xFFD81B60), // ורוד
+    ProductCategory.other: Color(0xFF757575), // אפור
   };
 
   static const Map<ProductCategory, List<String>> _keywords = {

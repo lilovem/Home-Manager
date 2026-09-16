@@ -86,6 +86,9 @@ class AppStrings {
   static const String addedByLabel = 'נוסף ע״י';
   static const String confirmDeleteTitle = 'למחוק מוצר?';
   static const String confirmDeleteMessage = 'הפעולה לא ניתנת לביטול';
+  static const String confirmDeleteListTitle = 'לבטל את הקנייה?';
+  static const String confirmDeleteListMessage = 'כל המוצרים ברשימה הזו יימחקו לצמיתות. הפעולה לא ניתנת לביטול.';
+  static const String deleteListTooltip = 'בטל את הקנייה הזו';
   static const String statusNotFound = 'לא נמצא';
   static const String statusPurchased = 'נקנה';
   static const String shoppingSummary = 'סיכום קנייה';
@@ -178,8 +181,15 @@ class AppStrings {
   static const String reminderInPastError = 'התאריך/שעה שנבחרו כבר עברו';
   static const String shoppingEventLabel = 'קנייה';
   static const String reminderNeedsAmountTitle = 'חסר סכום';
-  static const String reminderNeedsAmountBody = 'כדי לשמור תזכורת יש להזין קודם סכום.';
+  static const String reminderNeedsAmountBody = 'כדי לסמן כשולם יש להזין קודם סכום.';
+  static const String markAsPaidButton = 'סמן כשולם';
+  static const String markedAsPaidLabel = 'מסומן כשולם ✓';
+  static const String unmarkedPaidMessage = 'בוטל הסימון כשולם';
   static const String swipeHintMessage = 'טיפ: אפשר לבטל תשלום קיים בהחלקה ימינה על השורה';
+  static const String resetWaterTaxChoiceButton = 'איפוס הגדרת ביחד/בנפרד';
+  static const String resetWaterTaxWarningTitle = 'לאפס את ההגדרה?';
+  static const String resetWaterTaxWarningBody = 'פעולה זו תמחק את כל התשלומים שכבר סומנו כשולמו במים/ארנונה, כי הם שמורים לפי המבנה הנוכחי (ביחד/בנפרד). לא ניתן לשחזר.';
+  static const String resetWaterTaxConfirmButton = 'כן, אפס ומחק';
   static const String timeModeWheel = 'עבור לגלגל';
   static const String timeModeManual = 'עבור להקלדה';
   static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';

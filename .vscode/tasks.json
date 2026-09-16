@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 הרץ אפליקציה (Flutter Web)",
+      "type": "shell",
+      "command": "flutter run -d web-server --web-port=8000 --web-hostname=0.0.0.0",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "💾 שמור ל-Git (add + commit + push)",
+      "type": "shell",
+      "command": "git add . && git commit -m \"${input:commitMessage}\" && git push",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "📦 בנה ופרוס לאתר (build + deploy hosting)",
+      "type": "shell",
+      "command": "flutter build web && firebase deploy --only hosting --project home-manager-9407a",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "🔒 פרוס כללי אבטחה (Firestore Rules)",
+      "type": "shell",
+      "command": "firebase deploy --only firestore:rules --project home-manager-9407a",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "📥 התקן תלויות (flutter pub get)",
+      "type": "shell",
+      "command": "flutter pub get",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "type": "flutter",
+      "command": "flutter",
+      "args": [
+        "build",
+        "aar"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "label": "flutter: flutter build aar",
+      "detail": ""
+    }
+  ],
+  "inputs": [
+    {
+      "id": "commitMessage",
+      "type": "promptString",
+      "description": "הודעת ה-commit",
+      "default": "עדכון"
+    }
+  ]
+}
+

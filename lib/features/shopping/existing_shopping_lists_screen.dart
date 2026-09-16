@@ -58,7 +58,8 @@ class ExistingShoppingListsScreen extends ConsumerWidget {
                   color: isActive ? AppColors.primary : AppColors.textSecondary,
                 ),
                 title: Text(list.name),
-                subtitle: list.date != null
+                subtitle: (list.date != null &&
+                        list.name != DateFormatter.dateOnly(list.date))
                     ? Text(DateFormatter.dateOnly(list.date), style: AppTextStyles.bodySecondary)
                     : null,
                 trailing: isActive

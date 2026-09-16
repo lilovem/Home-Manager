@@ -15,6 +15,14 @@ class ShoppingRepository {
     return _service.getOrCreateDefaultListId(household);
   }
 
+  Future<void> deleteList({required String householdId, required String listId}) async {
+    try {
+      await _service.deleteList(householdId: householdId, listId: listId);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה במחיקת הרשימה');
+    }
+  }
+
   Stream<List<ShoppingList>> watchLists(String householdId) {
     return _service.watchLists(householdId);
   }
