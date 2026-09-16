@@ -6,6 +6,22 @@ enum BillCategory { vaadBayit, electricity, waterAndTax, water, tax }
 
 String billCategoryToString(BillCategory c) => c.name;
 
+/// שם עברי קצר לתצוגה (למשל בלוח השנה) - לא ל-Firestore.
+String billCategoryDisplayName(BillCategory c) {
+  switch (c) {
+    case BillCategory.vaadBayit:
+      return 'ועד בית';
+    case BillCategory.electricity:
+      return 'חשמל';
+    case BillCategory.waterAndTax:
+      return 'מים וארנונה';
+    case BillCategory.water:
+      return 'מים';
+    case BillCategory.tax:
+      return 'ארנונה';
+  }
+}
+
 BillCategory billCategoryFromString(String s) {
   return BillCategory.values.firstWhere(
     (c) => c.name == s,
@@ -26,6 +42,8 @@ class BillPayment {
   final String? paymentMethod;
   final DateTime? paidAt;
   final bool paidManually;
+  final DateTime? reminderAt;
+  final bool reminderShown;
 
   const BillPayment({
     required this.id,
@@ -36,6 +54,8 @@ class BillPayment {
     this.paymentMethod,
     this.paidAt,
     this.paidManually = false,
+    this.reminderAt,
+    this.reminderShown = false,
   });
 
   /// "שולם" = סומן ידנית (בשמירה, או עד שמבטלים דרך החלקה על השורה).
@@ -51,6 +71,8 @@ class BillPayment {
       paymentMethod: data['paymentMethod'] as String?,
       paidAt: (data['paidAt'] as Timestamp?)?.toDate(),
       paidManually: data['paidManually'] as bool? ?? false,
+      reminderAt: (data['reminderAt'] as Timestamp?)?.toDate(),
+      reminderShown: data['reminderShown'] as bool? ?? false,
     );
   }
 }

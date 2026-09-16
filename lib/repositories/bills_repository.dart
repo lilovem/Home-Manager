@@ -86,6 +86,56 @@ class BillsRepository {
     }
   }
 
+  Future<void> saveReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    required DateTime reminderAt,
+  }) async {
+    try {
+      await _billsService.saveReminder(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+        reminderAt: reminderAt,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת התזכורת');
+    }
+  }
+
+  Future<void> clearReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    try {
+      await _billsService.clearReminder(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בביטול התזכורת');
+    }
+  }
+
+  Future<void> markReminderShown({required String householdId, required String billDocId}) {
+    return _billsService.markReminderShown(householdId: householdId, billDocId: billDocId);
+  }
+
+  Stream<List<BillPayment>> watchAllReminders(String householdId) {
+    return _billsService.watchAllReminders(householdId);
+  }
+
+  Stream<List<BillPayment>> watchAllScheduledReminders(String householdId) {
+    return _billsService.watchAllScheduledReminders(householdId);
+  }
+
   Future<void> cancelPayment({
     required String householdId,
     required BillCategory category,

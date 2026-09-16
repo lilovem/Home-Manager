@@ -4,14 +4,17 @@ import '../../../app/config/app_colors.dart';
 import '../../../app/config/app_strings.dart';
 import '../../../app/config/app_text_styles.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../models/bill_payment_model.dart';
 import '../../../models/shopping_list_model.dart';
+import '../../../providers/bills_provider.dart';
 import '../../../providers/shopping_provider.dart';
 import '../../shopping/shopping_list_screen.dart';
 
 /// תוכן טאב "לוח שנה" - לוח חודשי אמיתי עם גלילה בין חודשים,
 /// לחיצה על יום מציגה מה מתוכנן בו, ולמטה "אירועים קרובים" ל-3
-/// ימים קדימה. מבוסס על תאריכי רשימות קניות (הנתון האמיתי היחיד
-/// שקיים כרגע) - רק רשימות שיש בהן בפועל מוצרים נספרות/מסומנות.
+/// ימים קדימה. מבוסס על שני מקורות אמיתיים: תאריכי רשימות קניות,
+/// **וגם** תזכורות תשלום שהוגדרו (ר' bill_reminder_listener.dart
+/// להתראה בפועל - זה כאן רק התצוגה החזותית בלוח).
 class CalendarTabContent extends ConsumerStatefulWidget {
   final String householdId;
 
@@ -47,6 +50,8 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
   @override
   Widget build(BuildContext context) {
     final lists = ref.watch(shoppingListsProvider(widget.householdId)).value ?? [];
+    final reminders =
+        ref.watch(allScheduledRemindersProvider(widget.householdId)).value ?? [];
 
     final datedListsWithItems = <ShoppingList>[];
     for (final list in lists) {
@@ -58,26 +63,38 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
       if (items.isNotEmpty) datedListsWithItems.add(list);
     }
 
+    final billReminders = reminders.where((b) => b.reminderAt != null).toList();
+
     final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
     final leadingEmptyCells = _month.weekday % 7;
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
-    final markedDays = datedListsWithItems
+    final markedDaysFromLists = datedListsWithItems
         .where((l) => l.date!.year == _month.year && l.date!.month == _month.month)
-        .map((l) => l.date!.day)
-        .toSet();
+        .map((l) => l.date!.day);
+    final markedDaysFromReminders = billReminders
+        .where((b) => b.reminderAt!.year == _month.year && b.reminderAt!.month == _month.month)
+        .map((b) => b.reminderAt!.day);
+    final markedDays = {...markedDaysFromLists, ...markedDaysFromReminders};
 
     final selectedDayLists = _selectedDay == null
         ? <ShoppingList>[]
         : datedListsWithItems.where((l) => _isSameDay(l.date!, _selectedDay!)).toList();
+    final selectedDayReminders = _selectedDay == null
+        ? <BillPayment>[]
+        : billReminders.where((b) => _isSameDay(b.reminderAt!, _selectedDay!)).toList();
 
-    final upcoming = datedListsWithItems
+    final upcomingLists = datedListsWithItems
         .where((l) =>
             !l.date!.isBefore(todayStart) &&
             l.date!.isBefore(todayStart.add(const Duration(days: 3))))
-        .toList()
-      ..sort((a, b) => a.date!.compareTo(b.date!));
+        .toList();
+    final upcomingReminders = billReminders
+        .where((b) =>
+            !b.reminderAt!.isBefore(todayStart) &&
+            b.reminderAt!.isBefore(todayStart.add(const Duration(days: 3))))
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -158,9 +175,9 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
             style: AppTextStyles.heading2.copyWith(fontSize: 14),
           ),
           const SizedBox(height: 8),
-          if (selectedDayLists.isEmpty)
+          if (selectedDayLists.isEmpty && selectedDayReminders.isEmpty)
             Text(AppStrings.noEventOnThisDay, style: AppTextStyles.bodySecondary)
-          else
+          else ...[
             ...selectedDayLists.map(
               (l) => Card(
                 child: ListTile(
@@ -176,14 +193,24 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
                 ),
               ),
             ),
+            ...selectedDayReminders.map(
+              (b) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.alarm_outlined, color: AppColors.itemNotFound),
+                  title: Text(billCategoryDisplayName(b.category)),
+                  subtitle: Text(DateFormatter.short(b.reminderAt)),
+                ),
+              ),
+            ),
+          ],
         ],
         const Divider(height: 28),
         Text(AppStrings.upcomingEventsTitle, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
         const SizedBox(height: 8),
-        if (upcoming.isEmpty)
+        if (upcomingLists.isEmpty && upcomingReminders.isEmpty)
           Text(AppStrings.noUpcomingEvents, style: AppTextStyles.bodySecondary)
-        else
-          ...upcoming.map(
+        else ...[
+          ...upcomingLists.map(
             (l) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
@@ -196,6 +223,22 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
               ),
             ),
           ),
+          ...upcomingReminders.map(
+            (b) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.alarm_outlined, size: 16, color: AppColors.itemNotFound),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(billCategoryDisplayName(b.category), style: AppTextStyles.body),
+                  ),
+                  Text(DateFormatter.short(b.reminderAt), style: AppTextStyles.bodySecondary),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

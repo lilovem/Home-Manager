@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/widgets/error_view.dart';
 import '../features/home/main_shell_screen.dart';
 import '../features/household/create_household_screen.dart';
+import '../features/bills/bill_reminder_listener.dart';
 import '../features/shopping/shopping_notifications_listener.dart';
 import '../features/splash/splash_screen.dart';
 import '../providers/auth_provider.dart';
@@ -56,7 +57,10 @@ class HouseholdGate extends ConsumerWidget {
 
         return ShoppingNotificationsListener(
           householdId: current.id,
-          child: const MainShellScreen(),
+          child: BillReminderListener(
+            householdId: current.id,
+            child: const MainShellScreen(),
+          ),
         );
       },
     );

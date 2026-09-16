@@ -165,6 +165,15 @@ class AppStrings {
   static const String scanBarcodeTitle = 'סריקת ברקוד';
   static const String scanBarcodeHint = 'כוונו את המצלמה לברקוד שעל שובר התשלום';
   static const String paymentMethodBarcode = 'נסרק מברקוד';
+  static const String reminderButton = 'הוסף תזכורת לתשלום';
+  static const String reminderSetLabel = 'תזכורת מוגדרת ל-';
+  static const String editReminderButton = 'ערוך תזכורת';
+  static const String clearReminderButton = 'בטל תזכורת';
+  static const String pickReminderDateTitle = 'בחר תאריך לתזכורת';
+  static const String pickReminderTimeTitle = 'בחר שעה לתזכורת';
+  static const String billReminderTitle = 'תזכורת תשלום';
+  static const String billReminderBody = 'הגיע הזמן לשלם - בדקו את מסך החשבונות';
+  static const String reminderInPastError = 'התאריך/שעה שנבחרו כבר עברו';
   static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';
   static const String droppedSectionTitle = 'לא נמצאו - לא הועברו';
   static const String activeShoppingBanner = 'קנייה פעילה';

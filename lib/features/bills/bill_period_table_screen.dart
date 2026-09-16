@@ -5,6 +5,7 @@ import 'dart:html' as html;
 import '../../app/config/app_colors.dart';
 import '../../app/config/app_strings.dart';
 import '../../app/config/app_text_styles.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../models/bill_payment_model.dart';
 import '../../providers/bills_provider.dart';
 import 'barcode_scan_screen.dart';
@@ -230,6 +231,7 @@ class BillPeriodEditSheet extends ConsumerStatefulWidget {
 class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
   late final TextEditingController _amountController;
   String? _paymentMethod;
+  DateTime? _reminderAt;
   bool _isSaving = false;
 
   @override
@@ -238,6 +240,7 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
     _amountController =
         TextEditingController(text: widget.existing?.amount?.toString() ?? '');
     _paymentMethod = widget.existing?.paymentMethod;
+    _reminderAt = widget.existing?.reminderAt;
   }
 
   @override
@@ -339,6 +342,51 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
     setState(() => _paymentMethod = choice);
   }
 
+  Future<void> _pickReminder() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: AppStrings.pickReminderDateTitle,
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      helpText: AppStrings.pickReminderTimeTitle,
+    );
+    if (time == null || !mounted) return;
+
+    final combined = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (combined.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text(AppStrings.reminderInPastError)));
+      return;
+    }
+
+    await ref.read(billsRepositoryProvider).saveReminder(
+          householdId: widget.householdId,
+          category: widget.category,
+          year: widget.year,
+          periodStartMonth: widget.periodStartMonth,
+          reminderAt: combined,
+        );
+    if (mounted) setState(() => _reminderAt = combined);
+  }
+
+  Future<void> _clearReminder() async {
+    await ref.read(billsRepositoryProvider).clearReminder(
+          householdId: widget.householdId,
+          category: widget.category,
+          year: widget.year,
+          periodStartMonth: widget.periodStartMonth,
+        );
+    if (mounted) setState(() => _reminderAt = null);
+  }
+
   Future<void> _scanBarcode() async {
     final result = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
@@ -408,6 +456,35 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
               style: AppTextStyles.bodySecondary,
             ),
           ],
+          const SizedBox(height: 12),
+          if (_reminderAt == null)
+            OutlinedButton.icon(
+              onPressed: _pickReminder,
+              icon: const Icon(Icons.alarm_add_outlined),
+              label: const Text(AppStrings.reminderButton),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${AppStrings.reminderSetLabel} ${DateFormatter.short(_reminderAt)}',
+                    style: AppTextStyles.bodySecondary,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _pickReminder,
+                  child: const Text(AppStrings.editReminderButton),
+                ),
+                TextButton(
+                  onPressed: _clearReminder,
+                  child: const Text(
+                    AppStrings.clearReminderButton,
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 16),
           Row(
             children: [

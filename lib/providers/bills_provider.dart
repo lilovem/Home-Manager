@@ -21,6 +21,18 @@ final billsRepositoryProvider = Provider<BillsRepository>((ref) {
   );
 });
 
+/// כל התזכורות שעדיין לא הוצגו, בכל הקטגוריות של household.
+final allBillRemindersProvider =
+    StreamProvider.family<List<BillPayment>, String>((ref, householdId) {
+  return ref.watch(billsRepositoryProvider).watchAllReminders(householdId);
+});
+
+/// כל התזכורות המתוזמנות (גם אם כבר הוצגו) - לתצוגה בלוח השנה.
+final allScheduledRemindersProvider =
+    StreamProvider.family<List<BillPayment>, String>((ref, householdId) {
+  return ref.watch(billsRepositoryProvider).watchAllScheduledReminders(householdId);
+});
+
 /// כל רשומות התשלום של קטגוריה מסוימת, לשנה מסוימת.
 final billsForYearProvider = StreamProvider.family<
     List<BillPayment>, ({String householdId, BillCategory category, int year})>((ref, args) {
