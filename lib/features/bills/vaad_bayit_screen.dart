@@ -34,6 +34,7 @@ class VaadBayitScreen extends ConsumerWidget {
         periodStartMonth: month,
         periodLabel: _monthNames[month - 1],
         existing: bill,
+        showPaymentMethod: true,
       ),
     );
   }
@@ -92,7 +93,16 @@ class VaadBayitScreen extends ConsumerWidget {
                     isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
                     color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
                   ),
-                  title: Text(_monthNames[index]),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_monthNames[index]),
+                      if (bill?.reminderAt != null) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.alarm, size: 24, color: Colors.green),
+                      ],
+                    ],
+                  ),
                   subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
                   trailing: Text(
                     isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,

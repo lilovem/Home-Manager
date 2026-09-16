@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'lib/features/bills/bill_period_table_screen.dart' << 'HMEOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: avoid_web_libraries_in_flutter
@@ -600,3 +603,131 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
   }
 }
 
+HMEOF
+cat > 'lib/features/bills/vaad_bayit_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך "ועד בית" - טבלת 12 החודשים של השנה הנוכחית. כל שורה
+/// מראה אם שולם (נשמר עם סכום+אמצעי תשלום) או לא, וניתנת
+/// **להחלקה** כדי לבטל תשלום קיים בלי לפתוח את חלונית העריכה.
+class VaadBayitScreen extends ConsumerWidget {
+  final String householdId;
+
+  const VaadBayitScreen({super.key, required this.householdId});
+
+  static final List<String> _monthNames = AppStrings.monthNames.split(',');
+
+  Future<void> _openMonthSheet(BuildContext context, WidgetRef ref, int month) async {
+    final year = DateTime.now().year;
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+    ));
+    final existing = (billsAsync.value ?? []).where((b) => b.periodStartMonth == month);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => BillPeriodEditSheet(
+        householdId: householdId,
+        category: BillCategory.vaadBayit,
+        year: year,
+        periodStartMonth: month,
+        periodLabel: _monthNames[month - 1],
+        existing: bill,
+        showPaymentMethod: true,
+      ),
+    );
+  }
+
+  Future<void> _cancelPayment(WidgetRef ref, int year, int month) {
+    return ref.read(billsRepositoryProvider).cancelPayment(
+          householdId: householdId,
+          category: BillCategory.vaadBayit,
+          year: year,
+          periodStartMonth: month,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final year = DateTime.now().year;
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(title: Text('${AppStrings.vaadBayitTitle} · $year')),
+      body: billsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+        data: (bills) {
+          final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: 12,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final bill = byMonth[month];
+              final isPaid = bill?.isPaid ?? false;
+
+              return Dismissible(
+                key: ValueKey('vaad-$month-$isPaid'),
+                direction: isPaid ? DismissDirection.startToEnd : DismissDirection.none,
+                background: Container(
+                  color: AppColors.error,
+                  alignment: AlignmentDirectional.centerStart,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Text(
+                    AppStrings.cancelPaymentAction,
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                confirmDismiss: (direction) async {
+                  await _cancelPayment(ref, year, month);
+                  return false;
+                },
+                child: ListTile(
+                  leading: Icon(
+                    isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                  ),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_monthNames[index]),
+                      if (bill?.reminderAt != null) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.alarm, size: 24, color: Colors.green),
+                      ],
+                    ],
+                  ),
+                  subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                  trailing: Text(
+                    isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                    style: TextStyle(
+                      color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => _openMonthSheet(context, ref, month),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+HMEOF
+echo 'DONE - alarm icon is now bigger and a vivid green!'

@@ -7,47 +7,14 @@ import '../../models/bill_payment_model.dart';
 import '../../providers/bills_provider.dart';
 import 'bill_period_table_screen.dart';
 
-/// מסך מים+ארנונה - בפעם הראשונה שואל האם ביחד או בנפרד, לוקח
-/// כתובת/ות תשלום, ואז תמיד מציג ישר את הטבלה/ות המתאימות.
+/// מסך מים+ארנונה - בפעם הראשונה שואל רק שאלה מבנית אחת (ביחד
+/// או בנפרד - קובעת אם יש טבלה אחת משותפת או שתיים נפרדות).
+/// אחרי זה, תמיד הולך ישר לטבלה/ות - בחירת אמצעי תשלום (סריקת
+/// ברקוד/קישור לאתר) נעשית בכל פעם מחדש בתוך חלונית כל תקופה.
 class WaterAndTaxScreen extends ConsumerWidget {
   final String householdId;
 
   const WaterAndTaxScreen({super.key, required this.householdId});
-
-  Future<void> _showEditUrlDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String label,
-    String currentUrl,
-    Future<void> Function(String url) onSave,
-  ) async {
-    final controller = TextEditingController(text: currentUrl);
-    final newUrl = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(label),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.url,
-          textDirection: TextDirection.ltr,
-          decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(AppStrings.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text(AppStrings.saveButton),
-          ),
-        ],
-      ),
-    );
-
-    if (newUrl == null) return;
-    await onSave(newUrl);
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,24 +25,13 @@ class WaterAndTaxScreen extends ConsumerWidget {
       error: (e, st) => const Scaffold(body: Center(child: Text('שגיאה בטעינה'))),
       data: (settings) {
         if (!settings.isWaterTaxConfigured) {
-          return _WaterTaxSetupScreen(householdId: householdId);
+          return _CombinedOrSeparateChoiceScreen(householdId: householdId);
         }
 
         if (settings.waterAndTaxCombined == true) {
           return BillPeriodTableScreen(
             householdId: householdId,
             category: BillCategory.waterAndTax,
-            title: AppStrings.waterAndTaxTitle,
-            showPaymentMethod: false,
-            showBarcodeScan: true,
-            payButtons: [(label: AppStrings.payNowButton, url: settings.combinedWaterTaxUrl!)],
-            onEditLink: () => _showEditUrlDialog(
-              context,
-              ref,
-              AppStrings.waterAndTaxTitle,
-              settings.combinedWaterTaxUrl!,
-              (url) => ref.read(billsRepositoryProvider).saveCombinedWaterTaxUrl(householdId, url),
-            ),
           );
         }
 
@@ -89,23 +45,8 @@ class WaterAndTaxScreen extends ConsumerWidget {
                 label: 'מים',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => BillPeriodTableScreen(
-                      householdId: householdId,
-                      category: BillCategory.water,
-                      title: 'מים',
-                      showPaymentMethod: false,
-                      showBarcodeScan: true,
-                      payButtons: [(label: AppStrings.payWaterButton, url: settings.waterUrl!)],
-                      onEditLink: () => _showEditUrlDialog(
-                        context,
-                        ref,
-                        'מים',
-                        settings.waterUrl!,
-                        (url) => ref
-                            .read(billsRepositoryProvider)
-                            .saveSeparateWaterTaxUrls(householdId, url, settings.taxUrl!),
-                      ),
-                    ),
+                    builder: (_) =>
+                        BillPeriodTableScreen(householdId: householdId, category: BillCategory.water),
                   ),
                 ),
               ),
@@ -115,23 +56,8 @@ class WaterAndTaxScreen extends ConsumerWidget {
                 label: 'ארנונה',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => BillPeriodTableScreen(
-                      householdId: householdId,
-                      category: BillCategory.tax,
-                      title: 'ארנונה',
-                      showPaymentMethod: false,
-                      showBarcodeScan: true,
-                      payButtons: [(label: AppStrings.payTaxButton, url: settings.taxUrl!)],
-                      onEditLink: () => _showEditUrlDialog(
-                        context,
-                        ref,
-                        'ארנונה',
-                        settings.taxUrl!,
-                        (url) => ref
-                            .read(billsRepositoryProvider)
-                            .saveSeparateWaterTaxUrls(householdId, settings.waterUrl!, url),
-                      ),
-                    ),
+                    builder: (_) =>
+                        BillPeriodTableScreen(householdId: householdId, category: BillCategory.tax),
                   ),
                 ),
               ),
@@ -178,51 +104,15 @@ class _CategoryLink extends StatelessWidget {
   }
 }
 
-class _WaterTaxSetupScreen extends ConsumerStatefulWidget {
+/// שאלה מבנית חד-פעמית: מים וארנונה משולמים ביחד או בנפרד. בלי
+/// שום שאלה על קישורי תשלום - זה נשאל בהמשך, בתוך כל תקופה.
+class _CombinedOrSeparateChoiceScreen extends ConsumerWidget {
   final String householdId;
 
-  const _WaterTaxSetupScreen({required this.householdId});
+  const _CombinedOrSeparateChoiceScreen({required this.householdId});
 
   @override
-  ConsumerState<_WaterTaxSetupScreen> createState() => _WaterTaxSetupScreenState();
-}
-
-class _WaterTaxSetupScreenState extends ConsumerState<_WaterTaxSetupScreen> {
-  bool? _combined;
-  final _combinedUrlController = TextEditingController();
-  final _waterUrlController = TextEditingController();
-  final _taxUrlController = TextEditingController();
-  bool _isSaving = false;
-
-  @override
-  void dispose() {
-    _combinedUrlController.dispose();
-    _waterUrlController.dispose();
-    _taxUrlController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() => _isSaving = true);
-    try {
-      final repo = ref.read(billsRepositoryProvider);
-      if (_combined == true) {
-        final url = _combinedUrlController.text.trim();
-        if (url.isEmpty) return;
-        await repo.saveCombinedWaterTaxUrl(widget.householdId, url);
-      } else {
-        final waterUrl = _waterUrlController.text.trim();
-        final taxUrl = _taxUrlController.text.trim();
-        if (waterUrl.isEmpty || taxUrl.isEmpty) return;
-        await repo.saveSeparateWaterTaxUrls(widget.householdId, waterUrl, taxUrl);
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
       body: Padding(
@@ -231,51 +121,24 @@ class _WaterTaxSetupScreenState extends ConsumerState<_WaterTaxSetupScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(AppStrings.waterTaxCombinedQuestion, style: AppTextStyles.heading2),
-            const SizedBox(height: 12),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: true, label: Text(AppStrings.combinedOption)),
-                ButtonSegment(value: false, label: Text(AppStrings.separateOption)),
-              ],
-              selected: _combined == null ? {} : {_combined!},
-              emptySelectionAllowed: true,
-              onSelectionChanged: (s) => setState(() => _combined = s.isEmpty ? null : s.first),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                await ref
+                    .read(billsRepositoryProvider)
+                    .saveCombinedWaterTaxUrl(householdId, '');
+              },
+              child: const Text(AppStrings.combinedOption, style: AppTextStyles.button),
             ),
-            const SizedBox(height: 20),
-            if (_combined == true)
-              TextField(
-                controller: _combinedUrlController,
-                keyboardType: TextInputType.url,
-                textDirection: TextDirection.ltr,
-                decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
-              ),
-            if (_combined == false) ...[
-              TextField(
-                controller: _waterUrlController,
-                keyboardType: TextInputType.url,
-                textDirection: TextDirection.ltr,
-                decoration: const InputDecoration(labelText: AppStrings.waterUrlLabel),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _taxUrlController,
-                keyboardType: TextInputType.url,
-                textDirection: TextDirection.ltr,
-                decoration: const InputDecoration(labelText: AppStrings.taxUrlLabel),
-              ),
-            ],
-            const SizedBox(height: 20),
-            if (_combined != null)
-              ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text(AppStrings.saveAndContinue, style: AppTextStyles.button),
-              ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () async {
+                await ref
+                    .read(billsRepositoryProvider)
+                    .saveSeparateWaterTaxUrls(householdId, '', '');
+              },
+              child: const Text(AppStrings.separateOption),
+            ),
           ],
         ),
       ),

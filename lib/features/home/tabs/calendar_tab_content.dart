@@ -181,8 +181,8 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
             ...selectedDayLists.map(
               (l) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.shopping_cart, color: AppColors.primary),
-                  title: Text(l.name),
+                  leading: const Icon(Icons.shopping_cart, color: Colors.blue, size: 26),
+                  title: const Text(AppStrings.shoppingEventLabel),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
@@ -196,7 +196,7 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
             ...selectedDayReminders.map(
               (b) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.alarm_outlined, color: AppColors.itemNotFound),
+                  leading: const Icon(Icons.alarm, color: Colors.green, size: 26),
                   title: Text(billCategoryDisplayName(b.category)),
                   subtitle: Text(DateFormatter.short(b.reminderAt)),
                 ),
@@ -215,9 +215,9 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.shopping_cart, size: 16, color: AppColors.primary),
+                  const Icon(Icons.shopping_cart, size: 22, color: Colors.blue),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(l.name, style: AppTextStyles.body)),
+                  const Expanded(child: Text(AppStrings.shoppingEventLabel, style: AppTextStyles.body)),
                   Text(DateFormatter.dateOnly(l.date), style: AppTextStyles.bodySecondary),
                 ],
               ),
@@ -228,7 +228,7 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.alarm_outlined, size: 16, color: AppColors.itemNotFound),
+                  const Icon(Icons.alarm, size: 22, color: Colors.green),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(billCategoryDisplayName(b.category), style: AppTextStyles.body),

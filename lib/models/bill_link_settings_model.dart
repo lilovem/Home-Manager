@@ -21,13 +21,7 @@ class BillLinkSettings {
 
   bool get isElectricityConfigured => electricityUrl != null && electricityUrl!.isNotEmpty;
 
-  bool get isWaterTaxConfigured {
-    if (waterAndTaxCombined == null) return false;
-    if (waterAndTaxCombined == true) {
-      return combinedWaterTaxUrl != null && combinedWaterTaxUrl!.isNotEmpty;
-    }
-    return waterUrl != null && waterUrl!.isNotEmpty && taxUrl != null && taxUrl!.isNotEmpty;
-  }
+  bool get isWaterTaxConfigured => waterAndTaxCombined != null;
 
   factory BillLinkSettings.fromFirestore(Map<String, dynamic>? data) {
     if (data == null) return const BillLinkSettings();
