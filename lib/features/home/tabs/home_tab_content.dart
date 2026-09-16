@@ -4,6 +4,9 @@ import '../../../app/config/app_colors.dart';
 import '../../../app/config/app_text_styles.dart';
 import '../../../app/config/app_strings.dart';
 import '../../../providers/shopping_provider.dart';
+import '../../bills/electricity_screen.dart';
+import '../../bills/vaad_bayit_screen.dart';
+import '../../bills/water_and_tax_screen.dart';
 import '../home_module.dart';
 
 /// תוכן טאב "בית" - רשת 4 חלונות: קניות, לוח שנה, משימות, רכבים.
@@ -26,32 +29,154 @@ class HomeTabContent extends ConsumerWidget {
     final pendingCount = ref.watch(totalPendingItemsCountProvider(householdId));
     final upcoming = ref.watch(upcomingShoppingDatesProvider(householdId));
 
-    return GridView.count(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      crossAxisCount: 2,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
       children: [
-        _Tile(
-          module: tiles[0],
-          color: AppColors.itemPurchased,
-          badgeCount: pendingCount > 0 ? pendingCount : null,
-          onTap: () => onSelectTab(1),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: [
+            _Tile(
+              module: tiles[0],
+              color: AppColors.itemPurchased,
+              badgeCount: pendingCount > 0 ? pendingCount : null,
+              onTap: () => onSelectTab(1),
+            ),
+            _Tile(
+              module: tiles[1],
+              color: AppColors.primary,
+              badgeCount: upcoming.isNotEmpty ? upcoming.length : null,
+              onTap: () => onSelectTab(2),
+            ),
+            _Tile(
+              module: tiles[2],
+              color: AppColors.itemNewBadge,
+              onTap: () => onSelectTab(3),
+            ),
+            _Tile(module: tiles[3], color: AppColors.itemNotFound, onTap: null),
+          ],
         ),
-        _Tile(
-          module: tiles[1],
-          color: AppColors.primary,
-          badgeCount: upcoming.isNotEmpty ? upcoming.length : null,
-          onTap: () => onSelectTab(2),
-        ),
-        _Tile(
-          module: tiles[2],
-          color: AppColors.itemNewBadge,
-          onTap: () => onSelectTab(3),
-        ),
-        _Tile(module: tiles[3], color: AppColors.itemNotFound, onTap: null),
+        const SizedBox(height: 16),
+        _BillsSection(householdId: householdId),
       ],
+    );
+  }
+}
+
+/// כרטיס רחב עם 3 עמודות: ועד בית (פעיל), חשמל ומים+ארנונה
+/// (בקרוב - עדיין אין להם מסכים אמיתיים).
+class _BillsSection extends StatelessWidget {
+  final String householdId;
+
+  const _BillsSection({required this.householdId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _BillColumn(
+                  icon: Icons.apartment_outlined,
+                  label: AppStrings.vaadBayitTitle,
+                  available: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => VaadBayitScreen(householdId: householdId),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _BillColumn(
+                  icon: Icons.bolt_outlined,
+                  label: AppStrings.electricityTitle,
+                  available: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ElectricityScreen(householdId: householdId),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _BillColumn(
+                  icon: Icons.water_drop_outlined,
+                  label: AppStrings.waterAndTaxTitle,
+                  available: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => WaterAndTaxScreen(householdId: householdId),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BillColumn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool available;
+  final VoidCallback? onTap;
+
+  const _BillColumn({
+    required this.icon,
+    required this.label,
+    required this.available,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Opacity(
+        opacity: available ? 1 : 0.5,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(height: 6),
+              Text(label, style: AppTextStyles.body.copyWith(fontSize: 12), textAlign: TextAlign.center),
+              if (!available)
+                Text(AppStrings.comingSoon,
+                    style: AppTextStyles.bodySecondary.copyWith(fontSize: 10)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

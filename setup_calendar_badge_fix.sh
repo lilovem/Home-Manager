@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'PROJECT_STATUS.md' << 'HMEOF'
 # PROJECT_STATUS.md — Home Manager
 
 > קובץ זה מתעדכן אחרי כל שלב משמעותי. אם פותחים שיחה/session חדש/ה,
@@ -213,34 +216,6 @@
 - **נוספה צפייה בקבלה** - כפתור "צפה בקבלה" בחלונית העריכה (כשכבר שולם) פותח דיאלוג עם `Image.memory` (לתמונות) או הודעה + שם קובץ (ל-PDF, שאין לו תצוגה מקדימה מובנית ב-Flutter בלי ספריה נוספת).
 - **נוספה מחיקת קבלה** - כפתור "מחק קבלה" (`BillsService.deleteReceipt`) מאפס את שדות הקבלה ב-Firestore, מחזיר את התקופה למצב "לא שולם".
 - **תוקן:** `upcomingShoppingDatesProvider` (התג המספרי על כרטיסיית "לוח שנה" ב-Dashboard) לא סינן רשימות ריקות, בניגוד לתיקון שכבר בוצע במקומות אחרים (מסך "קנייה נוכחית", כרטיס לוח השנה המפורט) - הוצג "8" במקום המספר האמיתי, כי נספרו גם רשימות-בדיקה ישנות בלי מוצרים. עודכן לאותה לוגיקת סינון (בודק גם `shoppingItemsProvider` לכל רשימה, לא רק תאריך).
-- **נוסף:** אייקון עריכה (עיפרון) ליד ביט/פייבוקס בתפריט "שלם עכשיו" של ועד בית - מוצג רק אם כבר יש קישור שמור לאותה שיטה, מאפשר להחליף אותו בלי למחוק ולהתחיל מחדש.
-
-### תוקן: באג טיימינג אמיתי + נוספה מחיקת קישור מפורשת
-- **הסבר למה נראה כאילו "לא זוכר" קישור שכבר נשמר:** `billLinkSettingsProvider` (StreamProvider) לא היה מ-`watch` בשום מקום לפני שנפתחת חלונית התשלום - ב-Riverpod, provider כזה לא מתחיל להאזין ל-Firestore עד שמישהו עושה לו `watch`, כך ש-`ref.read(...).value` יכל להחזיר `null` **גם אם** בפועל קיים ערך שמור, סתם כי ה-listener עוד לא הספיק "להתעורר". **התיקון:** נוסף `ref.watch(billLinkSettingsProvider(...))` בתחילת ה-`build()` של `BillPeriodEditSheet`, כך שההאזנה כבר פעילה ברגע שהחלונית נפתחת.
-- **נוספה יכולת מחיקה אמיתית**: בכל מסך עריכת קישור (חשמל, מים, ארנונה, ביט, פייבוקס) - אם משתמש **מרוקן** את השדה ולוחץ "שמור", זה נשמר כמחרוזת ריקה ב-Firestore, מה שגורם ל-`is...Configured` להחזיר `false` שוב ומחזיר את המסך למצב "עדיין לא הוגדר" - במקום להתעלם בשקט מערך ריק כמו קודם.
-- **הערה חשובה שהוסברה למשתמש:** אין קישור "פתח סתם את ביט" אוניברסלי ומתועד רשמית ע"י הבנקים - חובה קישור אמיתי (מבקשת תשלום קונקרטית באפליקציה, למשל), שנשמר פעם אחת. זה לא "באג" בקוד - זו מגבלה אמיתית של האקוסיסטם.
-
-### פישוט סופי: ברירות מחדל אמיתיות (Google Play) + "שולם" בשמירה
-- **אחרי מסע חיפוש ארוך** (כולל בדיקת "קבוצות איסוף כספים" בביט/פייבוקס, שדורשות הקמת קבוצה מראש) - **הוחלט על הפתרון הפשוט ביותר**: קישורי ברירת מחדל קבועים לדפי האפליקציות ב-Google Play (`_kBitDefaultUrl`, `_kPayboxDefaultUrl`) - אם האפליקציה כבר מותקנת בטלפון, גוגל פליי מציג כפתור "פתח" ולא "התקן", כך שזה בפועל כמעט זהה לפתיחה ישירה, בלי תלות בקישור-משתמש שצריך למצוא/להזין.
-- **אין יותר "שאלה בפעם הראשונה"** - הקישורים תמיד קיימים כברירת מחדל; אייקון העריכה עדיין זמין תמיד (לא רק כשיש כבר קישור מותאם אישית) למי שירצה לדרוס עם deep-link טוב יותר בעתיד (למשל אם יגלה שקיים `bit://`/`paybox://` בטלפון שלו - הוצע לו לבדוק זאת ידנית בדפדפן).
-- **"שולם" כבר לא תלוי בהעלאת קבלה בלבד** - נוסף שדה `paidManually` (bool) ל-`BillPayment`. `isPaid` בודק `receiptData != null || paidManually`. `saveBillDetails()` מקבל פרמטר `markPaid` חדש; `BillPeriodEditSheet`/`BillPeriodTableScreen` מקבלים `markPaidOnSave` (ברירת מחדל `false`) - **רק ועד בית מפעיל את זה** (`true`), כך שלחיצה על "שמור" שם (עם סכום+אמצעי תשלום) מספיקה לסימון "שולם", בלי חובת קבלה. **חשמל/מים/ארנונה נשארו ללא שינוי** - עדיין דורשים קבלה בפועל לסימון "שולם", לפי ההבחנה המקורית בין הקטגוריות.
-- **נוסף כפתור "בטל"** ליד "שמור" בחלונית העריכה (בכל הקטגוריות) - סוגר בלי לשמור.
-
-### שינוי גדול: הוסר לגמרי מנגנון הקבלות, נוסף ביטול-בהחלקה
-- **הוסר לחלוטין, לפי בקשה מפורשת:** כל מנגנון הקבלות - העלאה, צפייה, מחיקה. כולל: שדות `receiptData`/`receiptMimeType`/`receiptFileName` מ-`BillPayment`, `lib/services/files/` (כל התיקייה - `FilePickerService` היה משמש רק לזה), `BillsService.attachReceipt`/`deleteReceipt`, ו-`firebase_storage`/`file_picker` מה-imports.
-- **"שולם" עכשיו תלוי אך ורק בשדה `paidManually`** - כל שמירה (בכל קטגוריה - ועד בית/חשמל/מים/ארנונה) מסמנת אוטומטית `paidManually: true`. אין יותר הבחנה בין קטגוריות לגבי "איך מסמנים שולם" - זה אחיד עכשיו.
-- **נוסף ביטול תשלום בהחלקה (swipe)** - כל שורת חודש/תקופה עטופה ב-`Dismissible` (`DismissDirection.startToEnd`, פעיל רק אם `isPaid`). החלקה קוראת ל-`cancelPayment()` (מאפס `paidManually`+`paidAt`) ומחזירה `confirmDismiss: false` תמיד - השורה **לא** נעלמת מהרשימה, רק הסטטוס (החוג הירוק) משתנה. רקע אדום עם הטקסט "בטל תשלום" מוצג בזמן ההחלקה.
-- שורות **לא-משולמות** אינן ניתנות להחלקה כלל (`DismissDirection.none`) - אין מה לבטל.
-
-### נוסף: סריקת ברקוד לחשמל/מים/ארנונה (לא לועד בית)
-- נוסף `mobile_scanner` (^6.0.2) כתלות - מאפשר סריקת ברקוד/QR דרך מצלמת המכשיר, כולל תמיכה ב-Flutter Web (מסתמך על ה-API של הדפדפן, נתמך היטב ב-Chrome).
-- `lib/features/bills/barcode_scan_screen.dart` - מסך מצלמה חדש, מחזיר את הערך הנסרק בלבד (`Navigator.pop`) - **לא** מנסה "לפענח" סכום/פרטים מהברקוד עצמו, כי פורמטים של שוברי תשלום שונים מאוד בין ספקים (חברת חשמל/רשות מקומית/תאגיד מים) ופענוח אמין ידרוש טיפול ייעודי לכל ספק.
-- נוסף `showBarcodeScan` (bool, ברירת מחדל `false`) ל-`BillPeriodTableScreen`/`BillPeriodEditSheet`, **מופעל רק** בחשמל ובמים/ארנונה (`electricity_screen.dart`, `water_and_tax_screen.dart`) - **לא** בועד בית (שם יש כבר את בחירת ביט/פייבוקס/מזומן, וברקוד לא רלוונטי לתשלום בין אנשים).
-- כפתור "סרוק ברקוד משובר תשלום" מוצג **בנוסף** לכפתור "שלם עכשיו" (האתר) - שתי אפשרויות משלימות, לא סותרות. לאחר סריקה מוצלחת, אמצעי התשלום מסומן כ"נסרק מברקוד" ומוצג למשתמש (הצגת "אמצעי תשלום" הופרדה מ-`showPaymentMethod` הישן, כדי שתעבוד גם כשהבחירה מגיעה מסריקה ולא מה-Pay Now chooser).
-
-### תוקן: ביטול תשלום מנקה גם את הסכום, לא רק את הסימון
-- `BillsService.cancelPayment()` עודכן לאפס גם `amount` ו-`paymentMethod` (לא רק `paidManually`/`paidAt`) - השורה חוזרת למראה "ריק לגמרי" אחרי ביטול, לא רק "לא שולם עם מחיר ישן עדיין מוצג". חל אוטומטית על **כל** הקטגוריות (ועד בית/חשמל/מים/ארנונה), כי זו פונקציה משותפת אחת.
-- **הבהרה:** ההחלקה-לביטול (`Dismissible`) כבר הייתה קיימת גם בחשמל **וגם** במים/ארנונה מההתחלה - שלושתם חולקים את אותו קומפוננטה (`BillPeriodTableScreen`), אז אין צורך "להוסיף" אותה בנפרד לכל קטגוריה.
 
 ### הרחבה: חשמל + מים/ארנונה (קישור תשלום, בלי ניחוש עיר)
 - **נדחתה בכוונה** האפשרות "בחר עיר → אתר אוטומטי" - אין מאגר אמין של מאות רשויות מקומיות שאפשר לשמור בקוד בלי שיתיישן/יהיה לא מדויק. **נבחרה הגדרה חד-פעמית ידנית** במקום.
@@ -363,3 +338,102 @@
 ## הוראות הפעלה (למשתמש)
 ראה קובץ `SETUP_INSTRUCTIONS.md` שנשלח יחד עם קבצי הפרויקט.
 
+HMEOF
+cat > 'lib/providers/shopping_provider.dart' << 'HMEOF'
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/shopping_history_model.dart';
+import '../models/shopping_item_model.dart';
+import '../models/shopping_list_model.dart';
+import '../repositories/shopping_repository.dart';
+import '../services/firebase/shopping_service.dart';
+import 'household_provider.dart';
+
+final shoppingServiceProvider = Provider<ShoppingService>((ref) {
+  return ShoppingService(ref.watch(firestoreProvider));
+});
+
+final shoppingRepositoryProvider = Provider<ShoppingRepository>((ref) {
+  return ShoppingRepository(ref.watch(shoppingServiceProvider));
+});
+
+/// כל רשימות הקניות של household מסוים.
+final shoppingListsProvider =
+    StreamProvider.family<List<ShoppingList>, String>((ref, householdId) {
+  return ref.watch(shoppingRepositoryProvider).watchLists(householdId);
+});
+
+/// מזהה הרשימה שיש לה כרגע session פעיל (אם יש) - בין כל הרשימות
+/// של ה-household. משמש להאזנת התראות גלובלית (ShoppingNotificationsListener)
+/// בלי לדעת מראש איזו רשימה ספציפית פעילה.
+final activeSessionListIdProvider =
+    Provider.family<String?, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
+  for (final list in lists) {
+    if (list.activeSessionId != null) return list.id;
+  }
+  return null;
+});
+
+/// סך כל הפריטים ה"ממתינים" (עוד לא נקנו) בכל רשימות ה-household
+/// יחד - משמש לתג המספר בכרטיסיית "קניות" ב-Dashboard.
+final totalPendingItemsCountProvider = Provider.family<int, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
+  var count = 0;
+  for (final list in lists) {
+    final items =
+        ref.watch(shoppingItemsProvider((householdId: householdId, listId: list.id))).value ??
+            const [];
+    count += items.where((i) => i.status == ItemStatus.pending).length;
+  }
+  return count;
+});
+
+/// רשימות קניות עם תאריך עתידי (או היום) **שיש בהן בפועל מוצרים**,
+/// ממוינות מהקרוב לרחוק - משמש לתג המספר בכרטיסיית "לוח שנה"
+/// ב-Dashboard ולכרטיס לוח השנה. רשימות ריקות (למשל שאריות
+/// מבדיקות ישנות) לא נספרות/מוצגות.
+final upcomingShoppingDatesProvider =
+    Provider.family<List<ShoppingList>, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
+  final today = DateTime.now();
+  final todayStart = DateTime(today.year, today.month, today.day);
+
+  final upcoming = lists.where((l) {
+    if (l.date == null || l.date!.isBefore(todayStart)) return false;
+    final items =
+        ref.watch(shoppingItemsProvider((householdId: householdId, listId: l.id))).value ??
+            const [];
+    return items.isNotEmpty;
+  }).toList();
+
+  upcoming.sort((a, b) => a.date!.compareTo(b.date!));
+  return upcoming;
+});
+
+/// פרמטרים ל-watch של פריטי רשימה מסוימת.
+typedef ShoppingItemsArgs = ({String householdId, String listId});
+
+final shoppingItemsProvider =
+    StreamProvider.family<List<ShoppingItem>, ShoppingItemsArgs>((ref, args) {
+  return ref
+      .watch(shoppingRepositoryProvider)
+      .watchItems(args.householdId, args.listId);
+});
+
+/// היסטוריית קניות של household מסוים.
+final shoppingHistoryProvider =
+    StreamProvider.family<List<ShoppingHistoryEntry>, String>((ref, householdId) {
+  return ref.watch(shoppingRepositoryProvider).watchHistory(householdId);
+});
+
+/// מידע חי על הרשימה עצמה (כולל activeSessionId) - כדי שכל
+/// חברי ה-household יראו מיידית כשקנייה פעילה מתחילה/מסתיימת.
+final shoppingListMetaProvider =
+    StreamProvider.family<ShoppingList, ShoppingItemsArgs>((ref, args) {
+  return ref
+      .watch(shoppingRepositoryProvider)
+      .watchListMeta(args.householdId, args.listId);
+});
+
+HMEOF
+echo 'DONE - calendar badge now only counts lists with actual items!'

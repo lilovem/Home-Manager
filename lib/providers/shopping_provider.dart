@@ -46,16 +46,24 @@ final totalPendingItemsCountProvider = Provider.family<int, String>((ref, househ
   return count;
 });
 
-/// רשימות קניות עם תאריך עתידי (או היום), ממוינות מהקרוב לרחוק -
-/// משמש לכרטיסיית "לוח שנה" ב-Dashboard (מבוסס על תאריכים שכבר
-/// קיימים במערכת, לא על מודול "לוח שנה" עצמאי).
+/// רשימות קניות עם תאריך עתידי (או היום) **שיש בהן בפועל מוצרים**,
+/// ממוינות מהקרוב לרחוק - משמש לתג המספר בכרטיסיית "לוח שנה"
+/// ב-Dashboard ולכרטיס לוח השנה. רשימות ריקות (למשל שאריות
+/// מבדיקות ישנות) לא נספרות/מוצגות.
 final upcomingShoppingDatesProvider =
     Provider.family<List<ShoppingList>, String>((ref, householdId) {
   final lists = ref.watch(shoppingListsProvider(householdId)).value ?? [];
   final today = DateTime.now();
   final todayStart = DateTime(today.year, today.month, today.day);
 
-  final upcoming = lists.where((l) => l.date != null && !l.date!.isBefore(todayStart)).toList();
+  final upcoming = lists.where((l) {
+    if (l.date == null || l.date!.isBefore(todayStart)) return false;
+    final items =
+        ref.watch(shoppingItemsProvider((householdId: householdId, listId: l.id))).value ??
+            const [];
+    return items.isNotEmpty;
+  }).toList();
+
   upcoming.sort((a, b) => a.date!.compareTo(b.date!));
   return upcoming;
 });

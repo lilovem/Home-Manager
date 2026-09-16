@@ -80,6 +80,17 @@ service cloud.firestore {
       match /shoppingHistory/{historyId} {
         allow read, write: if isHouseholdMember(householdId);
       }
+
+      // רשומות תשלום חשבונות (ועד בית/חשמל/מים/ארנונה) - רק חברי
+      // ה-household. הקבלה עצמה (base64) נשמרת בתוך אותו מסמך.
+      match /bills/{billId} {
+        allow read, write: if isHouseholdMember(householdId);
+      }
+
+      // הגדרות (כמו קישורי תשלום לחשמל/מים/ארנונה) - רק חברי ה-household.
+      match /settings/{settingId} {
+        allow read, write: if isHouseholdMember(householdId);
+      }
     }
   }
 }

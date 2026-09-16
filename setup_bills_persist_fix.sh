@@ -1,7 +1,12 @@
+#!/bin/bash
+set -e
+mkdir -p lib/features/bills
+cat > 'PROJECT_STATUS.md' << 'HMEOF'
 # PROJECT_STATUS.md — Home Manager
 
 > קובץ זה מתעדכן אחרי כל שלב משמעותי. אם פותחים שיחה/session חדש/ה,
-> יש לקרוא קובץ זה **וגם** את הקוד הקיים לפני שממשיכים לפתח.
+> יש לקרוא קובץ זה **וגם** את הקוד הקיים לפני שממש
+יכים לפתח.
 
 ---
 
@@ -220,28 +225,6 @@
 - **נוספה יכולת מחיקה אמיתית**: בכל מסך עריכת קישור (חשמל, מים, ארנונה, ביט, פייבוקס) - אם משתמש **מרוקן** את השדה ולוחץ "שמור", זה נשמר כמחרוזת ריקה ב-Firestore, מה שגורם ל-`is...Configured` להחזיר `false` שוב ומחזיר את המסך למצב "עדיין לא הוגדר" - במקום להתעלם בשקט מערך ריק כמו קודם.
 - **הערה חשובה שהוסברה למשתמש:** אין קישור "פתח סתם את ביט" אוניברסלי ומתועד רשמית ע"י הבנקים - חובה קישור אמיתי (מבקשת תשלום קונקרטית באפליקציה, למשל), שנשמר פעם אחת. זה לא "באג" בקוד - זו מגבלה אמיתית של האקוסיסטם.
 
-### פישוט סופי: ברירות מחדל אמיתיות (Google Play) + "שולם" בשמירה
-- **אחרי מסע חיפוש ארוך** (כולל בדיקת "קבוצות איסוף כספים" בביט/פייבוקס, שדורשות הקמת קבוצה מראש) - **הוחלט על הפתרון הפשוט ביותר**: קישורי ברירת מחדל קבועים לדפי האפליקציות ב-Google Play (`_kBitDefaultUrl`, `_kPayboxDefaultUrl`) - אם האפליקציה כבר מותקנת בטלפון, גוגל פליי מציג כפתור "פתח" ולא "התקן", כך שזה בפועל כמעט זהה לפתיחה ישירה, בלי תלות בקישור-משתמש שצריך למצוא/להזין.
-- **אין יותר "שאלה בפעם הראשונה"** - הקישורים תמיד קיימים כברירת מחדל; אייקון העריכה עדיין זמין תמיד (לא רק כשיש כבר קישור מותאם אישית) למי שירצה לדרוס עם deep-link טוב יותר בעתיד (למשל אם יגלה שקיים `bit://`/`paybox://` בטלפון שלו - הוצע לו לבדוק זאת ידנית בדפדפן).
-- **"שולם" כבר לא תלוי בהעלאת קבלה בלבד** - נוסף שדה `paidManually` (bool) ל-`BillPayment`. `isPaid` בודק `receiptData != null || paidManually`. `saveBillDetails()` מקבל פרמטר `markPaid` חדש; `BillPeriodEditSheet`/`BillPeriodTableScreen` מקבלים `markPaidOnSave` (ברירת מחדל `false`) - **רק ועד בית מפעיל את זה** (`true`), כך שלחיצה על "שמור" שם (עם סכום+אמצעי תשלום) מספיקה לסימון "שולם", בלי חובת קבלה. **חשמל/מים/ארנונה נשארו ללא שינוי** - עדיין דורשים קבלה בפועל לסימון "שולם", לפי ההבחנה המקורית בין הקטגוריות.
-- **נוסף כפתור "בטל"** ליד "שמור" בחלונית העריכה (בכל הקטגוריות) - סוגר בלי לשמור.
-
-### שינוי גדול: הוסר לגמרי מנגנון הקבלות, נוסף ביטול-בהחלקה
-- **הוסר לחלוטין, לפי בקשה מפורשת:** כל מנגנון הקבלות - העלאה, צפייה, מחיקה. כולל: שדות `receiptData`/`receiptMimeType`/`receiptFileName` מ-`BillPayment`, `lib/services/files/` (כל התיקייה - `FilePickerService` היה משמש רק לזה), `BillsService.attachReceipt`/`deleteReceipt`, ו-`firebase_storage`/`file_picker` מה-imports.
-- **"שולם" עכשיו תלוי אך ורק בשדה `paidManually`** - כל שמירה (בכל קטגוריה - ועד בית/חשמל/מים/ארנונה) מסמנת אוטומטית `paidManually: true`. אין יותר הבחנה בין קטגוריות לגבי "איך מסמנים שולם" - זה אחיד עכשיו.
-- **נוסף ביטול תשלום בהחלקה (swipe)** - כל שורת חודש/תקופה עטופה ב-`Dismissible` (`DismissDirection.startToEnd`, פעיל רק אם `isPaid`). החלקה קוראת ל-`cancelPayment()` (מאפס `paidManually`+`paidAt`) ומחזירה `confirmDismiss: false` תמיד - השורה **לא** נעלמת מהרשימה, רק הסטטוס (החוג הירוק) משתנה. רקע אדום עם הטקסט "בטל תשלום" מוצג בזמן ההחלקה.
-- שורות **לא-משולמות** אינן ניתנות להחלקה כלל (`DismissDirection.none`) - אין מה לבטל.
-
-### נוסף: סריקת ברקוד לחשמל/מים/ארנונה (לא לועד בית)
-- נוסף `mobile_scanner` (^6.0.2) כתלות - מאפשר סריקת ברקוד/QR דרך מצלמת המכשיר, כולל תמיכה ב-Flutter Web (מסתמך על ה-API של הדפדפן, נתמך היטב ב-Chrome).
-- `lib/features/bills/barcode_scan_screen.dart` - מסך מצלמה חדש, מחזיר את הערך הנסרק בלבד (`Navigator.pop`) - **לא** מנסה "לפענח" סכום/פרטים מהברקוד עצמו, כי פורמטים של שוברי תשלום שונים מאוד בין ספקים (חברת חשמל/רשות מקומית/תאגיד מים) ופענוח אמין ידרוש טיפול ייעודי לכל ספק.
-- נוסף `showBarcodeScan` (bool, ברירת מחדל `false`) ל-`BillPeriodTableScreen`/`BillPeriodEditSheet`, **מופעל רק** בחשמל ובמים/ארנונה (`electricity_screen.dart`, `water_and_tax_screen.dart`) - **לא** בועד בית (שם יש כבר את בחירת ביט/פייבוקס/מזומן, וברקוד לא רלוונטי לתשלום בין אנשים).
-- כפתור "סרוק ברקוד משובר תשלום" מוצג **בנוסף** לכפתור "שלם עכשיו" (האתר) - שתי אפשרויות משלימות, לא סותרות. לאחר סריקה מוצלחת, אמצעי התשלום מסומן כ"נסרק מברקוד" ומוצג למשתמש (הצגת "אמצעי תשלום" הופרדה מ-`showPaymentMethod` הישן, כדי שתעבוד גם כשהבחירה מגיעה מסריקה ולא מה-Pay Now chooser).
-
-### תוקן: ביטול תשלום מנקה גם את הסכום, לא רק את הסימון
-- `BillsService.cancelPayment()` עודכן לאפס גם `amount` ו-`paymentMethod` (לא רק `paidManually`/`paidAt`) - השורה חוזרת למראה "ריק לגמרי" אחרי ביטול, לא רק "לא שולם עם מחיר ישן עדיין מוצג". חל אוטומטית על **כל** הקטגוריות (ועד בית/חשמל/מים/ארנונה), כי זו פונקציה משותפת אחת.
-- **הבהרה:** ההחלקה-לביטול (`Dismissible`) כבר הייתה קיימת גם בחשמל **וגם** במים/ארנונה מההתחלה - שלושתם חולקים את אותו קומפוננטה (`BillPeriodTableScreen`), אז אין צורך "להוסיף" אותה בנפרד לכל קטגוריה.
-
 ### הרחבה: חשמל + מים/ארנונה (קישור תשלום, בלי ניחוש עיר)
 - **נדחתה בכוונה** האפשרות "בחר עיר → אתר אוטומטי" - אין מאגר אמין של מאות רשויות מקומיות שאפשר לשמור בקוד בלי שיתיישן/יהיה לא מדויק. **נבחרה הגדרה חד-פעמית ידנית** במקום.
 - `lib/models/bill_link_settings_model.dart` + `lib/services/firebase/bill_settings_service.dart` — הגדרות קישורי תשלום, נשמר במסמך יחיד `households/{id}/settings/billLinks`. חשמל תמיד נפרד; מים+ארנונה עם דגל `waterAndTaxCombined` (יחד = קישור אחד, בנפרד = שני קישורים+שתי טבלאות עצמאיות).
@@ -363,3 +346,969 @@
 ## הוראות הפעלה (למשתמש)
 ראה קובץ `SETUP_INSTRUCTIONS.md` שנשלח יחד עם קבצי הפרויקט.
 
+HMEOF
+cat > 'lib/features/bills/bill_period_table_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+
+/// פותח קישור בכרטיסייה חדשה, **סינכרונית** (לא async/await) - זה
+/// קריטי: דפדפנים חוסמים חלונות קופצים אם יש "פער" (await) בין
+/// הלחיצה לפתיחה בפועל. קריאה ישירה ל-dart:html אמינה הרבה יותר
+/// מ-url_launcher לצורך הזה בדיוק.
+void openPaymentLink(String url) {
+  html.window.open(url, '_blank');
+}
+
+/// מסך טבלת תשלומים דו-חודשית גנרי - משמש לחשמל, מים, ארנונה
+/// (בנפרד או ביחד). זהה במבנה ל-VaadBayitScreen, רק עם 6 תקופות
+/// של חודשיים במקום 12 חודשים, ועם כפתור/י "שלם עכשיו" למעלה.
+class BillPeriodTableScreen extends ConsumerWidget {
+  final String householdId;
+  final BillCategory category;
+  final String title;
+  final List<({String label, String url})> payButtons;
+  final bool showPaymentMethod;
+  final VoidCallback? onEditLink;
+
+  const BillPeriodTableScreen({
+    super.key,
+    required this.householdId,
+    required this.category,
+    required this.title,
+    required this.payButtons,
+    this.showPaymentMethod = true,
+    this.onEditLink,
+  });
+
+  static const _periodStartMonths = [1, 3, 5, 7, 9, 11];
+  static final _monthNames = AppStrings.monthNames.split(',');
+
+  String _periodLabel(int startMonth) {
+    final endMonth = startMonth == 11 ? 1 : startMonth + 1;
+    return '${_monthNames[startMonth - 1]}-${_monthNames[endMonth - 1]}';
+  }
+
+  Future<void> _openPeriodSheet(BuildContext context, WidgetRef ref, int startMonth) async {
+    final year = DateTime.now().year;
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: householdId, category: category, year: year),
+    ));
+    final existing =
+        (billsAsync.value ?? []).where((b) => b.periodStartMonth == startMonth);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => BillPeriodEditSheet(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: startMonth,
+        periodLabel: _periodLabel(startMonth),
+        existing: bill,
+        showPaymentMethod: showPaymentMethod,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final year = DateTime.now().year;
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: householdId, category: category, year: year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('$title · $year'),
+        actions: onEditLink != null
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: AppStrings.editLinkButton,
+                  onPressed: onEditLink,
+                ),
+              ]
+            : null,
+      ),
+      body: Column(
+        children: [
+          if (payButtons.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: payButtons
+                    .map((btn) => ElevatedButton.icon(
+                          onPressed: () => openPaymentLink(btn.url),
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          label: Text(btn.label),
+                        ))
+                    .toList(),
+              ),
+            ),
+          Expanded(
+            child: billsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+              data: (bills) {
+                final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: _periodStartMonths.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final startMonth = _periodStartMonths[index];
+                    final bill = byMonth[startMonth];
+                    final isPaid = bill?.isPaid ?? false;
+
+                    return ListTile(
+                      leading: Icon(
+                        isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                      ),
+                      title: Text(_periodLabel(startMonth)),
+                      subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                      trailing: Text(
+                        isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                        style: TextStyle(
+                          color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onTap: () => _openPeriodSheet(context, ref, startMonth),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// חלונית עריכה לתקופה אחת - זהה ל-_MonthEditSheet הפנימי של
+/// VaadBayitScreen, רק public כדי שהמסך הגנרי יוכל להשתמש בה.
+class BillPeriodEditSheet extends ConsumerStatefulWidget {
+  final String householdId;
+  final BillCategory category;
+  final int year;
+  final int periodStartMonth;
+  final String periodLabel;
+  final BillPayment? existing;
+  final bool showPaymentMethod;
+
+  const BillPeriodEditSheet({
+    super.key,
+    required this.householdId,
+    required this.category,
+    required this.year,
+    required this.periodStartMonth,
+    required this.periodLabel,
+    required this.existing,
+    this.showPaymentMethod = true,
+  });
+
+  @override
+  ConsumerState<BillPeriodEditSheet> createState() => _BillPeriodEditSheetState();
+}
+
+class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
+  late final TextEditingController _amountController;
+  String? _paymentMethod;
+  bool _isUploading = false;
+  bool _isSaving = false;
+  bool _isDeleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController =
+        TextEditingController(text: widget.existing?.amount?.toString() ?? '');
+    _paymentMethod = widget.existing?.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _showPayNowChooser() async {
+    final settings = ref.read(billLinkSettingsProvider(widget.householdId)).value;
+
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.paymentMethodBit),
+              trailing: (settings?.bitUrl != null && settings!.bitUrl!.isNotEmpty)
+                  ? IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      tooltip: AppStrings.editLinkButton,
+                      onPressed: () async {
+                        Navigator.of(sheetContext).pop();
+                        final url = await _promptForAppUrl(AppStrings.paymentMethodBit);
+                        if (url != null) {
+                          await ref
+                              .read(billsRepositoryProvider)
+                              .saveBitUrl(widget.householdId, url);
+                        }
+                      },
+                    )
+                  : null,
+              onTap: () {
+                if (settings?.bitUrl != null && settings!.bitUrl!.isNotEmpty) {
+                  openPaymentLink(settings.bitUrl!);
+                }
+                Navigator.of(sheetContext).pop(AppStrings.paymentMethodBit);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.paymentMethodPaybox),
+              trailing: (settings?.payboxUrl != null && settings!.payboxUrl!.isNotEmpty)
+                  ? IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      tooltip: AppStrings.editLinkButton,
+                      onPressed: () async {
+                        Navigator.of(sheetContext).pop();
+                        final url = await _promptForAppUrl(AppStrings.paymentMethodPaybox);
+                        if (url != null) {
+                          await ref
+                              .read(billsRepositoryProvider)
+                              .savePayboxUrl(widget.householdId, url);
+                        }
+                      },
+                    )
+                  : null,
+              onTap: () {
+                if (settings?.payboxUrl != null && settings!.payboxUrl!.isNotEmpty) {
+                  openPaymentLink(settings.payboxUrl!);
+                }
+                Navigator.of(sheetContext).pop(AppStrings.paymentMethodPaybox);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.paymentMethodCash),
+              onTap: () => Navigator.of(sheetContext).pop(AppStrings.paymentMethodCash),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+    setState(() => _paymentMethod = choice);
+
+    // אם הקישור עדיין לא הוגדר בכלל (פעם ראשונה) - רק עכשיו שואלים
+    // ושומרים; הפתיחה בפעם הבאה תהיה תמיד סינכרונית כמו למעלה.
+    final isBit = choice == AppStrings.paymentMethodBit;
+    final isPaybox = choice == AppStrings.paymentMethodPaybox;
+    if (isBit && (settings?.bitUrl == null || settings!.bitUrl!.isEmpty)) {
+      final url = await _promptForAppUrl(AppStrings.paymentMethodBit);
+      if (url != null && url.isNotEmpty) {
+        await ref.read(billsRepositoryProvider).saveBitUrl(widget.householdId, url);
+      }
+    } else if (isPaybox && (settings?.payboxUrl == null || settings!.payboxUrl!.isEmpty)) {
+      final url = await _promptForAppUrl(AppStrings.paymentMethodPaybox);
+      if (url != null && url.isNotEmpty) {
+        await ref.read(billsRepositoryProvider).savePayboxUrl(widget.householdId, url);
+      }
+    }
+  }
+
+  Future<String?> _promptForAppUrl(String appName) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${AppStrings.enterAppLinkTitlePrefix} $appName'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          textDirection: TextDirection.ltr,
+          decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text(AppStrings.saveAndContinue),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _viewReceipt() {
+    final receiptData = widget.existing?.receiptData;
+    final mimeType = widget.existing?.receiptMimeType ?? '';
+    if (receiptData == null) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (mimeType.startsWith('image/'))
+                Flexible(
+                  child: InteractiveViewer(
+                    child: Image.memory(base64Decode(receiptData)),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.picture_as_pdf_outlined, size: 48, color: AppColors.primary),
+                      const SizedBox(height: 8),
+                      Text(widget.existing?.receiptFileName ?? ''),
+                      const SizedBox(height: 4),
+                      const Text(AppStrings.pdfPreviewUnavailable, style: AppTextStyles.bodySecondary),
+                    ],
+                  ),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text(AppStrings.close),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteReceipt() async {
+    setState(() => _isDeleting = true);
+    try {
+      await ref.read(billsRepositoryProvider).deleteReceipt(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('שגיאה במחיקת הקבלה')));
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final amount = double.tryParse(_amountController.text.trim());
+      await ref.read(billsRepositoryProvider).saveBillDetails(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            amount: amount,
+            paymentMethod: _paymentMethod,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('שגיאה בשמירה')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _uploadReceipt() async {
+    final file = await ref.read(filePickerServiceProvider).pickReceiptFile();
+    if (file == null) return;
+
+    setState(() => _isUploading = true);
+    try {
+      await ref.read(billsRepositoryProvider).uploadReceiptAndMarkPaid(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            file: file,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text(AppStrings.receiptUploadedSuccess)));
+        Navigator.of(context).pop();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('שגיאה בהעלאה')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = widget.existing?.isPaid ?? false;
+    // חשוב: זה חייב להיות watch (לא רק read מאוחר יותר) - כדי
+    // שה-Firestore listener יהיה כבר פעיל ברגע שהחלונית נפתחת,
+    // ולא "יתפוס" ערך ריק אם המשתמש לוחץ על "שלם עכשיו" מהר מדי
+    // אחרי הפתיחה.
+    ref.watch(billLinkSettingsProvider(widget.householdId));
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.periodLabel, style: AppTextStyles.heading2),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: AppStrings.amountLabel),
+          ),
+          const SizedBox(height: 12),
+          if (widget.showPaymentMethod) ...[
+            ElevatedButton.icon(
+              onPressed: _showPayNowChooser,
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text(AppStrings.payNowButton),
+            ),
+            if (_paymentMethod != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${AppStrings.paymentMethodLabel}: $_paymentMethod',
+                style: AppTextStyles.bodySecondary,
+              ),
+            ],
+          ],
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _isSaving ? null : _save,
+            child: _isSaving
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text(AppStrings.saveButton, style: AppTextStyles.button),
+          ),
+          const SizedBox(height: 12),
+          if (isPaid) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '${AppStrings.receiptUploadedLabel}: ${widget.existing?.receiptFileName ?? ''}',
+                    style: AppTextStyles.bodySecondary,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: _viewReceipt,
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text(AppStrings.viewReceiptButton),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: _isDeleting ? null : _deleteReceipt,
+                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                  label: const Text(
+                    AppStrings.deleteReceiptButton,
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
+          ] else
+            OutlinedButton.icon(
+              onPressed: _isUploading ? null : _uploadReceipt,
+              icon: _isUploading
+                  ? const SizedBox(
+                      height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.upload_file),
+              label: Text(
+                  _isUploading ? AppStrings.uploadingReceipt : AppStrings.uploadReceiptButton),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/electricity_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך חשמל - אם עדיין לא הוגדר קישור תשלום, מציג טופס הגדרה
+/// חד-פעמי. אחרי ההגדרה, תמיד מציג ישר את טבלת התשלומים
+/// עם כפתור "שלם עכשיו" + אפשרות עריכה של הקישור. אין כאן
+/// בחירת "אמצעי תשלום" (זה תמיד דרך אתר החברה, לא ביט/פייבוקס).
+class ElectricityScreen extends ConsumerWidget {
+  final String householdId;
+
+  const ElectricityScreen({super.key, required this.householdId});
+
+  Future<void> _showEditUrlDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String currentUrl,
+  ) async {
+    final controller = TextEditingController(text: currentUrl);
+    final newUrl = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.enterPaymentUrlTitle),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          textDirection: TextDirection.ltr,
+          decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text(AppStrings.saveButton),
+          ),
+        ],
+      ),
+    );
+
+    if (newUrl == null) return;
+    await ref.read(billsRepositoryProvider).saveElectricityUrl(householdId, newUrl);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(billLinkSettingsProvider(householdId));
+
+    return settingsAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => const Scaffold(body: Center(child: Text('שגיאה בטעינה'))),
+      data: (settings) {
+        if (!settings.isElectricityConfigured) {
+          return _UrlSetupScreen(
+            title: AppStrings.electricityTitle,
+            onSave: (url) => ref.read(billsRepositoryProvider).saveElectricityUrl(householdId, url),
+          );
+        }
+
+        return BillPeriodTableScreen(
+          householdId: householdId,
+          category: BillCategory.electricity,
+          title: AppStrings.electricityTitle,
+          showPaymentMethod: false,
+          payButtons: [(label: AppStrings.payNowButton, url: settings.electricityUrl!)],
+          onEditLink: () => _showEditUrlDialog(context, ref, settings.electricityUrl!),
+        );
+      },
+    );
+  }
+}
+
+/// טופס פשוט להזנת כתובת אתר תשלום, בשימוש חוזר לחשמל/מים/ארנונה.
+class _UrlSetupScreen extends StatefulWidget {
+  final String title;
+  final Future<void> Function(String url) onSave;
+
+  const _UrlSetupScreen({required this.title, required this.onSave});
+
+  @override
+  State<_UrlSetupScreen> createState() => _UrlSetupScreenState();
+}
+
+class _UrlSetupScreenState extends State<_UrlSetupScreen> {
+  final _controller = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final url = _controller.text.trim();
+    if (url.isEmpty) return;
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(url);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(AppStrings.enterPaymentUrlTitle, style: AppTextStyles.heading2),
+            const SizedBox(height: 8),
+            const Text(AppStrings.enterPaymentUrlBody, style: AppTextStyles.bodySecondary),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              keyboardType: TextInputType.url,
+              textDirection: TextDirection.ltr,
+              decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isSaving ? null : _save,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text(AppStrings.saveAndContinue, style: AppTextStyles.button),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/water_and_tax_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך מים+ארנונה - בפעם הראשונה שואל האם ביחד או בנפרד, לוקח
+/// כתובת/ות תשלום, ואז תמיד מציג ישר את הטבלה/ות המתאימות.
+class WaterAndTaxScreen extends ConsumerWidget {
+  final String householdId;
+
+  const WaterAndTaxScreen({super.key, required this.householdId});
+
+  Future<void> _showEditUrlDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String label,
+    String currentUrl,
+    Future<void> Function(String url) onSave,
+  ) async {
+    final controller = TextEditingController(text: currentUrl);
+    final newUrl = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(label),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          textDirection: TextDirection.ltr,
+          decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text(AppStrings.saveButton),
+          ),
+        ],
+      ),
+    );
+
+    if (newUrl == null) return;
+    await onSave(newUrl);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(billLinkSettingsProvider(householdId));
+
+    return settingsAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => const Scaffold(body: Center(child: Text('שגיאה בטעינה'))),
+      data: (settings) {
+        if (!settings.isWaterTaxConfigured) {
+          return _WaterTaxSetupScreen(householdId: householdId);
+        }
+
+        if (settings.waterAndTaxCombined == true) {
+          return BillPeriodTableScreen(
+            householdId: householdId,
+            category: BillCategory.waterAndTax,
+            title: AppStrings.waterAndTaxTitle,
+            showPaymentMethod: false,
+            payButtons: [(label: AppStrings.payNowButton, url: settings.combinedWaterTaxUrl!)],
+            onEditLink: () => _showEditUrlDialog(
+              context,
+              ref,
+              AppStrings.waterAndTaxTitle,
+              settings.combinedWaterTaxUrl!,
+              (url) => ref.read(billsRepositoryProvider).saveCombinedWaterTaxUrl(householdId, url),
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              _CategoryLink(
+                icon: Icons.water_drop_outlined,
+                label: 'מים',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BillPeriodTableScreen(
+                      householdId: householdId,
+                      category: BillCategory.water,
+                      title: 'מים',
+                      showPaymentMethod: false,
+                      payButtons: [(label: AppStrings.payWaterButton, url: settings.waterUrl!)],
+                      onEditLink: () => _showEditUrlDialog(
+                        context,
+                        ref,
+                        'מים',
+                        settings.waterUrl!,
+                        (url) => ref
+                            .read(billsRepositoryProvider)
+                            .saveSeparateWaterTaxUrls(householdId, url, settings.taxUrl!),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _CategoryLink(
+                icon: Icons.account_balance_outlined,
+                label: 'ארנונה',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BillPeriodTableScreen(
+                      householdId: householdId,
+                      category: BillCategory.tax,
+                      title: 'ארנונה',
+                      showPaymentMethod: false,
+                      payButtons: [(label: AppStrings.payTaxButton, url: settings.taxUrl!)],
+                      onEditLink: () => _showEditUrlDialog(
+                        context,
+                        ref,
+                        'ארנונה',
+                        settings.taxUrl!,
+                        (url) => ref
+                            .read(billsRepositoryProvider)
+                            .saveSeparateWaterTaxUrls(householdId, settings.waterUrl!, url),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CategoryLink extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _CategoryLink({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: AppTextStyles.heading2.copyWith(fontSize: 15))),
+              const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WaterTaxSetupScreen extends ConsumerStatefulWidget {
+  final String householdId;
+
+  const _WaterTaxSetupScreen({required this.householdId});
+
+  @override
+  ConsumerState<_WaterTaxSetupScreen> createState() => _WaterTaxSetupScreenState();
+}
+
+class _WaterTaxSetupScreenState extends ConsumerState<_WaterTaxSetupScreen> {
+  bool? _combined;
+  final _combinedUrlController = TextEditingController();
+  final _waterUrlController = TextEditingController();
+  final _taxUrlController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _combinedUrlController.dispose();
+    _waterUrlController.dispose();
+    _taxUrlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(billsRepositoryProvider);
+      if (_combined == true) {
+        final url = _combinedUrlController.text.trim();
+        if (url.isEmpty) return;
+        await repo.saveCombinedWaterTaxUrl(widget.householdId, url);
+      } else {
+        final waterUrl = _waterUrlController.text.trim();
+        final taxUrl = _taxUrlController.text.trim();
+        if (waterUrl.isEmpty || taxUrl.isEmpty) return;
+        await repo.saveSeparateWaterTaxUrls(widget.householdId, waterUrl, taxUrl);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(AppStrings.waterTaxCombinedQuestion, style: AppTextStyles.heading2),
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text(AppStrings.combinedOption)),
+                ButtonSegment(value: false, label: Text(AppStrings.separateOption)),
+              ],
+              selected: _combined == null ? {} : {_combined!},
+              emptySelectionAllowed: true,
+              onSelectionChanged: (s) => setState(() => _combined = s.isEmpty ? null : s.first),
+            ),
+            const SizedBox(height: 20),
+            if (_combined == true)
+              TextField(
+                controller: _combinedUrlController,
+                keyboardType: TextInputType.url,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+              ),
+            if (_combined == false) ...[
+              TextField(
+                controller: _waterUrlController,
+                keyboardType: TextInputType.url,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(labelText: AppStrings.waterUrlLabel),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _taxUrlController,
+                keyboardType: TextInputType.url,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(labelText: AppStrings.taxUrlLabel),
+              ),
+            ],
+            const SizedBox(height: 20),
+            if (_combined != null)
+              ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(AppStrings.saveAndContinue, style: AppTextStyles.button),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+echo 'DONE - fixed the settings persistence timing bug + added delete-link support!'

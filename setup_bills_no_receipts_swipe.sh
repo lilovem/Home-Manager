@@ -1,3 +1,8 @@
+#!/bin/bash
+set -e
+mkdir -p lib/models lib/services/firebase lib/repositories lib/providers lib/features/bills
+rm -rf lib/services/files
+cat > 'PROJECT_STATUS.md' << 'HMEOF'
 # PROJECT_STATUS.md — Home Manager
 
 > קובץ זה מתעדכן אחרי כל שלב משמעותי. אם פותחים שיחה/session חדש/ה,
@@ -232,16 +237,6 @@
 - **נוסף ביטול תשלום בהחלקה (swipe)** - כל שורת חודש/תקופה עטופה ב-`Dismissible` (`DismissDirection.startToEnd`, פעיל רק אם `isPaid`). החלקה קוראת ל-`cancelPayment()` (מאפס `paidManually`+`paidAt`) ומחזירה `confirmDismiss: false` תמיד - השורה **לא** נעלמת מהרשימה, רק הסטטוס (החוג הירוק) משתנה. רקע אדום עם הטקסט "בטל תשלום" מוצג בזמן ההחלקה.
 - שורות **לא-משולמות** אינן ניתנות להחלקה כלל (`DismissDirection.none`) - אין מה לבטל.
 
-### נוסף: סריקת ברקוד לחשמל/מים/ארנונה (לא לועד בית)
-- נוסף `mobile_scanner` (^6.0.2) כתלות - מאפשר סריקת ברקוד/QR דרך מצלמת המכשיר, כולל תמיכה ב-Flutter Web (מסתמך על ה-API של הדפדפן, נתמך היטב ב-Chrome).
-- `lib/features/bills/barcode_scan_screen.dart` - מסך מצלמה חדש, מחזיר את הערך הנסרק בלבד (`Navigator.pop`) - **לא** מנסה "לפענח" סכום/פרטים מהברקוד עצמו, כי פורמטים של שוברי תשלום שונים מאוד בין ספקים (חברת חשמל/רשות מקומית/תאגיד מים) ופענוח אמין ידרוש טיפול ייעודי לכל ספק.
-- נוסף `showBarcodeScan` (bool, ברירת מחדל `false`) ל-`BillPeriodTableScreen`/`BillPeriodEditSheet`, **מופעל רק** בחשמל ובמים/ארנונה (`electricity_screen.dart`, `water_and_tax_screen.dart`) - **לא** בועד בית (שם יש כבר את בחירת ביט/פייבוקס/מזומן, וברקוד לא רלוונטי לתשלום בין אנשים).
-- כפתור "סרוק ברקוד משובר תשלום" מוצג **בנוסף** לכפתור "שלם עכשיו" (האתר) - שתי אפשרויות משלימות, לא סותרות. לאחר סריקה מוצלחת, אמצעי התשלום מסומן כ"נסרק מברקוד" ומוצג למשתמש (הצגת "אמצעי תשלום" הופרדה מ-`showPaymentMethod` הישן, כדי שתעבוד גם כשהבחירה מגיעה מסריקה ולא מה-Pay Now chooser).
-
-### תוקן: ביטול תשלום מנקה גם את הסכום, לא רק את הסימון
-- `BillsService.cancelPayment()` עודכן לאפס גם `amount` ו-`paymentMethod` (לא רק `paidManually`/`paidAt`) - השורה חוזרת למראה "ריק לגמרי" אחרי ביטול, לא רק "לא שולם עם מחיר ישן עדיין מוצג". חל אוטומטית על **כל** הקטגוריות (ועד בית/חשמל/מים/ארנונה), כי זו פונקציה משותפת אחת.
-- **הבהרה:** ההחלקה-לביטול (`Dismissible`) כבר הייתה קיימת גם בחשמל **וגם** במים/ארנונה מההתחלה - שלושתם חולקים את אותו קומפוננטה (`BillPeriodTableScreen`), אז אין צורך "להוסיף" אותה בנפרד לכל קטגוריה.
-
 ### הרחבה: חשמל + מים/ארנונה (קישור תשלום, בלי ניחוש עיר)
 - **נדחתה בכוונה** האפשרות "בחר עיר → אתר אוטומטי" - אין מאגר אמין של מאות רשויות מקומיות שאפשר לשמור בקוד בלי שיתיישן/יהיה לא מדויק. **נבחרה הגדרה חד-פעמית ידנית** במקום.
 - `lib/models/bill_link_settings_model.dart` + `lib/services/firebase/bill_settings_service.dart` — הגדרות קישורי תשלום, נשמר במסמך יחיד `households/{id}/settings/billLinks`. חשמל תמיד נפרד; מים+ארנונה עם דגל `waterAndTaxCombined` (יחד = קישור אחד, בנפרד = שני קישורים+שתי טבלאות עצמאיות).
@@ -363,3 +358,1010 @@
 ## הוראות הפעלה (למשתמש)
 ראה קובץ `SETUP_INSTRUCTIONS.md` שנשלח יחד עם קבצי הפרויקט.
 
+HMEOF
+cat > 'lib/app/config/app_strings.dart' << 'HMEOF'
+/// טקסטים מרכזיים בממשק.
+///
+/// בשלב זה כל הטקסטים בעברית קשיחים כאן (לא בתוך ה-widgets עצמם).
+/// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
+/// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
+class AppStrings {
+  AppStrings._();
+
+  // כללי
+  static const String appName = 'LeeHome';
+  static const String appTagline = 'ניהול הבית שלכם';
+  static const String loading = 'טוען...';
+  static const String errorGeneric = 'משהו השתבש. נסו שוב.';
+  static const String retry = 'נסה שוב';
+
+  // Auth
+  static const String login = 'התחברות';
+  static const String register = 'הרשמה';
+  static const String email = 'אימייל';
+  static const String password = 'סיסמה';
+  static const String confirmPassword = 'אימות סיסמה';
+  static const String dontHaveAccount = 'אין לך חשבון? הירשם';
+  static const String alreadyHaveAccount = 'יש לך כבר חשבון? התחבר';
+  static const String createAccount = 'יצירת חשבון';
+  static const String signOut = 'התנתקות';
+  static const String passwordsDontMatch = 'הסיסמאות אינן תואמות';
+  static const String loggedInAs = 'מחובר/ת בתור';
+  static const String forgotPassword = 'שכחת סיסמה?';
+  static const String resetPasswordTitle = 'איפוס סיסמה';
+  static const String resetPasswordBody = 'נשלח אליך קישור לאיפוס הסיסמה בכתובת האימייל שלך';
+  static const String sendResetLink = 'שלח קישור';
+  static const String resetLinkSent = 'קישור לאיפוס סיסמה נשלח לאימייל שלך';
+
+  // Household
+  static const String createHousehold = 'יצירת משק בית';
+  static const String householdName = 'שם משק הבית';
+  static const String invitePartner = 'הזמנת בן/בת זוג';
+  static const String joinHousehold = 'הצטרפות למשק בית קיים';
+  static const String inviteCode = 'קוד הזמנה';
+  static const String noHouseholdYet = 'עדיין אין לך משק בית';
+  static const String createNewHousehold = 'צור משק בית חדש';
+  static const String haveInviteCode = 'יש לי קוד הזמנה';
+  static const String joinButton = 'הצטרף';
+  static const String copyCode = 'העתק קוד';
+  static const String codeCopied = 'הקוד הועתק!';
+  static const String shareThisCode = 'שתפו את הקוד הזה עם בן/בת הזוג';
+  static const String shareViaWhatsApp = 'שתף בוואטסאפ';
+  static const String shareViaEmail = 'שלח במייל';
+  static const String inviteMessageTitle = 'הזמנה ל-LeeHome';
+  static const String inviteFriendToApp = 'הזמן חבר לאפליקציה';
+  static const String inviteFriendBody = 'שתפו איתם את הקישור, והם יוכלו להירשם וליצור משק בית משלהם';
+  static const String membersCount = 'חברים במשק הבית';
+  static const String comingSoon = 'בקרוב';
+  static const String manageMembers = 'ניהול חברים';
+  static const String removeMember = 'הסר מהמשק בית';
+  static const String confirmRemoveMemberTitle = 'להסיר את החבר?';
+  static const String confirmRemoveMemberMessage = 'הם לא יראו יותר את הרשימה ואת פרטי משק הבית';
+  static const String ownerLabel = 'בעלים';
+  static const String memberLabel = 'חבר';
+  static const String addAnotherHousehold = 'הצטרפ/י או צור/י משק בית נוסף';
+  static const String myHouseholds = 'משקי הבית שלי';
+  static const String switchHousehold = 'החלף משק בית';
+  static const String deleteHousehold = 'מחק משק בית';
+  static const String confirmDeleteHouseholdTitle = 'למחוק את משק הבית?';
+  static const String confirmDeleteHouseholdMessage =
+      'פעולה זו תמחק לצמיתות את הרשימה, ההיסטוריה וכל החברים. לא ניתן לבטל.';
+
+  // Shopping
+  static const String shoppingList = 'רשימת קניות';
+  static const String addProduct = 'הוספת מוצר';
+  static const String editProduct = 'עריכת מוצר';
+  static const String productName = 'שם המוצר';
+  static const String quantity = 'כמות';
+  static const String unit = 'יחידת מידה (אופציונלי)';
+  static const String noteLabel = 'הערה (אופציונלי)';
+  static const String noItemsYet = 'אין עדיין מוצרים ברשימה';
+  static const String startShopping = 'התחל קנייה';
+  static const String finishShopping = 'סיום קנייה';
+  static const String save = 'שמירה';
+  static const String cancel = 'ביטול';
+  static const String delete = 'מחיקה';
+  static const String edit = 'עריכה';
+  static const String markPurchased = 'סמן כנקנה';
+  static const String markNotFound = 'סמן כלא נמצא';
+  static const String backToPending = 'החזר לרשימה';
+  static const String addedByLabel = 'נוסף ע״י';
+  static const String confirmDeleteTitle = 'למחוק מוצר?';
+  static const String confirmDeleteMessage = 'הפעולה לא ניתנת לביטול';
+  static const String statusNotFound = 'לא נמצא';
+  static const String statusPurchased = 'נקנה';
+  static const String shoppingSummary = 'סיכום קנייה';
+  static const String shoppingHistory = 'היסטוריית קניות';
+  static const String noHistoryYet = 'אין עדיין היסטוריית קניות';
+  static const String purchasedItemsLabel = 'נקנו';
+  static const String notFoundItemsLabel = 'לא נמצאו';
+  static const String carryOverHint = 'סמנו אילו מוצרים להעביר לקנייה הבאה';
+  static const String selectAll = 'בחר הכל';
+  static const String clearAll = 'נקה הכל';
+  static const String confirmFinishShopping = 'אישור וסיום';
+  static const String nothingToFinish = 'אין עדיין מוצרים שנקנו או שלא נמצאו';
+  static const String itemsCountLabel = 'מוצרים';
+  static const String myShoppingLists = 'רשימות הקניות שלי';
+  static const String newShoppingList = 'רשימת קניות חדשה';
+  static const String listNameLabel = 'שם הרשימה';
+  static const String listDateLabel = 'תאריך (אופציונלי)';
+  static const String chooseDate = 'בחר תאריך';
+  static const String createList = 'צור רשימה';
+  static const String noListsYet = 'עדיין אין רשימות קניות';
+  static const String activeSessionBadge = 'פעילה';
+  static const String currentShoppingOption = 'קנייה נוכחית';
+  static const String currentShoppingSubtitle = 'בחרו מתוך קניות קיימות';
+  static const String newShoppingOption = 'קנייה חדשה';
+  static const String newShoppingSubtitle = 'בחרו תאריך והתחילו רשימה חדשה';
+  static const String selectDateForNewList = 'בחרו תאריך לקנייה החדשה';
+  static const String confirmDateButton = 'אישור';
+  static const String greetingPrefix = 'שלום, משפחת';
+  static const String greetingSubtitle = 'הנה מה שקורה בבית היום';
+  static const String comingSoonSectionTitle = 'בקרוב באפליקציה';
+  static const String calendarCardTitle = 'לוח שנה';
+  static const String upcomingEventsTitle = 'האירועים הקרובים';
+  static const String noUpcomingEvents = 'אין עדיין קניות מתוכננות בחודש הזה';
+  static const String tabHome = 'בית';
+  static const String tabShopping = 'קניות';
+  static const String tabCalendar = 'לוח שנה';
+  static const String tabTasks = 'משימות';
+  static const String tabMore = 'עוד';
+  static const String confirmSignOutTitle = 'להתנתק?';
+  static const String confirmSignOutMessage = 'תצטרך להתחבר שוב כדי להיכנס לאפליקציה.';
+  static const String tasksComingSoonBody = 'ניהול משימות ותזכורות יומיומיות למשק הבית - בקרוב.';
+  static const String noEventOnThisDay = 'אין כלום מתוכנן ביום הזה';
+  static const String selectedDayDetailsTitle = 'מתוכנן ליום זה';
+  static const String billsSectionTitle = 'חשבונות';
+  static const String vaadBayitTitle = 'ועד בית';
+  static const String electricityTitle = 'חשמל';
+  static const String waterAndTaxTitle = 'מים + ארנונה';
+  static const String paidStatus = 'שולם';
+  static const String notPaidStatus = 'לא שולם';
+  static const String amountLabel = 'סכום ששולם';
+  static const String paymentMethodLabel = 'אמצעי תשלום';
+  static const String saveButton = 'שמור';
+  static const String monthNames = 'ינואר,פברואר,מרץ,אפריל,מאי,יוני,יולי,אוגוסט,ספטמבר,אוקטובר,נובמבר,דצמבר';
+  static const String paymentMethodBit = 'ביט';
+  static const String paymentMethodPaybox = 'פייבוקס';
+  static const String paymentMethodBankTransfer = 'העברה בנקאית';
+  static const String paymentMethodCash = 'מזומן';
+  static const String paymentMethodOther = 'אחר';
+  static const String enterPaymentUrlTitle = 'הגדרת קישור תשלום';
+  static const String enterPaymentUrlBody = 'הכניסו את כתובת האתר שבו אתם משלמים - נשמור אותה כדי לפתוח אותה בלחיצה בכל פעם.';
+  static const String paymentUrlLabel = 'כתובת האתר';
+  static const String saveAndContinue = 'שמור והמשך';
+  static const String waterTaxCombinedQuestion = 'מים וארנונה משולמים אצלכם יחד או בנפרד?';
+  static const String combinedOption = 'ביחד';
+  static const String separateOption = 'בנפרד';
+  static const String waterUrlLabel = 'כתובת אתר תשלום מים';
+  static const String taxUrlLabel = 'כתובת אתר תשלום ארנונה';
+  static const String payNowButton = 'שלם עכשיו';
+  static const String payWaterButton = 'שלם מים';
+  static const String payTaxButton = 'שלם ארנונה';
+  static const String editLinkButton = 'ערוך קישור';
+  static const String openAppPrefix = 'פתח את';
+  static const String enterAppLinkTitlePrefix = 'הזן קישור ל-';
+  static const String close = 'סגור';
+  static const String cancelPaymentAction = 'בטל תשלום';
+  static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';
+  static const String droppedSectionTitle = 'לא נמצאו - לא הועברו';
+  static const String activeShoppingBanner = 'קנייה פעילה';
+  static const String newBadge = 'חדש';
+  static const String startedByLabel = 'התחילה על ידי';
+  static const String newItemNotificationTitle = 'מוצר חדש נוסף לרשימה';
+  static const String shoppingDoneNotificationTitle = 'הקנייה הסתיימה';
+  static const String notFoundNotificationBody = 'לא נמצאו';
+  static const String enableNotificationsTitle = 'הפעלת התראות';
+  static const String enableNotificationsBody = 'קבלו התראה מיידית כשבן/בת הזוג מוסיפים מוצר בזמן קנייה';
+  static const String enableNotificationsButton = 'הפעל התראות';
+  static const String notificationsBlockedBody = 'התראות חסומות בדפדפן. יש לאפשר אותן ידנית בהגדרות האתר.';
+  static const String testNotificationButton = 'שלח התראת בדיקה';
+  static const String testNotificationTitle = 'התראת בדיקה';
+  static const String testNotificationBody = 'אם אתה רואה את זה, ההתראות עובדות!';
+  static const String notificationsLabel = 'התראות';
+  static const String notificationsInfoTooltip = 'זה מאפשר קבלת התראות מהאפליקציה לטלפון';
+}
+
+HMEOF
+cat > 'lib/models/bill_payment_model.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// קטגוריית חשבון. כרגע רק ועד-בית פעיל בפועל; חשמל ומים+ארנונה
+/// שמורים לעתיד (אותו מודל, "בקרוב" ב-UI).
+enum BillCategory { vaadBayit, electricity, waterAndTax, water, tax }
+
+String billCategoryToString(BillCategory c) => c.name;
+
+BillCategory billCategoryFromString(String s) {
+  return BillCategory.values.firstWhere(
+    (c) => c.name == s,
+    orElse: () => BillCategory.vaadBayit,
+  );
+}
+
+/// רשומת תשלום עבור תקופה אחת. חודש אחד לועד-בית, חודשיים
+/// לחשמל/מים+ארנונה - המזהה של המסמך כבר מקודד את התקופה,
+/// למשל "vaadBayit_2026_9" או "waterAndTax_2026_9" (חודש הראשון
+/// בזוג).
+class BillPayment {
+  final String id;
+  final BillCategory category;
+  final int year;
+  final int periodStartMonth; // 1-12
+  final double? amount;
+  final String? paymentMethod;
+  final DateTime? paidAt;
+  final bool paidManually;
+
+  const BillPayment({
+    required this.id,
+    required this.category,
+    required this.year,
+    required this.periodStartMonth,
+    this.amount,
+    this.paymentMethod,
+    this.paidAt,
+    this.paidManually = false,
+  });
+
+  /// "שולם" = סומן ידנית (בשמירה, או עד שמבטלים דרך החלקה על השורה).
+  bool get isPaid => paidManually;
+
+  factory BillPayment.fromFirestore(String id, Map<String, dynamic> data) {
+    return BillPayment(
+      id: id,
+      category: billCategoryFromString(data['category'] as String? ?? 'vaadBayit'),
+      year: (data['year'] as num?)?.toInt() ?? DateTime.now().year,
+      periodStartMonth: (data['periodStartMonth'] as num?)?.toInt() ?? 1,
+      amount: (data['amount'] as num?)?.toDouble(),
+      paymentMethod: data['paymentMethod'] as String?,
+      paidAt: (data['paidAt'] as Timestamp?)?.toDate(),
+      paidManually: data['paidManually'] as bool? ?? false,
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/services/firebase/bills_service.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/bill_payment_model.dart';
+
+/// שירות Firestore לרשומות תשלום חשבונות (ועד בית/חשמל/מים+ארנונה).
+/// כל רשומה מזוהה באמצעות מזהה קבוע (לא auto-id) - כך אפשר
+/// לכתוב עליה מחדש (get-or-create) בלי לחפש קודם.
+class BillsService {
+  final FirebaseFirestore _firestore;
+
+  BillsService(this._firestore);
+
+  CollectionReference<Map<String, dynamic>> _billsCollection(String householdId) {
+    return _firestore.collection('households').doc(householdId).collection('bills');
+  }
+
+  String _docId(BillCategory category, int year, int periodStartMonth) {
+    return '${billCategoryToString(category)}_${year}_$periodStartMonth';
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsCollection(householdId)
+        .where('category', isEqualTo: billCategoryToString(category))
+        .where('year', isEqualTo: year)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BillPayment.fromFirestore(doc.id, doc.data()))
+            .toList());
+  }
+
+  /// שומר סכום+אמצעי תשלום, ותמיד מסמן את התקופה כ"שולם" (אין
+  /// יותר מנגנון קבלות - השמירה עצמה היא אישור התשלום).
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).set({
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      if (amount != null) 'amount': amount,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      'paidManually': true,
+      'paidAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// מבטל תשלום שכבר סומן - מחזיר את התקופה למצב "לא שולם" (ה-חוג
+  /// הירוק נעלם), נשאר בהחלקה על השורה בטבלה.
+  Future<void> cancelPayment({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).update({
+      'paidManually': false,
+      'paidAt': null,
+    });
+  }
+
+  String billDocId(BillCategory category, int year, int periodStartMonth) =>
+      _docId(category, year, periodStartMonth);
+}
+
+HMEOF
+cat > 'lib/repositories/bills_repository.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/errors/failures.dart';
+import '../models/bill_link_settings_model.dart';
+import '../models/bill_payment_model.dart';
+import '../services/firebase/bill_settings_service.dart';
+import '../services/firebase/bills_service.dart';
+
+class BillsRepository {
+  final BillsService _billsService;
+  final BillSettingsService _settingsService;
+
+  BillsRepository(this._billsService, this._settingsService);
+
+  Stream<BillLinkSettings> watchSettings(String householdId) {
+    return _settingsService.watchSettings(householdId);
+  }
+
+  Future<void> saveBitUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveBitUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> savePayboxUrl(String householdId, String url) async {
+    try {
+      await _settingsService.savePayboxUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveElectricityUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveElectricityUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveCombinedWaterTaxUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveCombinedWaterTaxUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveSeparateWaterTaxUrls(
+      String householdId, String waterUrl, String taxUrl) async {
+    try {
+      await _settingsService.saveSeparateWaterTaxUrls(householdId, waterUrl, taxUrl);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישורים');
+    }
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsService.watchBills(householdId: householdId, category: category, year: year);
+  }
+
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+  }) async {
+    try {
+      await _billsService.saveBillDetails(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+        amount: amount,
+        paymentMethod: paymentMethod,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הפרטים');
+    }
+  }
+
+  Future<void> cancelPayment({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    try {
+      await _billsService.cancelPayment(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בביטול התשלום');
+    }
+  }
+}
+
+HMEOF
+cat > 'lib/providers/bills_provider.dart' << 'HMEOF'
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/bill_link_settings_model.dart';
+import '../models/bill_payment_model.dart';
+import '../repositories/bills_repository.dart';
+import '../services/firebase/bill_settings_service.dart';
+import '../services/firebase/bills_service.dart';
+import 'household_provider.dart';
+
+final billsServiceProvider = Provider<BillsService>((ref) {
+  return BillsService(ref.watch(firestoreProvider));
+});
+
+final billSettingsServiceProvider = Provider<BillSettingsService>((ref) {
+  return BillSettingsService(ref.watch(firestoreProvider));
+});
+
+final billsRepositoryProvider = Provider<BillsRepository>((ref) {
+  return BillsRepository(
+    ref.watch(billsServiceProvider),
+    ref.watch(billSettingsServiceProvider),
+  );
+});
+
+/// כל רשומות התשלום של קטגוריה מסוימת, לשנה מסוימת.
+final billsForYearProvider = StreamProvider.family<
+    List<BillPayment>, ({String householdId, BillCategory category, int year})>((ref, args) {
+  return ref.watch(billsRepositoryProvider).watchBills(
+        householdId: args.householdId,
+        category: args.category,
+        year: args.year,
+      );
+});
+
+/// הגדרות קישורי התשלום (חשמל/מים/ארנונה) של household.
+final billLinkSettingsProvider =
+    StreamProvider.family<BillLinkSettings, String>((ref, householdId) {
+  return ref.watch(billsRepositoryProvider).watchSettings(householdId);
+});
+
+HMEOF
+cat > 'lib/features/bills/bill_period_table_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+
+/// ברירות מחדל לביט/פייבוקס - קישורי Google Play שתמיד עובדים
+/// (אם האפליקציה כבר מותקנת, גוגל פליי יציג כפתור "פתח" ולא
+/// "התקן"). אפשר לדרוס אותם דרך אייקון העריכה אם נמצא קישור טוב
+/// יותר (deep link ישיר) בעתיד.
+const String _kBitDefaultUrl =
+    'https://play.google.com/store/apps/details?id=com.bnhp.payments.paymentsapp';
+const String _kPayboxDefaultUrl =
+    'https://play.google.com/store/apps/details?id=com.payboxapp';
+
+/// פותח קישור בכרטיסייה חדשה, **סינכרונית** (לא async/await) - זה
+/// קריטי: דפדפנים חוסמים חלונות קופצים אם יש "פער" (await) בין
+/// הלחיצה לפתיחה בפועל. קריאה ישירה ל-dart:html אמינה הרבה יותר
+/// מ-url_launcher לצורך הזה בדיוק.
+///
+/// גם דואגים ל-https:// אם המשתמש שכח להוסיף - בלי זה, הדפדפן
+/// מפרש כתובת כמו "bitpay.co.il" כנתיב יחסי *בתוך* האתר שלנו
+/// (מנווט בתוכו במקום לצאת החוצה) - בדיוק הבאג שדווח.
+void openPaymentLink(String url) {
+  final normalized =
+      (url.startsWith('http://') || url.startsWith('https://')) ? url : 'https://$url';
+  html.window.open(normalized, '_blank');
+}
+
+/// מסך טבלת תשלומים דו-חודשית גנרי - משמש לחשמל, מים, ארנונה
+/// (בנפרד או ביחד). זהה במבנה ל-VaadBayitScreen, רק עם 6 תקופות
+/// של חודשיים במקום 12 חודשים, ועם כפתור/י "שלם עכשיו" למעלה.
+///
+/// כל שורה ניתנת **להחלקה** (swipe) כדי לבטל תשלום קיים - בלי
+/// לפתוח את חלונית העריכה בכלל.
+class BillPeriodTableScreen extends ConsumerWidget {
+  final String householdId;
+  final BillCategory category;
+  final String title;
+  final List<({String label, String url})> payButtons;
+  final bool showPaymentMethod;
+  final VoidCallback? onEditLink;
+
+  const BillPeriodTableScreen({
+    super.key,
+    required this.householdId,
+    required this.category,
+    required this.title,
+    required this.payButtons,
+    this.showPaymentMethod = true,
+    this.onEditLink,
+  });
+
+  static const _periodStartMonths = [1, 3, 5, 7, 9, 11];
+  static final _monthNames = AppStrings.monthNames.split(',');
+
+  String _periodLabel(int startMonth) {
+    final endMonth = startMonth == 11 ? 1 : startMonth + 1;
+    return '${_monthNames[startMonth - 1]}-${_monthNames[endMonth - 1]}';
+  }
+
+  Future<void> _openPeriodSheet(BuildContext context, WidgetRef ref, int startMonth) async {
+    final year = DateTime.now().year;
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: householdId, category: category, year: year),
+    ));
+    final existing =
+        (billsAsync.value ?? []).where((b) => b.periodStartMonth == startMonth);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => BillPeriodEditSheet(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: startMonth,
+        periodLabel: _periodLabel(startMonth),
+        existing: bill,
+        showPaymentMethod: showPaymentMethod,
+      ),
+    );
+  }
+
+  Future<void> _cancelPayment(WidgetRef ref, int year, int startMonth) {
+    return ref.read(billsRepositoryProvider).cancelPayment(
+          householdId: householdId,
+          category: category,
+          year: year,
+          periodStartMonth: startMonth,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final year = DateTime.now().year;
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: householdId, category: category, year: year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('$title · $year'),
+        actions: onEditLink != null
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: AppStrings.editLinkButton,
+                  onPressed: onEditLink,
+                ),
+              ]
+            : null,
+      ),
+      body: Column(
+        children: [
+          if (payButtons.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: payButtons
+                    .map((btn) => ElevatedButton.icon(
+                          onPressed: () => openPaymentLink(btn.url),
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          label: Text(btn.label),
+                        ))
+                    .toList(),
+              ),
+            ),
+          Expanded(
+            child: billsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+              data: (bills) {
+                final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: _periodStartMonths.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final startMonth = _periodStartMonths[index];
+                    final bill = byMonth[startMonth];
+                    final isPaid = bill?.isPaid ?? false;
+
+                    return Dismissible(
+                      key: ValueKey('$category-$startMonth-$isPaid'),
+                      direction:
+                          isPaid ? DismissDirection.startToEnd : DismissDirection.none,
+                      background: Container(
+                        color: AppColors.error,
+                        alignment: AlignmentDirectional.centerStart,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: const Text(
+                          AppStrings.cancelPaymentAction,
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      confirmDismiss: (direction) async {
+                        await _cancelPayment(ref, year, startMonth);
+                        return false; // השורה נשארת בטבלה, רק הסטטוס משתנה.
+                      },
+                      child: ListTile(
+                        leading: Icon(
+                          isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                        ),
+                        title: Text(_periodLabel(startMonth)),
+                        subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                        trailing: Text(
+                          isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                          style: TextStyle(
+                            color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onTap: () => _openPeriodSheet(context, ref, startMonth),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// חלונית עריכה לתקופה אחת - סכום, אמצעי תשלום (אם רלוונטי).
+/// שמירה תמיד מסמנת "שולם" - אין יותר מנגנון קבלות; ביטול תשלום
+/// נעשה בהחלקה על השורה בטבלה, לא כאן.
+class BillPeriodEditSheet extends ConsumerStatefulWidget {
+  final String householdId;
+  final BillCategory category;
+  final int year;
+  final int periodStartMonth;
+  final String periodLabel;
+  final BillPayment? existing;
+  final bool showPaymentMethod;
+
+  const BillPeriodEditSheet({
+    super.key,
+    required this.householdId,
+    required this.category,
+    required this.year,
+    required this.periodStartMonth,
+    required this.periodLabel,
+    required this.existing,
+    this.showPaymentMethod = true,
+  });
+
+  @override
+  ConsumerState<BillPeriodEditSheet> createState() => _BillPeriodEditSheetState();
+}
+
+class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
+  late final TextEditingController _amountController;
+  String? _paymentMethod;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController =
+        TextEditingController(text: widget.existing?.amount?.toString() ?? '');
+    _paymentMethod = widget.existing?.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<String?> _promptForAppUrl(String appName, String currentUrl) async {
+    final controller = TextEditingController(text: currentUrl);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${AppStrings.enterAppLinkTitlePrefix} $appName'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          textDirection: TextDirection.ltr,
+          decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text(AppStrings.saveAndContinue),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPayNowChooser() async {
+    final settings = ref.read(billLinkSettingsProvider(widget.householdId)).value;
+    final bitUrl = (settings?.bitUrl != null && settings!.bitUrl!.isNotEmpty)
+        ? settings.bitUrl!
+        : _kBitDefaultUrl;
+    final payboxUrl = (settings?.payboxUrl != null && settings!.payboxUrl!.isNotEmpty)
+        ? settings.payboxUrl!
+        : _kPayboxDefaultUrl;
+
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.paymentMethodBit),
+              trailing: IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                tooltip: AppStrings.editLinkButton,
+                onPressed: () async {
+                  Navigator.of(sheetContext).pop();
+                  final url = await _promptForAppUrl(AppStrings.paymentMethodBit, bitUrl);
+                  if (url != null) {
+                    await ref.read(billsRepositoryProvider).saveBitUrl(widget.householdId, url);
+                  }
+                },
+              ),
+              onTap: () {
+                openPaymentLink(bitUrl);
+                Navigator.of(sheetContext).pop(AppStrings.paymentMethodBit);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.paymentMethodPaybox),
+              trailing: IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                tooltip: AppStrings.editLinkButton,
+                onPressed: () async {
+                  Navigator.of(sheetContext).pop();
+                  final url = await _promptForAppUrl(AppStrings.paymentMethodPaybox, payboxUrl);
+                  if (url != null) {
+                    await ref.read(billsRepositoryProvider).savePayboxUrl(widget.householdId, url);
+                  }
+                },
+              ),
+              onTap: () {
+                openPaymentLink(payboxUrl);
+                Navigator.of(sheetContext).pop(AppStrings.paymentMethodPaybox);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.paymentMethodCash),
+              onTap: () => Navigator.of(sheetContext).pop(AppStrings.paymentMethodCash),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+    setState(() => _paymentMethod = choice);
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final amount = double.tryParse(_amountController.text.trim());
+      await ref.read(billsRepositoryProvider).saveBillDetails(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            amount: amount,
+            paymentMethod: _paymentMethod,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('שגיאה בשמירה')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.periodLabel, style: AppTextStyles.heading2),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: AppStrings.amountLabel),
+          ),
+          const SizedBox(height: 12),
+          if (widget.showPaymentMethod) ...[
+            ElevatedButton.icon(
+              onPressed: _showPayNowChooser,
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text(AppStrings.payNowButton),
+            ),
+            if (_paymentMethod != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${AppStrings.paymentMethodLabel}: $_paymentMethod',
+                style: AppTextStyles.bodySecondary,
+              ),
+            ],
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                  child: const Text(AppStrings.cancel),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _save,
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(AppStrings.saveButton, style: AppTextStyles.button),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/vaad_bayit_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך "ועד בית" - טבלת 12 החודשים של השנה הנוכחית. כל שורה
+/// מראה אם שולם (נשמר עם סכום+אמצעי תשלום) או לא, וניתנת
+/// **להחלקה** כדי לבטל תשלום קיים בלי לפתוח את חלונית העריכה.
+class VaadBayitScreen extends ConsumerWidget {
+  final String householdId;
+
+  const VaadBayitScreen({super.key, required this.householdId});
+
+  static final List<String> _monthNames = AppStrings.monthNames.split(',');
+
+  Future<void> _openMonthSheet(BuildContext context, WidgetRef ref, int month) async {
+    final year = DateTime.now().year;
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+    ));
+    final existing = (billsAsync.value ?? []).where((b) => b.periodStartMonth == month);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => BillPeriodEditSheet(
+        householdId: householdId,
+        category: BillCategory.vaadBayit,
+        year: year,
+        periodStartMonth: month,
+        periodLabel: _monthNames[month - 1],
+        existing: bill,
+      ),
+    );
+  }
+
+  Future<void> _cancelPayment(WidgetRef ref, int year, int month) {
+    return ref.read(billsRepositoryProvider).cancelPayment(
+          householdId: householdId,
+          category: BillCategory.vaadBayit,
+          year: year,
+          periodStartMonth: month,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final year = DateTime.now().year;
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(title: Text('${AppStrings.vaadBayitTitle} · $year')),
+      body: billsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+        data: (bills) {
+          final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: 12,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final bill = byMonth[month];
+              final isPaid = bill?.isPaid ?? false;
+
+              return Dismissible(
+                key: ValueKey('vaad-$month-$isPaid'),
+                direction: isPaid ? DismissDirection.startToEnd : DismissDirection.none,
+                background: Container(
+                  color: AppColors.error,
+                  alignment: AlignmentDirectional.centerStart,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Text(
+                    AppStrings.cancelPaymentAction,
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                confirmDismiss: (direction) async {
+                  await _cancelPayment(ref, year, month);
+                  return false;
+                },
+                child: ListTile(
+                  leading: Icon(
+                    isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                  ),
+                  title: Text(_monthNames[index]),
+                  subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                  trailing: Text(
+                    isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                    style: TextStyle(
+                      color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => _openMonthSheet(context, ref, month),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+HMEOF
+echo 'DONE - receipts removed entirely, swipe-to-cancel-payment added!'

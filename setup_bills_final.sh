@@ -1,0 +1,2303 @@
+#!/bin/bash
+set -e
+mkdir -p lib/models lib/services/files lib/services/firebase lib/repositories lib/providers lib/features/bills lib/features/home/tabs
+rm -f lib/services/firebase/receipt_storage_service.dart storage.rules
+cat > 'PROJECT_STATUS.md' << 'HMEOF'
+# PROJECT_STATUS.md — Home Manager
+
+> קובץ זה מתעדכן אחרי כל שלב משמעותי. אם פותחים שיחה/session חדש/ה,
+> יש לקרוא קובץ זה **וגם** את הקוד הקיים לפני שממשיכים לפתח.
+
+---
+
+## שלב נוכחי
+**שלב 8 — Push Notifications (גרסה חינמית, בלי Blaze)** ✅ הושלם בקוד (טרם נבדק). המשתמש בחר במפורש בחלופה החינמית על פני שדרוג ל-Blaze + Cloud Functions.
+
+## השלב הבא
+בדיקה בפועל של ההתראות (שני משתמשים, שני חלונות/מכשירים). בעתיד: אפשר לשדרג ל-Blaze + FCM אמיתי בלי לאבד את הקוד הקיים (הארכיטקטורה המודולרית תומכת בזה).
+
+---
+
+## מה כבר בנוי
+
+### מבנה פרויקט
+- מבנה תיקיות מלא לפי הארכיטקטורה שסוכמה: `app/`, `core/`, `models/`, `services/`, `repositories/`, `providers/`, `features/`.
+- `pubspec.yaml` עם כל התלויות הצפויות לשלבים 1-10 (Riverpod, go_router, Firebase packages, intl).
+
+### Branding & Config (מרוכז, לא מקושח בקוד)
+- `lib/app/config/app_config.dart` — שם אפליקציה, גרסה, קבועים כלליים.
+- `lib/app/config/app_colors.dart` — פלטת צבעים (ירוק/לבן/אפור לפי הבריף).
+- `lib/app/config/app_text_styles.dart` — טיפוגרפיה מרכזית.
+- `lib/app/config/app_strings.dart` — טקסטים מרכזיים בעברית, מוכן ל-i18n עתידי.
+
+### Core (utilities משותפים)
+- `lib/core/errors/failures.dart` — מחלקות שגיאה אחידות (Network/Permission/Auth/Unknown).
+- `lib/core/utils/validators.dart` — ולידציה לטפסים (email, password, שדה חובה, מספר חיובי).
+- `lib/core/widgets/loading_indicator.dart`, `empty_state.dart`, `error_view.dart` — מצבי טעינה/ריק/שגיאה אחידים.
+
+### App shell
+- `lib/app/app.dart` — MaterialApp.router, theme מלא, RTL + locale עברית.
+- `lib/app/router.dart` — go_router, כרגע רק route יחיד ('/').
+- `lib/features/splash/splash_screen.dart` — מסך פתיחה בסיסי.
+- `lib/main.dart` — נקודת כניסה, **כולל אתחול Firebase בפועל** (`Firebase.initializeApp`).
+
+### Firebase (שלב 2)
+- פרויקט Firebase אמיתי בשם "Home Manager" (Spark plan / חינמי), project id: `home-manager-9407a`.
+- Authentication מופעל, Email/Password provider פעיל.
+- Cloud Firestore מופעל, ב-production mode (Security Rules ברירת מחדל מחמירות - טרם נכתבו rules מותאמים, זה יגיע בשלב ההרשאות).
+- חובר לקוד באמצעות FlutterFire CLI (`flutterfire configure`) — פלטפורמה נתמכת כרגע: **Web בלבד** (Android/iOS ניתן להוסיף בהמשך באותה פקודה בלי לאבד קונפיגורציה קיימת).
+- `lib/firebase_options.dart` נוצר אוטומטית - **לא לערוך ידנית**, הוא מנוהל על ידי flutterfire CLI.
+- סביבת עבודה: GitHub Codespaces (לא מקומי) - repository: `lilovem/Home-Manager`.
+
+### Authentication (שלב 3)
+- `lib/services/firebase/firebase_auth_service.dart` — עטיפה דקה סביב FirebaseAuth (Service layer).
+- `lib/repositories/auth_repository.dart` — מתרגם שגיאות Firebase לעברית (AuthFailure), זו השכבה ש-UI קורא לה.
+- `lib/providers/auth_provider.dart` — Riverpod providers: `authRepositoryProvider`, `authStateChangesProvider` (Stream<User?>).
+- `lib/app/auth_gate.dart` — "השומר" הראשי: מאזין למצב ההתחברות ומציג אוטומטית Splash/Login/Home.
+- `lib/features/auth/login_screen.dart` — טופס התחברות אמיתי עם ולידציה, loading state, הצגת שגיאות.
+- `lib/features/auth/register_screen.dart` — טופס הרשמה עם אימות סיסמה כפול.
+- `lib/features/home/home_screen.dart` — מסך placeholder שמוצג אחרי התחברות מוצלחת, עם כפתור התנתקות.
+- `lib/app/router.dart` עודכן: '/' מציג AuthGate, '/register' הוא route נפרד.
+- זרימה: משתמש לא מחובר → Login (אפשרות לעבור ל-Register) → הרשמה/התחברות מצליחה → AuthGate מזהה אוטומטית ומעביר ל-Home. אין ניווט ידני אחרי login/register - זה קורה אוטומטית דרך ה-Stream.
+
+### Household (שלב 4) — ✅ נבדק בפועל עם 2 משתמשים אמיתיים
+- `lib/models/household_model.dart` — מודל Household (id, name, createdBy, createdAt, memberIds, shoppingListId).
+- `lib/services/firebase/household_service.dart` — קריאות Firestore גולמיות (יצירה, הצטרפות, מעקב).
+- `lib/repositories/household_repository.dart` — מתרגם שגיאות Firestore לעברית.
+- `lib/providers/household_provider.dart` — `myHouseholdProvider` (Stream<Household?>), תלוי אוטומטית ב-authState.
+- `lib/app/household_gate.dart` — "שומר" שני (אחרי AuthGate): מציג מסך יצירה/הצטרפות אם אין household, אחרת Home.
+- `lib/features/household/create_household_screen.dart` — מסך אחד עם toggle בין "יצירת household חדש" ל-"הצטרפות עם קוד הזמנה".
+- `lib/features/household/invite_partner_screen.dart` — מציג את קוד ההזמנה (=מזהה ה-household) עם כפתור העתקה.
+- **נבדק בהצלחה:** משתמש א' יצר household, משתמש ב' (מייל שונה, חלון incognito) הצטרף עם הקוד - שניהם רואים "חברים במשק הבית: 2" בזמן אמת.
+- `firestore.rules`, `firebase.json`, `firestore.indexes.json` — נפרסו בהצלחה (`firebase deploy --only firestore:rules`).
+
+### Shopping List (שלב 5)
+- `lib/models/shopping_list_model.dart` — מודל רשימה (id, name, createdAt). MVP: רשימה אחת בלבד ל-household, ה-id שלה נשמר על `household.shoppingListId`.
+- `lib/models/shopping_item_model.dart` — מודל מוצר מלא: name, quantity, unit, status (pending/purchased/notFound), addedBy/addedByName/addedAt, purchasedAt/notFoundAt, וגם `addedDuringShopping` (ברירת מחדל false - מוכן לשלב 7 בלי מיגרציה עתידית).
+- `lib/core/utils/date_formatter.dart` — פורמט תאריך פשוט (ללא תלות ב-locale init של intl).
+- `lib/services/firebase/shopping_service.dart` — כולל `getOrCreateDefaultListId` שיוצר רשימה אוטומטית אם עדיין אין ל-household אחת (backward-compatible עם households שנוצרו לפני שלב זה).
+- `lib/repositories/shopping_repository.dart`, `lib/providers/shopping_provider.dart` — כולל `shoppingItemsProvider` (StreamProvider.family לפי household+list, real-time).
+- `lib/features/shopping/shopping_list_screen.dart` — מסך ראשי: רשימה, checkbox לסימון "נקנה", תפריט (⋮) לכל פריט עם "סמן כלא נמצא"/"החזר לרשימה"/"עריכה"/"מחיקה" (עם דיאלוג אישור).
+- `lib/features/shopping/add_edit_product_screen.dart` — טופס משותף להוספה ועריכה (name, quantity, unit אופציונלי).
+- `lib/features/home/home_screen.dart` עודכן — כפתור "רשימת קניות" חדש.
+- `firestore.rules` עודכן — הרשאות ל-`households/{id}/shoppingLists/{id}/items/{id}`, מוגבל לחברי household בלבד (פונקציית עזר `isHouseholdMember` משותפת).
+
+### קטגוריות אוטומטיות למוצרים
+- `lib/core/utils/product_categorizer.dart` — 12 קטגוריות קבועות (ירקות ופירות, מוצרי חלב, בשר/עוף/דגים, לחם ומאפים, קפואים, מזון יבש, תבלינים ורטבים, משקאות, חטיפים, ניקיון, טואלטיקה, שונות), עם רשימת מילות מפתח בעברית לכל קטגוריה וסדר תצוגה קבוע (בערך לפי סדר מדפים בסופר).
+- `ShoppingItem.category` — getter מחושב (לא נשמר ב-Firestore) שמסווג לפי שם המוצר. עריכת שם מוצר מעדכנת אוטומטית את הקטגוריה.
+- `lib/features/shopping/shopping_list_screen.dart` עודכן — הפריטים מקובצים לפי קטגוריה; **קטגוריה מוצגת רק אם יש בה לפחות מוצר אחד ברשימה**.
+
+### עיצוב מסכי כניסה - באנר ירוק
+- `lib/features/auth/login_screen.dart`, `lib/features/household/create_household_screen.dart`, `lib/features/home/home_screen.dart` — כולם משתפים עכשיו את אותו באנר עליון: אייקון בית + "Home Manager" ברקע ירוק מעוגל. הוסר כותרת כפולה מה-AppBar של מסך הבית (היה מוצג פעמיים).
+
+### Active Shopping - צד לקוח בלבד (שלב 7)
+- `lib/models/shopping_session_model.dart` — מודל session (startedAt, startedBy/Name, endedAt, status).
+- `lib/models/shopping_list_model.dart` עודכן — שדה `activeSessionId` (null = אין קנייה פעילה).
+- `lib/services/firebase/shopping_service.dart` — `watchListMeta()` (stream של metadata הרשימה, כולל activeSessionId), `startShoppingSession()`.
+- `addItem()` מקבל כעת `addedDuringShopping: bool`, נקבע לפי `activeSessionId != null` בזמן ההוספה.
+- `finishShopping()` עודכן — מקבל `activeSessionId` אופציונלי; אם קיים, סוגר גם את ה-session (status='completed', endedAt) **באותו batch אטומי** יחד עם שאר הפעולות.
+- `lib/features/shopping/shopping_list_screen.dart` עודכן — באנר ירוק "קנייה פעילה" כשיש session פעיל, כפתור "התחל קנייה" כשאין, ותגית "חדש" (כחולה) על פריטים שנוספו בזמן קנייה פעילה.
+- `firestore.rules` עודכן — הרשאה ל-`households/{id}/shoppingLists/{id}/sessions/{sessionId}`.
+- **חסר עדיין (שלב 8):** שום Push Notification בפועל. הבאנר/תגית הם רק UI - אף אחד לא מקבל התראה כרגע כשמוצר נוסף בזמן קנייה פעילה.
+- **תוקן:** באג שבו פריט שהועבר ל"קנייה הבאה" (דרך סיום קנייה) המשיך להציג את תגית "חדש" - `addedDuringShopping` מתאפס עכשיו במפורש בזמן ה-carry-over.
+
+### Push Notifications - גרסה חינמית (שלב 8)
+**החלטה מפורשת של המשתמש:** לוותר על Blaze plan + Cloud Functions (שדורשים כרטיס אשראי, גם אם השימוש בפועל נשאר בתוכנית החינמית של Blaze) לטובת חלופה חינמית לגמרי, במחיר מגבלה אחת: **עובד רק כשהאפליקציה פתוחה** (טאב פתוח, ולו ברקע) - לא כשהיא סגורה לגמרי. שדרוג ל-Blaze בעתיד אפשרי בלי לשכתב את הקוד הקיים.
+
+**איך זה עובד:** במקום Cloud Function ששולח Push דרך שרת, האפליקציה עצמה "מאזינה" לשינויים ב-Firestore (כמו שכבר עשתה ל-real-time sync), ומזהה מוצרים/קניות חדשים ברגע שהם מגיעים - ואז מציגה Web Notification אמיתי של הדפדפן (`dart:html`'s `Notification`), לא רק שינוי במסך.
+
+- `lib/services/notifications/browser_notification_service.dart` — קובץ "מתג" (barrel) שבוחר אוטומטית בין המימוש ל-Web לבין stub ריק לכל פלטפורמה אחרת, דרך conditional export (`if (dart.library.html)`). מבטיח שהקוד ימשיך להתקמפל גם ל-Android/iOS בעתיד בלי שינוי.
+- `lib/services/notifications/browser_notification_service_web.dart` — המימוש האמיתי, עוטף את `dart:html`'s `Notification` API (בקשת הרשאה + הצגת התראה).
+- `lib/services/notifications/browser_notification_service_stub.dart` — גרסת no-op לכל פלטפורמה שאינה Web.
+- `lib/providers/notification_provider.dart` — provider פשוט ל-service הזה.
+- `lib/models/shopping_history_model.dart` עודכן — שדות `completedBy`/`completedByName`, כדי שנוכל להתעלם ממי שביצע בעצמו את "סיום הקנייה" בהתראה.
+- `lib/features/shopping/shopping_list_screen.dart` עודכן — משתמש ב-`ref.listen` (לא `ref.watch`) על `shoppingItemsProvider` ו-`shoppingHistoryProvider` כדי להשוות "לפני" מול "אחרי" ולזהות בדיוק מה חדש, ללא כפל התראות בטעינה הראשונית (`previous == null` מדלג).
+- **שני סוגי התראות ממומשים:** (1) מוצר חדש נוסף בזמן קנייה פעילה, (2) קנייה הסתיימה + רשימת "לא נמצא" - בשני המקרים מי שביצע את הפעולה לא מקבל התראה על עצמו.
+- **אין צורך בשינוי Security Rules** - אין collection חדש, הכל מבוסס על מה שכבר קיים וכבר נגיש לחברי household.
+- **באנר הפעלת התראות במסך הבית** — `lib/features/home/home_screen.dart` הפך ל-ConsumerStatefulWidget, מציג באנר ברור (לא רק בקשה שקטה) עם כפתור "הפעל התראות" אם עדיין לא הוחלט, או הסבר איך לתקן ידנית אם נחסמו. דפדפנים לא מאפשרים לבקש הרשאה שוב אוטומטית אחרי שהמשתמש כבר ענה (Allow/Block) - זו מגבלת אבטחה של הדפדפן, לא באג שלנו.
+- **כפתור "שלח התראת בדיקה"** — מוצג במסך הבית כשההרשאה כבר granted, מאפשר לוודא שהתראות עובדות בפועל בלי לעבור את כל תהליך "התחל קנייה + הוסף מוצר".
+- **תוקן:** notifications ב-Chrome (במיוחד אנדרואיד) דרשו מעבר דרך Service Worker רשום במפורש (`web/notification-sw.js`) - Flutter לא תמיד רושם Service Worker משלו במצב `flutter run`/debug. גם נוסף icon+tag להתראות לשיפור איכות מול מסווג ה-spam של Chrome.
+
+### שינוי שם - Home Manager ← LeeHome
+- `lib/app/config/app_config.dart`, `lib/app/config/app_strings.dart` — `appName` שונה ל-**LeeHome**, נוסף `appTagline` = "ניהול הבית שלכם". מוצג ב-Login ו-Splash מתחת לשם, לא בכל באנר (למניעת עומס ויזואלי).
+- **תהליך בחירת השם:** נבדקו ונדחו ~19 שמות (Homey, Housy, Dwelly, Nestwell, HomeHub, WeHome, CasaOS/Casafy/Casahub, MiCasa, iCasa, Tidely, Sortio, Sorta ועוד) - כולם כבר בשימוש ע"י אפליקציות אמיתיות באותו תחום או תחום סמוך. LeeHome ו-Casanest היו היחידים שעברו בדיקה נקייה; LeeHome נבחר לבסוף.
+
+### כמה רשימות קניות (לא רק אחת)
+- **שינוי ארכיטקטוני משמעותי:** בוטלה ההנחה "household אחד = רשימה אחת" (`household.shoppingListId` + `getOrCreateDefaultListId`). עכשיו household יכול להכיל **כמה רשימות שונות** (למשל "קניות שבועיות", "קניות לשבת", רשימה עם תאריך עתידי).
+- `lib/models/shopping_list_model.dart` — נוסף שדה `date` אופציונלי (לתכנון קנייה לתאריך עתידי).
+- `lib/services/firebase/shopping_service.dart`, `lib/repositories/shopping_repository.dart` — נוספו `watchLists()` (כל הרשימות) ו-`createList()` (יצירת רשימה עם שם+תאריך אופציונלי). `getOrCreateDefaultListId` נשאר בקוד אך אינו בשימוש יותר (backward-compat בלבד, לא הוסר).
+- `lib/providers/shopping_provider.dart` — הוחלף `shoppingListIdProvider` (הניח רשימה יחידה) ב-`shoppingListsProvider` (כל הרשימות) ו-`activeSessionListIdProvider` (מוצא את הרשימה שיש לה session פעיל כרגע, אם יש, מבין כל הרשימות - לצורך התראות).
+- `lib/features/shopping/shopping_lists_screen.dart` — מסך חדש: רשימת כל רשימות הקניות של ה-household, כפתור + ליצירת רשימה חדשה (דיאלוג עם שם + בורר תאריך אופציונלי), לחיצה על רשימה פותחת אותה.
+- `lib/features/shopping/shopping_list_screen.dart` — עודכן לקבל `listId` כפרמטר חובה במקום לחשב רשימת ברירת מחדל; מציג את שם הרשימה הספציפית ב-AppBar.
+- `lib/features/home/home_modules.dart` — האריח "רשימת קניות" פותח עכשיו את `ShoppingListsScreen` (בחירה/יצירה) במקום ישר לרשימה ספציפית.
+- `lib/features/shopping/shopping_notifications_listener.dart` — עודכן לעבוד עם `activeSessionListIdProvider` (מוצא דינמית איזו רשימה, מבין כולן, יש לה session פעיל) במקום הנחת רשימה יחידה קבועה.
+- **מגבלה מודעת:** אם יש בו-זמנית שתי קניות פעילות על שתי רשימות שונות (נדיר), ההתראות יעבדו רק על אחת מהן (`activeSessionListIdProvider` מחזיר את הראשונה שנמצאה) - פשטות מכוונת, לא נבנה תמיכה בכמה sessions מקבילים בו-זמנית.
+
+### עדכון: זרימת "קנייה נוכחית / קנייה חדשה" עם לוח שנה
+- **בוטל** המסך `shopping_lists_screen.dart` (רשימת כל הרשימות + כפתור "+" ליצירה) - הוחלף בזרימה דו-שלבית ברורה יותר.
+- `lib/features/shopping/shopping_choice_screen.dart` — מסך כניסה חדש: שתי כרטיסיות גדולות "קנייה נוכחית" ו"קנייה חדשה".
+- `lib/features/shopping/existing_shopping_lists_screen.dart` — רשימת קניות **קיימות** בלבד לבחירה (בלי אפשרות יצירה כאן).
+- `lib/features/shopping/new_shopping_calendar_screen.dart` — **לוח שנה אמיתי** של החודש הנוכחי (grid 7 עמודות, מיושר לפי ימי השבוע האמיתיים, ראשון=עמודה ראשונה), לחיצה על יום מסמנת אותו, "אישור" יוצר רשימה חדשה עם שם=התאריך ופותח אותה ישירות.
+- `lib/features/home/home_modules.dart` עודכן — האריח "רשימת קניות" פותח עכשיו את `ShoppingChoiceScreen`.
+- **תוקנו מקומות ששכחו את שינוי השם:** `AppStrings.inviteMessageTitle`, הודעת השיתוף ב-`invite_partner_screen.dart`, והודעת "הזמן חבר לאפליקציה" ב-`home_screen.dart` - כולם השתמשו עדיין ב-"Home Manager" הקשיח במקום `AppStrings.appName`. גם `web/index.html` (title) ו-`web/manifest.json` (name/short_name) עודכנו לשם החדש.
+- **עיצוב כותרת מסך הבית:** חזרה למבנה אנכי (אייקון מעל השם, לא לצידו), עם השם ואז הטאגליין מתחתיו, אך נשאר קומפקטי בהרבה מהגרסה המקורית (padding מינימלי) כדי לא לתפוס יותר מדי מהמסך.
+
+### שדרוג טיפוגרפי לטאגליין + צמצום מרווחים
+- **הערה חשובה שהתגלתה:** **אין גופני כתב-יד/קליגרפיה אמיתיים לעברית** ב-Google Fonts כרגע (יש בקשה פתוחה ולא-פתורה ב-GitHub של הפרויקט לכך) - עברית רהוטה היא סט אותיות שונה לגמרי, לא רק הטיה (איטליק) של הדפוס הרגיל כמו באנגלית. לכן לא ניתן היה לספק כתב-יד אמיתי כמו בתמונת ההשראה שהמשתמש שלח.
+- **הפתרון שיושם:** נוסף `google_fonts` (^6.2.1) ל-`pubspec.yaml`, ונוסף `AppTextStyles.tagline()` המשתמש בגופן Frank Ruhl Libre - גופן סריף עברי אלגנטי ומוכר, קירוב טוב לתחושה "מעוצבת" בלי להתחזות לכתב-יד.
+- מיושם ב: `login_screen.dart`, `splash_screen.dart`, `home_screen.dart` (הטאגליין "ניהול הבית שלכם" בכל שלושתם).
+- **צומצמו מרווחים** בין האייקון לשם ובין השם לטאגליין (הוסרו ה-`SizedBox` המפרידים) בכל שלושת המסכים, לתחושה קומפקטית ומאוחדת יותר.
+
+### עוד צמצום מקום + העברת סימון ההתראות ל-AppBar
+- אייקון "התראות" (כשההרשאה כבר granted) עבר מהגוף (שורה שתפסה מקום קבוע) ל-`leading` של ה-AppBar - בעברית (RTL) זה מציג אותו בפינה הימנית העליונה, בדיוק כמו שהתבקש. לחיצה שולחת התראת בדיקה; לחיצה ארוכה/hover מציגה את הסבר ה-tooltip (מנגנון native של `IconButton.tooltip`, במקום אייקון ⓘ נפרד - פישוט קל כדי להתאים לשטח הסטנדרטי של leading).
+- הבאנר "הפעל התראות" (למי שעדיין לא אישר) נשאר בגוף המסך כרגיל, כי הוא כולל טקסט הסבר וכפתור שלא נכנסים ל-AppBar.
+- אייקון הבית בבאנר העליון הוקרב עוד יותר לטקסט "LeeHome" מתחתיו באמצעות `Transform.translate` (מפצה על הריפוד הפנימי הטבעי שיש לגליפים של Material Icons).
+
+### שדרוג עיצובי גדול ל-Dashboard (בהשראת תמונות שהמשתמש שלח)
+- **הוחלט מראש עם המשתמש (consultation):** רק עיצוב/UI ברמה הזו עכשיו, **לא** נבנו בפועל: מזג אוויר, "מצב הבית", ניווט המבורגר+bottom-nav (שינוי ארכיטקטוני), מסך onboarding עם שקפים. כל אלה נדחו במפורש לעתיד לפי בחירת המשתמש.
+- `lib/features/home/home_modules.dart` פוצל לשניים: `buildFeaturedModules()` (4 כרטיסיות מומלצות: קניות/משימות/רכבים/לוח שנה) ו-`buildHomeModules()` (5 המודולים הנותרים: ביטוחים/רישיונות/חוגים/חשבונות/מסמכים, עדיין "בקרוב").
+- **"הוצאות" הוחלף ב"רכבים"** בכרטיסיות המומלצות, לפי בקשת המשתמש (רכבים כבר היה מודול עתידי קיים; "הוצאות" לא היה קיים כלל כמודול, לא הוסר שום דבר אמיתי).
+- `lib/providers/shopping_provider.dart` — נוספו `totalPendingItemsCountProvider` (סך פריטים "ממתינים" בכל הרשימות יחד, לתג המספר על כרטיסיית "קניות") ו-`upcomingShoppingDatesProvider` (רשימות עם תאריך עתידי/היום, ממוינות) - **שניהם מבוססים על נתונים אמיתיים שכבר קיימים**, לא מוצאים.
+- `lib/features/home/home_screen.dart` עבר שכתוב משמעותי: נוסף באנר ברכה ("שלום, משפחת X! הנה מה שקורה בבית היום"), רשת 2x2 של כרטיסיות סטטיסטיקה צבעוניות (`_StatCard` - אייקון בעיגול צבעוני + תג מספר אמיתי או "בקרוב"), כרטיס "לוח שנה" חדש (`_UpcomingCalendarCard` - לוח חודשי אמיתי עם סימון ימים שיש בהם קנייה מתוכננת + רשימת "האירועים הקרובים"), ומתחת לזה כותרת "בקרוב באפליקציה" עם רשת שאר המודולים (`_ModuleTile` פושט - כולם "בקרוב" עכשיו, אין יותר ענף "available" כי קניות עברה לכרטיסיות המומלצות).
+- **הערה על "לוח שנה":** זה **לא** מודול עצמאי אמיתי (אין collection של "events" ב-Firestore) - זו תצוגה חכמה שממחזרת נתונים קיימים (תאריכי `ShoppingList`). ברגע שיתווסף בעתיד מודול "משימות" או "אירועים" אמיתי, אפשר להרחיב את אותו כרטיס לאגד גם את הנתונים שלו.
+- `lib/core/utils/product_categorizer.dart` — נוסף `categoryIcons` (מיפוי קטגוריה → אייקון Material), מוצג עכשיו ליד שם כל מוצר ברשימת הקניות (`shopping_list_screen.dart`).
+
+### שינוי ארכיטקטוני גדול: ניווט תחתון קבוע (5 טאבים)
+- **הוחלט אחרי כמה סבבי דיוק עם המשתמש** (זו הייתה בהתחלה "לא" מפורש, ואז שונתה) - `lib/features/home/home_screen.dart` הישן **הוסר לגמרי**, הוחלף ב-`lib/features/home/main_shell_screen.dart`.
+- **מבנה קבוע:** לוגו + ברכה + כרטיסיית household + באנר התראות - **תמיד גלויים**, לא בתוך גלילה, בכל הטאבים. מתחת לזה - `NavigationBar` (Material 3) קבוע עם 5 יעדים: בית | קניות | לוח שנה | משימות | עוד. הטאב הפעיל תמיד מודגש.
+- **גוף המסך מוחלף (לא נפתח כ-route חדש)** לפי הטאב שנבחר - כל טאב הוא widget נפרד תחת `lib/features/home/tabs/`:
+  - `home_tab_content.dart` - רשת 4 חלונות (קניות/לוח שנה/משימות/רכבים), לחיצה על קניות/לוח שנה/משימות **מחליפה טאב** (לא פותחת מסך חדש) דרך callback `onSelectTab`.
+  - `shopping_tab_content.dart` - אותו תוכן שהיה ב-`ShoppingChoiceScreen` (שתי כרטיסיות קנייה נוכחית/חדשה), רק מוטמע ישירות בלי Scaffold/AppBar משלו.
+  - `calendar_tab_content.dart` - **מסך לוח שנה מלא**: גלילה בין חודשים (חצים), לחיצה על יום מציגה מתחת מה מתוכנן בו (עם לינק לפתוח את הרשימה), "אירועים קרובים" ל-**3 ימים** קדימה בלבד (היה "כל העתיד" קודם). **תוקן הבאג המקורי:** רק רשימות עם מוצרים בפועל נספרות/מסומנות - רשימות ריקות (משאריות בדיקות) לא מופיעות יותר.
+  - `tasks_tab_content.dart` - "בקרוב" פשוט.
+  - `more_tab_content.dart` - רשת שאר המודולים (ביטוחים/רישיונות/חוגים/חשבונות/מסמכים - **לא** כולל רכבים, כי הוא כבר נגיש דרך טאב "בית").
+- **נשמרו ללא שינוי:** הזמנת בן/בת זוג (קוד), שיתוף כללי לאפליקציה (וואטסאפ/מייל), החלפת household - כולם בתוך ה-shell הקבוע.
+- **נוסף:** דיאלוג אישור לפני התנתקות ("להתנתק? תצטרך להתחבר שוב") - לא היה קיים קודם, ההתנתקות הייתה מיידית בלי אישור.
+- `lib/features/home/home_modules.dart` — `buildFeaturedModules()` סודר מחדש לסדר קניות/לוח שנה/משימות/רכבים (תואם את סדר הטאבים).
+- `lib/app/household_gate.dart` — מצביע עכשיו על `MainShellScreen` במקום `HomeScreen`.
+
+### פיצ'ר אמיתי ראשון: ועד בית (חשבונות)
+- **תשתית חדשה: Firebase Storage** - נוסף `firebase_storage` ל-`pubspec.yaml`, קובץ `storage.rules` חדש (בדיקת חברות ב-household דרך `firestore.get()`, תואם ל-`firestore.rules`), ו-`firebase.json` עודכן עם מקטע `storage`.
+- **החלטת עיצוב מכוונת:** **בלי** זיהוי אוטומטי של תקופת התשלום מתוך הקבלה (OCR/AI) - לא אמין מספיק (פורמטים שונים לגמרי בין ספקים). המשתמש **תמיד בוחר ידנית** לאיזו תקופה שייכת קבלה.
+- `lib/models/bill_payment_model.dart` — `BillCategory` enum (vaadBayit/electricity/waterAndTax - רק הראשון פעיל כרגע), `BillPayment` עם תקופה (year+periodStartMonth), סכום, אמצעי תשלום, קובץ קבלה.
+- `lib/services/files/file_picker_service.dart` (+web/stub) — בחירת קובץ (PDF/תמונה) מהדיסק, אותה תבנית conditional-export כמו שירותי ההתראות/שיתוף.
+- `lib/services/firebase/receipt_storage_service.dart` — העלאת קובץ ל-Storage, מחזיר URL.
+- `lib/services/firebase/bills_service.dart`, `lib/repositories/bills_repository.dart`, `lib/providers/bills_provider.dart` — CRUD ב-Firestore לרשומות תשלום; מזהה מסמך קבוע (למשל `vaadBayit_2026_9`) כדי לתמוך ב-get-or-create בלי חיפוש מקדים.
+- `lib/features/bills/vaad_bayit_screen.dart` — טבלת 12 חודשי השנה הנוכחית, כל שורה מראה שולם/לא שולם. לחיצה פותחת חלונית: הזנת סכום, בחירת אמצעי תשלום (ביט/פייבוקס/העברה בנקאית/מזומן/אחר), והעלאת קבלה - **העלאת קבלה מסמנת אוטומטית את התקופה כ"שולם"**.
+- `lib/features/home/tabs/home_tab_content.dart` — נוסף כרטיס רחב "חשבונות" מתחת לרשת 4 החלונות, עם 3 עמודות: ועד בית (פעיל, מוביל למסך הטבלה), חשמל ומים+ארנונה (עדיין "בקרוב" - שלב הבא בעתיד, לפי בחירת המשתמש להתחיל רק עם ועד בית).
+- **פעולה נדרשת מהמשתמש לפני שזה יעבוד:** להפעיל Firebase Storage בקונסולה (Databases & Storage → Storage → Get started) ולפרוס את storage.rules (`firebase deploy --only storage`).
+
+### עדכון קריטי: בוטל Firebase Storage לגמרי, קבלות נשמרות ב-Firestore (base64)
+- **התגלה באמצע הפיתוח:** מאז פברואר 2026, גוגל דורשת Blaze **תמיד** לשימוש ב-Firebase Storage, גם ב-$0 בפועל - אין יותר "שכבה חינמית" אמיתית ל-Storage כמו שהייתה קודם. זו מדיניות שונה לגמרי מהמקרה של Push Notifications (שם היה אפשר לעקוף עם Cloud Functions/Blaze נמנע).
+- **ההחלטה:** במקום Blaze, קבלות (תמונה/PDF) מקודדות ל-**base64** ונשמרות **ישירות בתוך מסמך Firestore** (שכבר בשימוש, חינמי, בלי Blaze). **בוטלו לגמרי:** `firebase_storage` מ-`pubspec.yaml`, `storage.rules`, ה-`storage` block ב-`firebase.json`, וקובץ `receipt_storage_service.dart`.
+- **מגבלה מודעת:** Firestore מגביל מסמך ל-1MB; קובץ גולמי מוגבל ל-**700KB** (base64 מנפח ~33%, נשאר מרווח בטוח). קבצים גדולים יותר נדחים עם הודעת שגיאה ברורה שמנחה לצלם שוב באיכות נמוכה יותר. מתאים היטב לתמונה אחת (צילום קבלה/צילום מסך מביט) - **לא** מתאים ל-PDF רב-עמודים כבד.
+- `lib/models/bill_payment_model.dart` — `receiptUrl` הוחלף ב-`receiptData` (base64) + `receiptMimeType`. `isPaid` בודק `receiptData != null` במקום `receiptUrl != null`.
+- **ממשק ה-UI לא השתנה בכלל** (`vaad_bayit_screen.dart`, `bill_period_table_screen.dart`) - קריאות ל-`uploadReceiptAndMarkPaid()` נשארו זהות; רק המימוש הפנימי ב-repository השתנה משליחה ל-Storage לקידוד base64 ישיר.
+- **לא נבנה עדיין:** תצוגה חוזרת של הקבלה (פתיחה/הצגה של התמונה שהועלתה) - כרגע רק מסומן "קבלה הועלתה: שם קובץ", אין preview. שיפור אפשרי לעתיד: `Image.memory(base64Decode(...))`.
+
+### הרחבה: חשמל + מים/ארנונה (קישור תשלום, בלי ניחוש עיר)
+- **נדחתה בכוונה** האפשרות "בחר עיר → אתר אוטומטי" - אין מאגר אמין של מאות רשויות מקומיות שאפשר לשמור בקוד בלי שיתיישן/יהיה לא מדויק. **נבחרה הגדרה חד-פעמית ידנית** במקום.
+- `lib/models/bill_link_settings_model.dart` + `lib/services/firebase/bill_settings_service.dart` — הגדרות קישורי תשלום, נשמר במסמך יחיד `households/{id}/settings/billLinks`. חשמל תמיד נפרד; מים+ארנונה עם דגל `waterAndTaxCombined` (יחד = קישור אחד, בנפרד = שני קישורים+שתי טבלאות עצמאיות).
+- `lib/models/bill_payment_model.dart` — `BillCategory` הורחב עם `water` ו-`tax` (לתמיכה במקרה "בנפרד").
+- `lib/features/bills/bill_period_table_screen.dart` — מסך טבלה **גנרי** (חודשיים, 6 תקופות בשנה), בשימוש חוזר לחשמל/מים/ארנונה/מים+ארנונה-ביחד. **הערה לניקיון עתידי:** `vaad_bayit_screen.dart` (חודשי) לא עבר ריפקטור לשימוש בקומפוננטה המשותפת - יש כפילות קוד מכוונת כדי לא לסכן קוד שכבר עבד, ניתן לאחד בעתיד.
+- `lib/features/bills/electricity_screen.dart`, `lib/features/bills/water_and_tax_screen.dart` — בפעם הראשונה מציגים טופס הגדרה (URL בלבד לחשמל; שאלת יחד/בנפרד + URL/ים למים+ארנונה), אחר כך תמיד מציגים ישר את הטבלה + כפתור "שלם עכשיו" שפותח את הקישור השמור (`url_launcher`, נוסף כתלות חדשה).
+- `lib/features/home/tabs/home_tab_content.dart` — כרטיס "חשבונות" עודכן: **כל שלוש** העמודות (ועד בית/חשמל/מים+ארנונה) פעילות עכשיו.
+- **תוקן:** מייל חסר לחברי household ישנים - `ensureMemberEmail()` "מתקן" ברקע את שדה ה-email של המשתמש הנוכחי בכל כניסה לאפליקציה (ב-`household_gate.dart`), כך שגם households שנוצרו לפני הוספת השדה מתמלאים בהדרגה (כל משתמש מתקן את הרשומה של עצמו בכניסה הבאה שלו).
+- **הערה אופציונלית לכל מוצר** — שדה `note` נוסף ל-`ShoppingItem`, זמין בטופס ההוספה/עריכה (שדה טקסט רב-שורות, אופציונלי), ומוצג בכרטיס המוצר ברשימה בפונט נטוי מתחת לפרטים הרגילים (רק אם קיים).
+
+### שיתוף (WhatsApp/Email)
+- `lib/services/sharing/share_service.dart` (+ web/stub) — שיתוף ישיר דרך קישורי `wa.me`/`mailto`, אותו תבנית conditional-export כמו שירות ההתראות.
+- `lib/app/config/app_config.dart` — נוסף `AppConfig.publicUrl` (כתובת ה-Hosting הקבועה), כדי שהודעות שיתוף תמיד יפנו לכתובת היציבה, לא לכתובת הזמנית של ה-Codespace.
+- **שני שימושים נפרדים, בכוונה:**
+  1. `invite_partner_screen.dart` — שיתוף **קוד הזמנה ל-household קיים** (כולל הקוד הספציפי בהודעה).
+  2. `home_screen.dart` (כפתור שיתוף ב-AppBar) — הזמנה **כללית** לאפליקציה, בלי שום קוד household, מיועד לחברים שירצו ליצור household **משלהם**.
+
+### תמיכה בכמה Households למשתמש אחד
+- `lib/providers/household_provider.dart` — נוספו `myHouseholdsProvider` (Stream<List<Household>>, כל ה-households), `selectedHouseholdIdProvider` (StateProvider, "פעיל כרגע", לא persist בין sessions), ו-`currentHouseholdProvider` (Household? בפועל - הנבחר, או הראשון כברירת מחדל).
+- `lib/services/firebase/household_service.dart`, `lib/repositories/household_repository.dart` — נוסף `watchMyHouseholds()` (אותה שאילתה כמו הישן, רק בלי `.limit(1)`).
+- `lib/app/household_gate.dart` עודכן — משתמש ב-`myHouseholdsProvider`; אם ריק → מסך יצירה/הצטרפות; אחרת → `currentHouseholdProvider` (מטפל גם ב"מצב ביניים" רגעי לפני שהבחירה מתייצבת).
+- `lib/features/household/add_household_screen.dart` — מסך חדש (בשונה מ-`create_household_screen.dart` שמשמש רק כ"שער" הראשוני): נפתח כ-push רגיל עם כפתור חזרה, מיועד להוספת household **נוסף** כשכבר יש לפחות אחד. בהצלחה, בוחר אוטומטית את ה-household החדש כ"פעיל" (`selectedHouseholdIdProvider`) וסוגר את המסך.
+- `lib/features/home/home_screen.dart` עודכן — שם ה-household בכרטיסייה העליונה הפך ללחיץ (עם אייקון ⇕ קטן), פותח bottom sheet עם רשימת כל ה-households (רדיו-בחירה) + כפתור "הצטרף/צור משק בית נוסף".
+- **החלטה:** בחירת ה-household הפעיל נשמרת רק בזיכרון (לא ב-Firestore/local storage) - מתאפסת לברירת המחדל (household ראשון) בכל טעינה מחדש של האפליקציה. זה מספיק ל-MVP; אם יתברר שזה מציק, אפשר להוסיף persist מקומי (shared_preferences) בעתיד.
+
+### מחיקת Household
+- `lib/services/firebase/household_service.dart` — `deleteHousehold()` מוחק באופן ידני ורקורסיבי את כל תת-האוספים (members, shoppingLists+items+sessions, shoppingHistory) ולבסוף את מסמך ה-household עצמו. Firestore לא מוחק subcollections אוטומטית.
+- **הגבלת הרשאה מכוונת - שונה מהסרת חבר:** בעוד שכל חבר יכול להסיר חבר אחר, מחיקת household **שלם** מוגבלת רק ל-`createdBy` (הבעלים המקורי) - גם ב-UI (`isOwner` מוזרק מ-`home_screen.dart`) וגם ב-Security Rules (`allow delete: if request.auth.uid == resource.data.createdBy`). זו פעולה הרסנית משמעותית יותר מהסרת חבר בודד.
+- כפתור "מחק משק בית" מופיע בתחתית `household_members_screen.dart`, רק אם `isOwner == true`, עם דיאלוג אישור מפורש.
+
+### פירוט קנייה בהיסטוריה
+- `lib/models/shopping_history_model.dart` הורחב — נוספו `purchasedItemNames`, `carriedOverItemNames`, `droppedItemNames` (מפרידים בין "הועבר לקנייה הבאה" ל"נמחק", מה שלא היה קיים קודם - `notFoundItemNames` הישן שילב את שניהם יחד).
+- `lib/services/firebase/shopping_service.dart` — `finishShopping()` שומר עכשיו את הפירוט המלא, לא רק ספירות.
+- `lib/features/shopping/shopping_history_detail_screen.dart` — מסך חדש: לחיצה על קנייה בהיסטוריה פותחת אותו, מציג 3 קטגוריות (נקנו / לא נמצאו-הועברו / לא נמצאו-נמחקו) עם רשימת שמות מלאה בכל אחת.
+- **תמיכה לאחור:** רשומות היסטוריה ישנות (לפני העדכון) לא יכילו את 3 השדות החדשים - המסך מזהה זאת אוטומטית ונופל חזרה להצגת `notFoundItemNames` הישן כקטגוריה כללית אחת.
+
+### עדכון מיתוג - לוגו וצבעים כחולים
+- **החלטת המשתמש:** מעבר מירוק לכחול (`#00A3DA` עם גרדיאנט לכהה יותר `#0075AA`), בהתאם ללוגו "Smart Home" (בית + גל Wi-Fi) שהמשתמש בחר.
+- `lib/app/config/app_colors.dart` — `primary` שונה לכחול, נוסף `primaryDark` לגרדיאנטים. **צבעים סמנטיים נשארו כפי שהיו במכוון:** `itemPurchased` (ירוק - הצלחה) ו-`itemNotFound` (כתום - אזהרה) לא השתנו, כי אלה משמעות קבועה ולא צבעי מותג. `itemNewBadge` שונה לסגול (היה כחול) כדי לא להתבלבל עם הכחול הראשי החדש.
+- הבאנרים הירוקים ב-`login_screen.dart`, `create_household_screen.dart`, `home_screen.dart` הפכו לגרדיאנט (primary→primaryDark) במקום צבע שטוח, בהשראת הגרדיאנט שבלוגו המקורי.
+- אייקוני האפליקציה (`web/icons/*.png`, `web/favicon.png`) הוחלפו בלוגו "בית + Wi-Fi" כחול, נוצר עם Python/Pillow בהתאמה לצבעים המדויקים מהתמונה שהמשתמש שלח.
+- **שיפור עיצוב עדין ("קצת יותר מגניב, לא יותר מדי"):** `app.dart` - עודכן ה-theme הכללי: כפתורים עם צל עדין (elevation), פינות מעוגלות יותר (14 במקום 12), שדות טופס עם border ברור ו-focus כחול, snackbar מעוגל. `splash_screen.dart` - רקע גרדיאנט (היה צבע שטוח). `home_screen.dart` - אריחי המודולים קיבלו צל עדין ורקע גרדיאנט קליל לאייקון (היה צבע שטוח אחיד).
+- **תוקן באג ארכיטקטוני:** ההאזנה להתראות עברה מ-`shopping_list_screen.dart` (שם היא פעלה **רק** כשמסך רשימת הקניות עצמו היה פתוח) ל-`lib/features/shopping/shopping_notifications_listener.dart` - widget "שקוף" (בלי UI משלו) שעוטף את כל האפליקציה דרך `household_gate.dart` ברגע שיש household. עכשיו ההתראות פועלות בכל מסך באפליקציה (Dashboard, היסטוריה וכו'), כל עוד הטאב פתוח - לא רק כשנמצאים ספציפית ברשימת הקניות.
+
+### שכחת סיסמה (Login)
+- `lib/services/firebase/firebase_auth_service.dart`, `lib/repositories/auth_repository.dart` — נוסף `sendPasswordResetEmail()`.
+- `lib/features/auth/login_screen.dart` — קישור "שכחת סיסמה?" שפותח דיאלוג להזנת אימייל (מלא מראש משדה האימייל בטופס אם כבר הוזן), שולח קישור איפוס דרך Firebase Auth.
+
+### ניהול חברי Household
+- `lib/models/household_member_model.dart` — נוסף שדה `email` (לא היה קיים קודם - היה רק role+joinedAt, בלי דרך להציג את זהות החבר בפועל).
+- `lib/services/firebase/household_service.dart` — `createHousehold`/`joinHousehold` מקבלים כעת גם email ושומרים אותו על מסמך ה-member. נוספו `watchMembers()` ו-`removeMember()` (batch: מוחק את מסמך החברות + מוציא מ-memberIds).
+- `lib/features/household/household_members_screen.dart` — מסך חדש: רשימת חברים עם email, תפקיד (בעלים/חבר), וכפתור הסרה לכל חבר חוץ מעצמך.
+- `firestore.rules` עודכן — `allow delete` על מסמך `members/{memberId}` שונה מ-`false` ל-`isHouseholdMember(householdId)`, כדי לאפשר הסרת חברים.
+- **החלטת הרשאות:** כל חבר יכול להסיר כל חבר אחר (כולל את מי שיצר את ה-household) - פשטות מכוונת למשק בית משפחתי קטן, לא היררכיית תפקידים מורכבת. אין עדיין פיצ'ר "עזיבה עצמית" (לא ניתן להסיר את עצמך מהמסך הזה).
+- גישה למסך: לחיצה על "X חברים במשק הבית" בכרטיסיית ה-household במסך הבית (הפך ללחיץ, עם קו תחתון).
+
+### Firebase Hosting - כתובת קבועה
+- `firebase.json` עודכן עם קונפיגורציית `hosting` (public: `build/web`, rewrite ל-SPA).
+- נפרס בהצלחה עם `flutter build web` + `firebase deploy --only hosting` - כתובת קבועה: `https://home-manager-9407a.web.app`.
+- **הבדל חשוב מ-`flutter run`:** זו "תמונת מצב קפואה", לא live-reload. כל שינוי עתידי בקוד דורש בנייה ופריסה מחדש (`flutter build web` + `firebase deploy --only hosting`) כדי להתעדכן בכתובת הציבורית. שימושי לשיתוף עם משתמשים אחרים (לא רק לבדיקות פיתוח).
+
+### דרישות מתועדות לשלב 8 (Push Notifications) - מהמשתמש
+1. **בזמן קנייה פעילה:** כשמוסיפים מוצר, שאר חברי ה-household (לא כולל מי שהוסיף) מקבלים Push "🔔 מוצר חדש נוסף".
+2. **בסיום קנייה:** Push נוסף לשאר החברים עם רשימת `notFoundItemNames` (כבר נשמר בהיסטוריה) - "🛒 הקנייה הסתיימה, לא נמצאו: X, Y".
+3. **כלל מפתח:** הנמען תמיד "חברי ה-household חוץ מהמשתמש שביצע את הפעולה" - לא כולם, ולא רק מי שהתחיל את ה-session. אצל household עם 2 חברים (המקרה הנפוץ), זה תמיד "הצד השני".
+4. שני סוגי ההתראות ישתמשו באותה תשתית Cloud Function גנרית, מובחנות ע"י `type` בפיילוד - כפי שכבר תוכנן בארכיטקטורה המקורית.
+
+### Shopping Completion + History (שלב 9)
+- `lib/models/shopping_history_model.dart` — רשומת סיכום קנייה (תאריך, סה"כ מוצרים, כמה נקנו, כמה לא נמצאו, שמות המוצרים שלא נמצאו).
+- `lib/services/firebase/shopping_service.dart` — `finishShopping()` מבצע הכל ב-**WriteBatch אחד אטומי**: מוחק פריטים שנקנו, מטפל בפריטים שלא נמצאו (מחזיר ל"ממתין" את מה שסומן להעברה, מוחק את השאר), ושומר רשומת היסטוריה. גם `watchHistory()` (stream, ordered by date).
+- `lib/features/shopping/shopping_summary_screen.dart` — מסך סיכום: סטטיסטיקות (סה"כ/נקנו/לא נמצאו), רשימת "לא נמצאו" עם checkbox לכל פריט (ברירת מחדל: מסומן = יועבר לקנייה הבאה) + כפתורי "בחר הכל"/"נקה הכל", ורשימת "נקנו" למידע.
+- `lib/features/shopping/shopping_history_screen.dart` — רשימת קניות עבר, פורמט "תאריך - X מוצרים - Y נקנו - Z לא נמצאו".
+- `lib/features/shopping/shopping_list_screen.dart` עודכן — 2 כפתורים חדשים ב-AppBar: היסטוריה (🕐) וסיום קנייה (✓✓, מושבת אם אין פריטים שנקנו/לא נמצאו).
+
+### Home Dashboard - עיצוב מחדש
+- `lib/features/home/home_module.dart` — מודל `HomeModule` (title, subtitle, icon, isAvailable, screenBuilder).
+- `lib/features/home/home_modules.dart` — **המקום היחיד** להוספת מודולים עתידיים (רכבים, ביטוחים, רישיונות, חוגים, חשבונות, מסמכים, משימות/תזכורות). מודול חדש = תוספת אחת ברשימה כאן, לא צריך לגעת ב-home_screen.dart.
+- `lib/features/home/home_screen.dart` עוצב מחדש כ-Dashboard: כרטיסיית household עליונה (שם, מספר חברים, כפתור הזמנה עגול), ומתחתיה רשת (grid) של אריחי מודולים - "רשימת קניות" פעיל ולחיץ, שאר המודולים מוצגים מעומעמים עם תווית "בקרוב".
+
+---
+
+## מה עדיין לא עובד / לא קיים
+- טרם נבדק בפועל: שכחת סיסמה, ניהול/הסרת חברים.
+- **מגבלה ידועה:** ההתראות עובדות רק כשהאפליקציה פתוחה (טאב פתוח, גם ברקע) - לא כשהיא סגורה לגמרי. זו החלטה מודעת (ר' החלטות ארכיטקטוניות).
+- אין פיצ'ר "עזיבת household" עצמית (אפשר רק שמישהו אחר יסיר אותך).
+- household-ים ישנים (שנוצרו/הצטרפו לפני העדכון הזה) לא יציגו email במסך ניהול החברים - השדה לא היה קיים אז. לא נבנה migration script לזה.
+- Android/iOS עדיין לא הוגדרו ב-flutterfire (רק Web).
+
+## בעיה ידועה - Cache ישן בדפדפן על מכשירים נוספים
+כשבודקים גרסה חדשה על מכשיר נוסף (טלפון וכו') שכבר ביקר בכתובת בעבר, הדפדפן עלול "לזכור" קובצי JavaScript ישנים (Flutter web service worker), מה שגורם לשגיאות כמו "משהו השתבש" גם כשהקוד בפועל תקין ועודכן. **פתרון:** לפתוח בחלון גלישה בסתר (Incognito/Private) בכל פעם שבודקים גרסה חדשה על מכשיר שכבר ביקר בכתובת.
+
+---
+
+## בעיות פתוחות
+- יש להחליט על גופן עברי (`Rubik` צוין ב-`app_text_styles.dart` כברירת מחדל, אך קובץ הגופן עצמו טרם נוסף ל-assets — אפשר גם להשתמש בגופן ברירת המחדל של המערכת בינתיים).
+- כשנרצה לבדוק על טלפון אמיתי (Android/iOS), יהיה צריך להריץ שוב `flutterfire configure` ולסמן גם את הפלטפורמות האלה.
+
+---
+
+## החלטות ארכיטקטוניות חשובות
+1. **State Management: Riverpod ללא code generation** — נבחר כדי לפשט את חוויית הפיתוח למתחיל (אין תלות ב-`build_runner` בשלב זה). ניתן לשדרג בעתיד ל-`riverpod_generator` אם ירצה המשתמש.
+2. **מודלים ידניים (ללא Freezed)** — למען קריאות ופשטות למי שאינו מתכנת מקצועי. אם הפרויקט יגדל משמעותית, ניתן לשקול מעבר ל-Freezed בעתיד.
+3. **Branding מרוכז לחלוטין** — שום קובץ UI לא מכיל מחרוזת "Home Manager" קשיחה או קוד צבע ישיר; הכל דרך `app_config.dart` / `app_colors.dart` / `app_strings.dart`.
+4. **Firebase מאותחל ב-`main.dart` החל משלב 2** — בשלב 1 הושאר ללא Firebase בכוונה, כדי לוודא שהמבנה הבסיסי תקין לפני הכנסת תלות חיצונית אמיתית.
+5. **Secrets** — שום מפתח/סוד לא יישמר בצד ה-Flutter client לאורך כל הפרויקט; קריאות הדורשות secret (מחירי סופר, WhatsApp) יעברו תמיד דרך Cloud Functions.
+6. **סביבת הפיתוח: GitHub Codespaces (בענן), לא מקומי** — המשתמש עובד ללא Flutter SDK מותקן על המחשב האישי. כל הפיתוח וההרצה קורים דרך דפדפן ב-`github.com/lilovem/Home-Manager` (Code → Codespaces). זה משפיע על שלבים עתידיים: FCM/Push Notifications ידרוש בסופו של דבר מכשיר אמיתי או אמולטור מקומי לבדיקה מלאה (Web אינו תומך היטב ב-FCM), נדון בזה כשנגיע לשלב 8.
+7. **AuthGate במקום go_router redirect** — לניתוב לפי מצב התחברות בחרנו בווידג'ט (`AuthGate`) שמאזין ל-Stream ומחליף תוכן, במקום `redirect` מבוסס-Listenable של go_router. זה פשוט יותר להבנה ולתחזוקה עבור מי שאינו מתכנת מקצועי, במחיר קטן של גמישות ניתוב מתקדמת (שלא נדרשת כרגע).
+8. **הזמנה ל-Household ללא Cloud Function** — במקום collection נפרד ל-invites עם תוקף/מעקב, השתמשנו במזהה ה-household עצמו (Firestore auto-ID) כ"קוד ההזמנה", והרשאת ההצטרפות ב-Security Rules בודקת שהעדכון היחיד הוא הוספת ה-uid של המצטרף למערך memberIds. זו פשרה מכוונת: מספיק מאובטח לאפליקציה משפחתית (המזהה ארוך ואקראי, לא ניתן לניחוש), אך פחות "קשיח" מפתרון מבוסס Cloud Function עם תוקף/שימוש חד-פעמי. אם בעתיד נרצה הקשחה (תפוגת קוד, הגבלת מספר הצטרפויות) - נעביר את הלוגיקה ל-Cloud Function.
+9. **HouseholdGate כשומר שני** — נוסף מעל AuthGate (לא בתוכו) כדי לשמור על אחריות יחידה לכל widget: AuthGate שואל "האם מחובר", HouseholdGate שואל "האם יש לו household". זה גם מקל להוסיף בעתיד שומרים נוספים (למשל "האם סיים onboarding") בלי לנפח widget אחד.
+10. **רשימה אחת בלבד ל-household ב-MVP** — `household.shoppingListId` נשמר ישירות על מסמך ה-household (ולא כשאילתה נפרדת), כדי לבטל כל race condition/צורך ביצירה כפולה. נוצרת אוטומטית בזמן `createHousehold`, ובאופן retroactive (lazy) עבור households ישנים יותר שנוצרו לפני השלב הזה.
+11. **addedDuringShopping נכלל כבר עכשיו** — למרות ש"קנייה פעילה" היא שלב 7, השדה כבר קיים במודל (ברירת מחדל false) כדי להימנע ממיגרציית נתונים עתידית על מסמכים קיימים.
+12. **מערכת מודולים לדף הבית (HomeModule)** — נבחרה כדי לממש את הדרישה "בעתיד להוסיף מודולים בלי לשכתב את האפליקציה" ברמת ה-UI, במקביל לעיקרון שכבר יושם ב-branding. כל מודול עתידי (ביטוחים, רישיונות, חוגים...) הוא רשומה אחת ב-`home_modules.dart`; אם `isAvailable: false` הוא מוצג "בקרוב" בלי מימוש בפועל. זה מאפשר "להראות" את חזון המוצר המלא במסך הבית מהיום הראשון.
+13. **שלב 7 (Active Shopping) נבנה בנפרד משלב 8 (Push Notifications), בניגוד לכוונה הראשונית** — בזמן המימוש הסתבר ש-Push Notifications דורש שדרוג ל-Firebase Blaze plan (כרטיס אשראי) ופריסת Cloud Functions - החלטה משמעותית שראוי לאשר במפורש מול המשתמש לפני שמתחילים, ולא "לגלוש" אליה כחלק מ-session פיתוח רגיל. לכן שלב 7 (session state, UI, "חדש" badge) נבנה ונבדק באופן עצמאי; שלב 8 ימתין לאישור מפורש.
+14. **finishShopping כ-WriteBatch אטומי** — כל הפעולות של סיום קנייה (מחיקת פריטים שנקנו, טיפול בלא-נמצאו, שמירת היסטוריה) מתבצעות ב-batch אחד, כדי שלא יהיה מצב ביניים לא עקבי (למשל: פריטים נמחקו אבל ההיסטוריה לא נשמרה) אם החיבור נופל באמצע.
+15. **Push Notifications: חלופה חינמית מבוססת-לקוח, לא Cloud Functions** — המשתמש בחר במפורש להימנע משדרוג Blaze (דורש כרטיס אשראי, גם אם ללא חיוב צפוי בפועל). במקום זאת, האפליקציה מזהה שינויים חדשים ב-Firestore streams שכבר קיימים (אותו מנגנון של real-time sync) ומציגה Web Notification ישירות מהדפדפן. מגבלה מודעת: עובד רק כשהאפליקציה פתוחה. הקוד בנוי עם conditional export (web/stub) כך שאפשר להוסיף בעתיד מימוש Cloud Functions + FCM אמיתי (למובייל, ולכיסוי "אפליקציה סגורה") בלי לשכתב את השכבות הקיימות - רק להוסיף שכבה נוספת.
+
+---
+
+## הוראות הפעלה (למשתמש)
+ראה קובץ `SETUP_INSTRUCTIONS.md` שנשלח יחד עם קבצי הפרויקט.
+
+HMEOF
+cat > 'pubspec.yaml' << 'HMEOF'
+name: home_manager
+description: "מערכת לניהול משק הבית עבור זוגות ומשפחות."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # Firebase (יחוברו בפועל בשלב 2)
+  firebase_core: ^3.3.0
+  firebase_auth: ^5.1.4
+  cloud_firestore: ^5.2.1
+  firebase_messaging: ^15.0.4
+  url_launcher: ^6.3.1
+
+  # עזרים כלליים
+  intl: ^0.20.3
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+HMEOF
+cat > 'firebase.json' << 'HMEOF'
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": [
+    {
+      "target": "default",
+      "public": "build/web",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "leehome",
+      "public": "build/web",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ]
+}
+
+HMEOF
+cat > 'firestore.rules' << 'HMEOF'
+rules_version = '2';
+
+// כללי האבטחה של Firestore.
+//
+// עקרון מפתח: משתמש יכול לקרוא/לכתוב רק מידע של household שהוא חבר בו.
+// ה-invite flow (הצטרפות ל-household) מבוסס על "הכרת ה-ID" של ה-household
+// (שמתפקד כקוד ההזמנה) - זהו מזהה אקראי וארוך של Firestore, ששקול
+// ברמת האבטחה שלו לקישור שיתוף (כמו ב-Google Drive).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // פונקציית עזר: האם המשתמש חבר ב-household הנתון?
+    // משמשת בכל מקום שדורש בדיקת חברות (members, shoppingLists, items).
+    function isHouseholdMember(householdId) {
+      return request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds;
+    }
+
+    // מסמך המשתמש עצמו - רק הוא יכול לקרוא/לכתוב אליו.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /households/{householdId} {
+      // קריאה פתוחה לכל משתמש מחובר - כדי לאפשר לו "לראות" household
+      // לפני שהוא מצטרף אליו (לפי קוד ההזמנה). המידע שנחשף (שם, מספר
+      // חברים) אינו רגיש.
+      allow read: if request.auth != null;
+
+      // יצירת household חדש - רק אם היוצר מגדיר את עצמו כחבר היחיד.
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() == 1
+        && request.resource.data.memberIds[0] == request.auth.uid;
+
+      // עדכון household קיים מותר בשני מקרים:
+      // 1. המשתמש כבר חבר (לעדכונים כלליים, כמו shoppingListId).
+      // 2. המשתמש "מצטרף" - השינוי היחיד הוא הוספת ה-uid שלו למערך memberIds.
+      allow update: if request.auth != null && (
+        request.auth.uid in resource.data.memberIds
+        ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+          && request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid])
+        )
+      );
+
+      // מחיקה מותרת רק למי שיצר את ה-household (הבעלים) - פעולה
+      // הרסנית, לא לכל חבר.
+      allow delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+
+      // מסמך "חברות" אישי בתוך household - כל משתמש יכול ליצור/לעדכן
+      // רק את המסמך של עצמו. קריאה מותרת רק לחברי אותו household.
+      match /members/{memberId} {
+        allow read: if isHouseholdMember(householdId);
+        allow create: if request.auth != null && request.auth.uid == memberId;
+        allow update: if request.auth != null && request.auth.uid == memberId;
+        allow delete: if isHouseholdMember(householdId);
+      }
+
+      // רשימות קניות - רק חברי ה-household יכולים לקרוא/לכתוב.
+      match /shoppingLists/{listId} {
+        allow read, write: if isHouseholdMember(householdId);
+
+        // פריטים בתוך רשימה - אותה הרשאה: רק חברי ה-household.
+        match /items/{itemId} {
+          allow read, write: if isHouseholdMember(householdId);
+        }
+
+        // sessions של קנייה פעילה - אותה הרשאה: רק חברי ה-household.
+        match /sessions/{sessionId} {
+          allow read, write: if isHouseholdMember(householdId);
+        }
+      }
+
+      // היסטוריית קניות - רק חברי ה-household יכולים לקרוא/לכתוב.
+      match /shoppingHistory/{historyId} {
+        allow read, write: if isHouseholdMember(householdId);
+      }
+
+      // רשומות תשלום חשבונות (ועד בית/חשמל/מים/ארנונה) - רק חברי
+      // ה-household. הקבלה עצמה (base64) נשמרת בתוך אותו מסמך.
+      match /bills/{billId} {
+        allow read, write: if isHouseholdMember(householdId);
+      }
+
+      // הגדרות (כמו קישורי תשלום לחשמל/מים/ארנונה) - רק חברי ה-household.
+      match /settings/{settingId} {
+        allow read, write: if isHouseholdMember(householdId);
+      }
+    }
+  }
+}
+
+HMEOF
+cat > 'lib/app/config/app_strings.dart' << 'HMEOF'
+/// טקסטים מרכזיים בממשק.
+///
+/// בשלב זה כל הטקסטים בעברית קשיחים כאן (לא בתוך ה-widgets עצמם).
+/// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
+/// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
+class AppStrings {
+  AppStrings._();
+
+  // כללי
+  static const String appName = 'LeeHome';
+  static const String appTagline = 'ניהול הבית שלכם';
+  static const String loading = 'טוען...';
+  static const String errorGeneric = 'משהו השתבש. נסו שוב.';
+  static const String retry = 'נסה שוב';
+
+  // Auth
+  static const String login = 'התחברות';
+  static const String register = 'הרשמה';
+  static const String email = 'אימייל';
+  static const String password = 'סיסמה';
+  static const String confirmPassword = 'אימות סיסמה';
+  static const String dontHaveAccount = 'אין לך חשבון? הירשם';
+  static const String alreadyHaveAccount = 'יש לך כבר חשבון? התחבר';
+  static const String createAccount = 'יצירת חשבון';
+  static const String signOut = 'התנתקות';
+  static const String passwordsDontMatch = 'הסיסמאות אינן תואמות';
+  static const String loggedInAs = 'מחובר/ת בתור';
+  static const String forgotPassword = 'שכחת סיסמה?';
+  static const String resetPasswordTitle = 'איפוס סיסמה';
+  static const String resetPasswordBody = 'נשלח אליך קישור לאיפוס הסיסמה בכתובת האימייל שלך';
+  static const String sendResetLink = 'שלח קישור';
+  static const String resetLinkSent = 'קישור לאיפוס סיסמה נשלח לאימייל שלך';
+
+  // Household
+  static const String createHousehold = 'יצירת משק בית';
+  static const String householdName = 'שם משק הבית';
+  static const String invitePartner = 'הזמנת בן/בת זוג';
+  static const String joinHousehold = 'הצטרפות למשק בית קיים';
+  static const String inviteCode = 'קוד הזמנה';
+  static const String noHouseholdYet = 'עדיין אין לך משק בית';
+  static const String createNewHousehold = 'צור משק בית חדש';
+  static const String haveInviteCode = 'יש לי קוד הזמנה';
+  static const String joinButton = 'הצטרף';
+  static const String copyCode = 'העתק קוד';
+  static const String codeCopied = 'הקוד הועתק!';
+  static const String shareThisCode = 'שתפו את הקוד הזה עם בן/בת הזוג';
+  static const String shareViaWhatsApp = 'שתף בוואטסאפ';
+  static const String shareViaEmail = 'שלח במייל';
+  static const String inviteMessageTitle = 'הזמנה ל-LeeHome';
+  static const String inviteFriendToApp = 'הזמן חבר לאפליקציה';
+  static const String inviteFriendBody = 'שתפו איתם את הקישור, והם יוכלו להירשם וליצור משק בית משלהם';
+  static const String membersCount = 'חברים במשק הבית';
+  static const String comingSoon = 'בקרוב';
+  static const String manageMembers = 'ניהול חברים';
+  static const String removeMember = 'הסר מהמשק בית';
+  static const String confirmRemoveMemberTitle = 'להסיר את החבר?';
+  static const String confirmRemoveMemberMessage = 'הם לא יראו יותר את הרשימה ואת פרטי משק הבית';
+  static const String ownerLabel = 'בעלים';
+  static const String memberLabel = 'חבר';
+  static const String addAnotherHousehold = 'הצטרפ/י או צור/י משק בית נוסף';
+  static const String myHouseholds = 'משקי הבית שלי';
+  static const String switchHousehold = 'החלף משק בית';
+  static const String deleteHousehold = 'מחק משק בית';
+  static const String confirmDeleteHouseholdTitle = 'למחוק את משק הבית?';
+  static const String confirmDeleteHouseholdMessage =
+      'פעולה זו תמחק לצמיתות את הרשימה, ההיסטוריה וכל החברים. לא ניתן לבטל.';
+
+  // Shopping
+  static const String shoppingList = 'רשימת קניות';
+  static const String addProduct = 'הוספת מוצר';
+  static const String editProduct = 'עריכת מוצר';
+  static const String productName = 'שם המוצר';
+  static const String quantity = 'כמות';
+  static const String unit = 'יחידת מידה (אופציונלי)';
+  static const String noteLabel = 'הערה (אופציונלי)';
+  static const String noItemsYet = 'אין עדיין מוצרים ברשימה';
+  static const String startShopping = 'התחל קנייה';
+  static const String finishShopping = 'סיום קנייה';
+  static const String save = 'שמירה';
+  static const String cancel = 'ביטול';
+  static const String delete = 'מחיקה';
+  static const String edit = 'עריכה';
+  static const String markPurchased = 'סמן כנקנה';
+  static const String markNotFound = 'סמן כלא נמצא';
+  static const String backToPending = 'החזר לרשימה';
+  static const String addedByLabel = 'נוסף ע״י';
+  static const String confirmDeleteTitle = 'למחוק מוצר?';
+  static const String confirmDeleteMessage = 'הפעולה לא ניתנת לביטול';
+  static const String statusNotFound = 'לא נמצא';
+  static const String statusPurchased = 'נקנה';
+  static const String shoppingSummary = 'סיכום קנייה';
+  static const String shoppingHistory = 'היסטוריית קניות';
+  static const String noHistoryYet = 'אין עדיין היסטוריית קניות';
+  static const String purchasedItemsLabel = 'נקנו';
+  static const String notFoundItemsLabel = 'לא נמצאו';
+  static const String carryOverHint = 'סמנו אילו מוצרים להעביר לקנייה הבאה';
+  static const String selectAll = 'בחר הכל';
+  static const String clearAll = 'נקה הכל';
+  static const String confirmFinishShopping = 'אישור וסיום';
+  static const String nothingToFinish = 'אין עדיין מוצרים שנקנו או שלא נמצאו';
+  static const String itemsCountLabel = 'מוצרים';
+  static const String myShoppingLists = 'רשימות הקניות שלי';
+  static const String newShoppingList = 'רשימת קניות חדשה';
+  static const String listNameLabel = 'שם הרשימה';
+  static const String listDateLabel = 'תאריך (אופציונלי)';
+  static const String chooseDate = 'בחר תאריך';
+  static const String createList = 'צור רשימה';
+  static const String noListsYet = 'עדיין אין רשימות קניות';
+  static const String activeSessionBadge = 'פעילה';
+  static const String currentShoppingOption = 'קנייה נוכחית';
+  static const String currentShoppingSubtitle = 'בחרו מתוך קניות קיימות';
+  static const String newShoppingOption = 'קנייה חדשה';
+  static const String newShoppingSubtitle = 'בחרו תאריך והתחילו רשימה חדשה';
+  static const String selectDateForNewList = 'בחרו תאריך לקנייה החדשה';
+  static const String confirmDateButton = 'אישור';
+  static const String greetingPrefix = 'שלום, משפחת';
+  static const String greetingSubtitle = 'הנה מה שקורה בבית היום';
+  static const String comingSoonSectionTitle = 'בקרוב באפליקציה';
+  static const String calendarCardTitle = 'לוח שנה';
+  static const String upcomingEventsTitle = 'האירועים הקרובים';
+  static const String noUpcomingEvents = 'אין עדיין קניות מתוכננות בחודש הזה';
+  static const String tabHome = 'בית';
+  static const String tabShopping = 'קניות';
+  static const String tabCalendar = 'לוח שנה';
+  static const String tabTasks = 'משימות';
+  static const String tabMore = 'עוד';
+  static const String confirmSignOutTitle = 'להתנתק?';
+  static const String confirmSignOutMessage = 'תצטרך להתחבר שוב כדי להיכנס לאפליקציה.';
+  static const String tasksComingSoonBody = 'ניהול משימות ותזכורות יומיומיות למשק הבית - בקרוב.';
+  static const String noEventOnThisDay = 'אין כלום מתוכנן ביום הזה';
+  static const String selectedDayDetailsTitle = 'מתוכנן ליום זה';
+  static const String billsSectionTitle = 'חשבונות';
+  static const String vaadBayitTitle = 'ועד בית';
+  static const String electricityTitle = 'חשמל';
+  static const String waterAndTaxTitle = 'מים + ארנונה';
+  static const String paidStatus = 'שולם';
+  static const String notPaidStatus = 'לא שולם';
+  static const String amountLabel = 'סכום ששולם';
+  static const String paymentMethodLabel = 'אמצעי תשלום';
+  static const String uploadReceiptButton = 'העלה קבלה';
+  static const String receiptUploadedLabel = 'קבלה הועלתה';
+  static const String saveButton = 'שמור';
+  static const String monthNames = 'ינואר,פברואר,מרץ,אפריל,מאי,יוני,יולי,אוגוסט,ספטמבר,אוקטובר,נובמבר,דצמבר';
+  static const String paymentMethodBit = 'ביט';
+  static const String paymentMethodPaybox = 'פייבוקס';
+  static const String paymentMethodBankTransfer = 'העברה בנקאית';
+  static const String paymentMethodCash = 'מזומן';
+  static const String paymentMethodOther = 'אחר';
+  static const String uploadingReceipt = 'מעלה קבלה...';
+  static const String receiptUploadedSuccess = 'הקבלה הועלתה, התקופה סומנה כשולמה';
+  static const String enterPaymentUrlTitle = 'הגדרת קישור תשלום';
+  static const String enterPaymentUrlBody = 'הכניסו את כתובת האתר שבו אתם משלמים - נשמור אותה כדי לפתוח אותה בלחיצה בכל פעם.';
+  static const String paymentUrlLabel = 'כתובת האתר';
+  static const String saveAndContinue = 'שמור והמשך';
+  static const String waterTaxCombinedQuestion = 'מים וארנונה משולמים אצלכם יחד או בנפרד?';
+  static const String combinedOption = 'ביחד';
+  static const String separateOption = 'בנפרד';
+  static const String waterUrlLabel = 'כתובת אתר תשלום מים';
+  static const String taxUrlLabel = 'כתובת אתר תשלום ארנונה';
+  static const String payNowButton = 'שלם עכשיו';
+  static const String payWaterButton = 'שלם מים';
+  static const String payTaxButton = 'שלם ארנונה';
+  static const String editLinkButton = 'ערוך קישור';
+  static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';
+  static const String droppedSectionTitle = 'לא נמצאו - לא הועברו';
+  static const String activeShoppingBanner = 'קנייה פעילה';
+  static const String newBadge = 'חדש';
+  static const String startedByLabel = 'התחילה על ידי';
+  static const String newItemNotificationTitle = 'מוצר חדש נוסף לרשימה';
+  static const String shoppingDoneNotificationTitle = 'הקנייה הסתיימה';
+  static const String notFoundNotificationBody = 'לא נמצאו';
+  static const String enableNotificationsTitle = 'הפעלת התראות';
+  static const String enableNotificationsBody = 'קבלו התראה מיידית כשבן/בת הזוג מוסיפים מוצר בזמן קנייה';
+  static const String enableNotificationsButton = 'הפעל התראות';
+  static const String notificationsBlockedBody = 'התראות חסומות בדפדפן. יש לאפשר אותן ידנית בהגדרות האתר.';
+  static const String testNotificationButton = 'שלח התראת בדיקה';
+  static const String testNotificationTitle = 'התראת בדיקה';
+  static const String testNotificationBody = 'אם אתה רואה את זה, ההתראות עובדות!';
+  static const String notificationsLabel = 'התראות';
+  static const String notificationsInfoTooltip = 'זה מאפשר קבלת התראות מהאפליקציה לטלפון';
+}
+
+HMEOF
+cat > 'lib/models/bill_payment_model.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// קטגוריית חשבון. כרגע רק ועד-בית פעיל בפועל; חשמל ומים+ארנונה
+/// שמורים לעתיד (אותו מודל, "בקרוב" ב-UI).
+enum BillCategory { vaadBayit, electricity, waterAndTax, water, tax }
+
+String billCategoryToString(BillCategory c) => c.name;
+
+BillCategory billCategoryFromString(String s) {
+  return BillCategory.values.firstWhere(
+    (c) => c.name == s,
+    orElse: () => BillCategory.vaadBayit,
+  );
+}
+
+/// רשומת תשלום עבור תקופה אחת. חודש אחד לועד-בית, חודשיים
+/// לחשמל/מים+ארנונה - המזהה של המסמך כבר מקודד את התקופה,
+/// למשל "vaadBayit_2026_9" או "waterAndTax_2026_9" (חודש הראשון
+/// בזוג).
+class BillPayment {
+  final String id;
+  final BillCategory category;
+  final int year;
+  final int periodStartMonth; // 1-12
+  final double? amount;
+  final String? paymentMethod;
+  final String? receiptData; // base64, נשמר ישירות ב-Firestore
+  final String? receiptMimeType;
+  final String? receiptFileName;
+  final DateTime? paidAt;
+
+  const BillPayment({
+    required this.id,
+    required this.category,
+    required this.year,
+    required this.periodStartMonth,
+    this.amount,
+    this.paymentMethod,
+    this.receiptData,
+    this.receiptMimeType,
+    this.receiptFileName,
+    this.paidAt,
+  });
+
+  bool get isPaid => receiptData != null;
+
+  factory BillPayment.fromFirestore(String id, Map<String, dynamic> data) {
+    return BillPayment(
+      id: id,
+      category: billCategoryFromString(data['category'] as String? ?? 'vaadBayit'),
+      year: (data['year'] as num?)?.toInt() ?? DateTime.now().year,
+      periodStartMonth: (data['periodStartMonth'] as num?)?.toInt() ?? 1,
+      amount: (data['amount'] as num?)?.toDouble(),
+      paymentMethod: data['paymentMethod'] as String?,
+      receiptData: data['receiptData'] as String?,
+      receiptMimeType: data['receiptMimeType'] as String?,
+      receiptFileName: data['receiptFileName'] as String?,
+      paidAt: (data['paidAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      'amount': amount,
+      'paymentMethod': paymentMethod,
+      'receiptData': receiptData,
+      'receiptMimeType': receiptMimeType,
+      'receiptFileName': receiptFileName,
+      'paidAt': receiptData != null ? FieldValue.serverTimestamp() : null,
+    };
+  }
+}
+
+HMEOF
+cat > 'lib/models/bill_link_settings_model.dart' << 'HMEOF'
+/// הגדרות קישורי תשלום ל-household - נשמר פעם אחת, נערך לפי הצורך.
+/// חשמל תמיד נפרד; מים+ארנונה יכולים להיות ביחד או בנפרד.
+class BillLinkSettings {
+  final String? electricityUrl;
+  final bool? waterAndTaxCombined; // null = טרם הוגדר
+  final String? combinedWaterTaxUrl;
+  final String? waterUrl;
+  final String? taxUrl;
+
+  const BillLinkSettings({
+    this.electricityUrl,
+    this.waterAndTaxCombined,
+    this.combinedWaterTaxUrl,
+    this.waterUrl,
+    this.taxUrl,
+  });
+
+  bool get isElectricityConfigured => electricityUrl != null && electricityUrl!.isNotEmpty;
+
+  bool get isWaterTaxConfigured {
+    if (waterAndTaxCombined == null) return false;
+    if (waterAndTaxCombined == true) {
+      return combinedWaterTaxUrl != null && combinedWaterTaxUrl!.isNotEmpty;
+    }
+    return waterUrl != null && waterUrl!.isNotEmpty && taxUrl != null && taxUrl!.isNotEmpty;
+  }
+
+  factory BillLinkSettings.fromFirestore(Map<String, dynamic>? data) {
+    if (data == null) return const BillLinkSettings();
+    return BillLinkSettings(
+      electricityUrl: data['electricityUrl'] as String?,
+      waterAndTaxCombined: data['waterAndTaxCombined'] as bool?,
+      combinedWaterTaxUrl: data['combinedWaterTaxUrl'] as String?,
+      waterUrl: data['waterUrl'] as String?,
+      taxUrl: data['taxUrl'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'electricityUrl': electricityUrl,
+      'waterAndTaxCombined': waterAndTaxCombined,
+      'combinedWaterTaxUrl': combinedWaterTaxUrl,
+      'waterUrl': waterUrl,
+      'taxUrl': taxUrl,
+    };
+  }
+}
+
+HMEOF
+cat > 'lib/services/files/file_picker_service.dart' << 'HMEOF'
+export 'file_picker_service_stub.dart' if (dart.library.html) 'file_picker_service_web.dart';
+
+HMEOF
+cat > 'lib/services/files/file_picker_service_web.dart' << 'HMEOF'
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:typed_data';
+
+/// תוצאה של בחירת קובץ - בייטים + שם קובץ מקורי.
+class PickedFile {
+  final Uint8List bytes;
+  final String name;
+  final String? mimeType;
+
+  const PickedFile({required this.bytes, required this.name, this.mimeType});
+}
+
+/// פותח את דיאלוג "בחר קובץ" של הדפדפן, לבחירת קבלה (PDF/תמונה).
+class FilePickerService {
+  Future<PickedFile?> pickReceiptFile() async {
+    final input = html.FileUploadInputElement();
+    input.accept = 'application/pdf,image/*';
+    input.click();
+
+    await input.onChange.first;
+    final files = input.files;
+    if (files == null || files.isEmpty) return null;
+
+    final file = files.first;
+    final reader = html.FileReader();
+    reader.readAsArrayBuffer(file);
+    await reader.onLoad.first;
+
+    final result = reader.result;
+    if (result is! Uint8List) return null;
+
+    return PickedFile(bytes: result, name: file.name, mimeType: file.type);
+  }
+}
+
+HMEOF
+cat > 'lib/services/files/file_picker_service_stub.dart' << 'HMEOF'
+import 'dart:typed_data';
+
+class PickedFile {
+  final Uint8List bytes;
+  final String name;
+  final String? mimeType;
+
+  const PickedFile({required this.bytes, required this.name, this.mimeType});
+}
+
+/// גרסת "לא עושה כלום" לפלטפורמות שאינן Web.
+class FilePickerService {
+  Future<PickedFile?> pickReceiptFile() async => null;
+}
+
+HMEOF
+cat > 'lib/services/firebase/bills_service.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/bill_payment_model.dart';
+
+/// שירות Firestore לרשומות תשלום חשבונות (ועד בית/חשמל/מים+ארנונה).
+/// כל רשומה מזוהה באמצעות מזהה קבוע (לא auto-id) - כך אפשר
+/// לכתוב עליה מחדש (get-or-create) בלי לחפש קודם.
+class BillsService {
+  final FirebaseFirestore _firestore;
+
+  BillsService(this._firestore);
+
+  CollectionReference<Map<String, dynamic>> _billsCollection(String householdId) {
+    return _firestore.collection('households').doc(householdId).collection('bills');
+  }
+
+  String _docId(BillCategory category, int year, int periodStartMonth) {
+    return '${billCategoryToString(category)}_${year}_$periodStartMonth';
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsCollection(householdId)
+        .where('category', isEqualTo: billCategoryToString(category))
+        .where('year', isEqualTo: year)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BillPayment.fromFirestore(doc.id, doc.data()))
+            .toList());
+  }
+
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).set({
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      if (amount != null) 'amount': amount,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> attachReceipt({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    required String receiptData,
+    required String receiptMimeType,
+    required String receiptFileName,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).set({
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      'receiptData': receiptData,
+      'receiptMimeType': receiptMimeType,
+      'receiptFileName': receiptFileName,
+      'paidAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  String billDocId(BillCategory category, int year, int periodStartMonth) =>
+      _docId(category, year, periodStartMonth);
+}
+
+HMEOF
+cat > 'lib/services/firebase/bill_settings_service.dart' << 'HMEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/bill_link_settings_model.dart';
+
+/// שירות Firestore להגדרות קישורי תשלום (חד-פעמי, נערך לפי הצורך).
+/// נשמר במסמך יחיד: households/{id}/settings/billLinks
+class BillSettingsService {
+  final FirebaseFirestore _firestore;
+
+  BillSettingsService(this._firestore);
+
+  DocumentReference<Map<String, dynamic>> _doc(String householdId) {
+    return _firestore
+        .collection('households')
+        .doc(householdId)
+        .collection('settings')
+        .doc('billLinks');
+  }
+
+  Stream<BillLinkSettings> watchSettings(String householdId) {
+    return _doc(householdId)
+        .snapshots()
+        .map((snapshot) => BillLinkSettings.fromFirestore(snapshot.data()));
+  }
+
+  Future<void> saveElectricityUrl(String householdId, String url) {
+    return _doc(householdId).set({'electricityUrl': url}, SetOptions(merge: true));
+  }
+
+  Future<void> saveCombinedWaterTaxUrl(String householdId, String url) {
+    return _doc(householdId).set({
+      'waterAndTaxCombined': true,
+      'combinedWaterTaxUrl': url,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> saveSeparateWaterTaxUrls(String householdId, String waterUrl, String taxUrl) {
+    return _doc(householdId).set({
+      'waterAndTaxCombined': false,
+      'waterUrl': waterUrl,
+      'taxUrl': taxUrl,
+    }, SetOptions(merge: true));
+  }
+}
+
+HMEOF
+cat > 'lib/repositories/bills_repository.dart' << 'HMEOF'
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/errors/failures.dart';
+import '../models/bill_link_settings_model.dart';
+import '../models/bill_payment_model.dart';
+import '../services/files/file_picker_service.dart';
+import '../services/firebase/bill_settings_service.dart';
+import '../services/firebase/bills_service.dart';
+
+/// גודל קובץ מקסימלי (בייטים) - Firestore מגביל מסמך ל-1MB, ו-base64
+/// מנפח את הגודל בכ-33%. 700KB גולמי נשאר בבטחה מתחת למגבלה, גם
+/// עם שאר השדות במסמך.
+const int _maxReceiptFileBytes = 700 * 1024;
+
+class BillsRepository {
+  final BillsService _billsService;
+  final BillSettingsService _settingsService;
+
+  BillsRepository(this._billsService, this._settingsService);
+
+  Stream<BillLinkSettings> watchSettings(String householdId) {
+    return _settingsService.watchSettings(householdId);
+  }
+
+  Future<void> saveElectricityUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveElectricityUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveCombinedWaterTaxUrl(String householdId, String url) async {
+    try {
+      await _settingsService.saveCombinedWaterTaxUrl(householdId, url);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישור');
+    }
+  }
+
+  Future<void> saveSeparateWaterTaxUrls(
+      String householdId, String waterUrl, String taxUrl) async {
+    try {
+      await _settingsService.saveSeparateWaterTaxUrls(householdId, waterUrl, taxUrl);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקישורים');
+    }
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsService.watchBills(householdId: householdId, category: category, year: year);
+  }
+
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+  }) async {
+    try {
+      await _billsService.saveBillDetails(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+        amount: amount,
+        paymentMethod: paymentMethod,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הפרטים');
+    }
+  }
+
+  /// מקודד את הקובץ ל-base64 ושומר אותו ישירות ב-Firestore (בלי
+  /// Firebase Storage בכלל - נשאר חינמי לגמרי, ראה ההחלטה בתיעוד).
+  /// זורק שגיאה אם הקובץ גדול מדי למסמך Firestore בודד.
+  Future<void> uploadReceiptAndMarkPaid({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    required PickedFile file,
+  }) async {
+    if (file.bytes.length > _maxReceiptFileBytes) {
+      throw const UnknownFailure(
+        'הקובץ גדול מדי (מקסימום כ-700KB). נסו לצלם שוב באיכות נמוכה יותר, או לשמור כתמונה במקום PDF.',
+      );
+    }
+
+    try {
+      final base64Data = base64Encode(file.bytes);
+      await _billsService.attachReceipt(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: periodStartMonth,
+        receiptData: base64Data,
+        receiptMimeType: file.mimeType ?? 'application/octet-stream',
+        receiptFileName: file.name,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בשמירת הקבלה');
+    }
+  }
+}
+
+HMEOF
+cat > 'lib/providers/bills_provider.dart' << 'HMEOF'
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/bill_link_settings_model.dart';
+import '../models/bill_payment_model.dart';
+import '../repositories/bills_repository.dart';
+import '../services/files/file_picker_service.dart';
+import '../services/firebase/bill_settings_service.dart';
+import '../services/firebase/bills_service.dart';
+import 'household_provider.dart';
+
+final billsServiceProvider = Provider<BillsService>((ref) {
+  return BillsService(ref.watch(firestoreProvider));
+});
+
+final billSettingsServiceProvider = Provider<BillSettingsService>((ref) {
+  return BillSettingsService(ref.watch(firestoreProvider));
+});
+
+final filePickerServiceProvider = Provider<FilePickerService>((ref) => FilePickerService());
+
+final billsRepositoryProvider = Provider<BillsRepository>((ref) {
+  return BillsRepository(
+    ref.watch(billsServiceProvider),
+    ref.watch(billSettingsServiceProvider),
+  );
+});
+
+/// כל רשומות התשלום של קטגוריה מסוימת, לשנה מסוימת.
+final billsForYearProvider = StreamProvider.family<
+    List<BillPayment>, ({String householdId, BillCategory category, int year})>((ref, args) {
+  return ref.watch(billsRepositoryProvider).watchBills(
+        householdId: args.householdId,
+        category: args.category,
+        year: args.year,
+      );
+});
+
+/// הגדרות קישורי התשלום (חשמל/מים/ארנונה) של household.
+final billLinkSettingsProvider =
+    StreamProvider.family<BillLinkSettings, String>((ref, householdId) {
+  return ref.watch(billsRepositoryProvider).watchSettings(householdId);
+});
+
+HMEOF
+cat > 'lib/features/bills/vaad_bayit_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../core/errors/failures.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+
+/// מסך "ועד בית" - טבלת 12 החודשים של השנה הנוכחית. כל שורה
+/// מראה אם שולם (קבלה הועלתה) או לא, ומאפשרת ללחוץ ולפתוח
+/// חלונית עריכה (סכום, אמצעי תשלום, העלאת קבלה).
+class VaadBayitScreen extends ConsumerWidget {
+  final String householdId;
+
+  const VaadBayitScreen({super.key, required this.householdId});
+
+  static final List<String> _monthNames = AppStrings.monthNames.split(',');
+
+  Future<void> _openMonthSheet(BuildContext context, WidgetRef ref, int month) async {
+    final year = DateTime.now().year;
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+    ));
+    final existing = (billsAsync.value ?? []).where((b) => b.periodStartMonth == month);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _MonthEditSheet(
+        householdId: householdId,
+        category: BillCategory.vaadBayit,
+        year: year,
+        periodStartMonth: month,
+        periodLabel: _monthNames[month - 1],
+        existing: bill,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final year = DateTime.now().year;
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(title: Text('${AppStrings.vaadBayitTitle} · $year')),
+      body: billsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+        data: (bills) {
+          final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: 12,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final bill = byMonth[month];
+              final isPaid = bill?.isPaid ?? false;
+
+              return ListTile(
+                leading: Icon(
+                  isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                ),
+                title: Text(_monthNames[index]),
+                subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                trailing: Text(
+                  isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                  style: TextStyle(
+                    color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onTap: () => _openMonthSheet(context, ref, month),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// חלונית עריכה לתקופה אחת - סכום, אמצעי תשלום, העלאת קבלה.
+class _MonthEditSheet extends ConsumerStatefulWidget {
+  final String householdId;
+  final BillCategory category;
+  final int year;
+  final int periodStartMonth;
+  final String periodLabel;
+  final BillPayment? existing;
+
+  const _MonthEditSheet({
+    required this.householdId,
+    required this.category,
+    required this.year,
+    required this.periodStartMonth,
+    required this.periodLabel,
+    required this.existing,
+  });
+
+  @override
+  ConsumerState<_MonthEditSheet> createState() => _MonthEditSheetState();
+}
+
+class _MonthEditSheetState extends ConsumerState<_MonthEditSheet> {
+  late final TextEditingController _amountController;
+  String? _paymentMethod;
+  bool _isUploading = false;
+  bool _isSaving = false;
+
+  static const _methods = [
+    AppStrings.paymentMethodBit,
+    AppStrings.paymentMethodPaybox,
+    AppStrings.paymentMethodBankTransfer,
+    AppStrings.paymentMethodCash,
+    AppStrings.paymentMethodOther,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController =
+        TextEditingController(text: widget.existing?.amount?.toString() ?? '');
+    _paymentMethod = widget.existing?.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final amount = double.tryParse(_amountController.text.trim());
+      await ref.read(billsRepositoryProvider).saveBillDetails(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            amount: amount,
+            paymentMethod: _paymentMethod,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } on Failure catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _uploadReceipt() async {
+    final file = await ref.read(filePickerServiceProvider).pickReceiptFile();
+    if (file == null) return;
+
+    setState(() => _isUploading = true);
+    try {
+      await ref.read(billsRepositoryProvider).uploadReceiptAndMarkPaid(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            file: file,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text(AppStrings.receiptUploadedSuccess)));
+        Navigator.of(context).pop();
+      }
+    } on Failure catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = widget.existing?.isPaid ?? false;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.periodLabel, style: AppTextStyles.heading2),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: AppStrings.amountLabel),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _paymentMethod,
+            decoration: const InputDecoration(labelText: AppStrings.paymentMethodLabel),
+            items: _methods
+                .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                .toList(),
+            onChanged: (v) => setState(() => _paymentMethod = v),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _isSaving ? null : _save,
+            child: _isSaving
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text(AppStrings.saveButton, style: AppTextStyles.button),
+          ),
+          const SizedBox(height: 12),
+          if (isPaid)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  '${AppStrings.receiptUploadedLabel}: ${widget.existing?.receiptFileName ?? ''}',
+                  style: AppTextStyles.bodySecondary,
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _isUploading ? null : _uploadReceipt,
+              icon: _isUploading
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file),
+              label: Text(_isUploading
+                  ? AppStrings.uploadingReceipt
+                  : AppStrings.uploadReceiptButton),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/bill_period_table_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+
+/// מסך טבלת תשלומים דו-חודשית גנרי - משמש לחשמל, מים, ארנונה
+/// (בנפרד או ביחד). זהה במבנה ל-VaadBayitScreen, רק עם 6 תקופות
+/// של חודשיים במקום 12 חודשים, ועם כפתור/י "שלם עכשיו" למעלה.
+class BillPeriodTableScreen extends ConsumerWidget {
+  final String householdId;
+  final BillCategory category;
+  final String title;
+  final List<({String label, String url})> payButtons;
+
+  const BillPeriodTableScreen({
+    super.key,
+    required this.householdId,
+    required this.category,
+    required this.title,
+    required this.payButtons,
+  });
+
+  static const _periodStartMonths = [1, 3, 5, 7, 9, 11];
+  static final _monthNames = AppStrings.monthNames.split(',');
+
+  String _periodLabel(int startMonth) {
+    final endMonth = startMonth == 11 ? 1 : startMonth + 1;
+    return '${_monthNames[startMonth - 1]}-${_monthNames[endMonth - 1]}';
+  }
+
+  Future<void> _openPeriodSheet(BuildContext context, WidgetRef ref, int startMonth) async {
+    final year = DateTime.now().year;
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: householdId, category: category, year: year),
+    ));
+    final existing =
+        (billsAsync.value ?? []).where((b) => b.periodStartMonth == startMonth);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => BillPeriodEditSheet(
+        householdId: householdId,
+        category: category,
+        year: year,
+        periodStartMonth: startMonth,
+        periodLabel: _periodLabel(startMonth),
+        existing: bill,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final year = DateTime.now().year;
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: householdId, category: category, year: year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(title: Text('$title · $year')),
+      body: Column(
+        children: [
+          if (payButtons.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: payButtons
+                    .map((btn) => ElevatedButton.icon(
+                          onPressed: () => launchUrl(Uri.parse(btn.url),
+                              mode: LaunchMode.externalApplication),
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          label: Text(btn.label),
+                        ))
+                    .toList(),
+              ),
+            ),
+          Expanded(
+            child: billsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+              data: (bills) {
+                final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: _periodStartMonths.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final startMonth = _periodStartMonths[index];
+                    final bill = byMonth[startMonth];
+                    final isPaid = bill?.isPaid ?? false;
+
+                    return ListTile(
+                      leading: Icon(
+                        isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                      ),
+                      title: Text(_periodLabel(startMonth)),
+                      subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                      trailing: Text(
+                        isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                        style: TextStyle(
+                          color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onTap: () => _openPeriodSheet(context, ref, startMonth),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// חלונית עריכה לתקופה אחת - זהה ל-_MonthEditSheet הפנימי של
+/// VaadBayitScreen, רק public כדי שהמסך הגנרי יוכל להשתמש בה.
+class BillPeriodEditSheet extends ConsumerStatefulWidget {
+  final String householdId;
+  final BillCategory category;
+  final int year;
+  final int periodStartMonth;
+  final String periodLabel;
+  final BillPayment? existing;
+
+  const BillPeriodEditSheet({
+    super.key,
+    required this.householdId,
+    required this.category,
+    required this.year,
+    required this.periodStartMonth,
+    required this.periodLabel,
+    required this.existing,
+  });
+
+  @override
+  ConsumerState<BillPeriodEditSheet> createState() => _BillPeriodEditSheetState();
+}
+
+class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
+  late final TextEditingController _amountController;
+  String? _paymentMethod;
+  bool _isUploading = false;
+  bool _isSaving = false;
+
+  static const _methods = [
+    AppStrings.paymentMethodBit,
+    AppStrings.paymentMethodPaybox,
+    AppStrings.paymentMethodBankTransfer,
+    AppStrings.paymentMethodCash,
+    AppStrings.paymentMethodOther,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController =
+        TextEditingController(text: widget.existing?.amount?.toString() ?? '');
+    _paymentMethod = widget.existing?.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final amount = double.tryParse(_amountController.text.trim());
+      await ref.read(billsRepositoryProvider).saveBillDetails(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            amount: amount,
+            paymentMethod: _paymentMethod,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('שגיאה בשמירה')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _uploadReceipt() async {
+    final file = await ref.read(filePickerServiceProvider).pickReceiptFile();
+    if (file == null) return;
+
+    setState(() => _isUploading = true);
+    try {
+      await ref.read(billsRepositoryProvider).uploadReceiptAndMarkPaid(
+            householdId: widget.householdId,
+            category: widget.category,
+            year: widget.year,
+            periodStartMonth: widget.periodStartMonth,
+            file: file,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text(AppStrings.receiptUploadedSuccess)));
+        Navigator.of(context).pop();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('שגיאה בהעלאה')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = widget.existing?.isPaid ?? false;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.periodLabel, style: AppTextStyles.heading2),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: AppStrings.amountLabel),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _paymentMethod,
+            decoration: const InputDecoration(labelText: AppStrings.paymentMethodLabel),
+            items: _methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+            onChanged: (v) => setState(() => _paymentMethod = v),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _isSaving ? null : _save,
+            child: _isSaving
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text(AppStrings.saveButton, style: AppTextStyles.button),
+          ),
+          const SizedBox(height: 12),
+          if (isPaid)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  '${AppStrings.receiptUploadedLabel}: ${widget.existing?.receiptFileName ?? ''}',
+                  style: AppTextStyles.bodySecondary,
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _isUploading ? null : _uploadReceipt,
+              icon: _isUploading
+                  ? const SizedBox(
+                      height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.upload_file),
+              label: Text(
+                  _isUploading ? AppStrings.uploadingReceipt : AppStrings.uploadReceiptButton),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/electricity_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך חשמל - אם עדיין לא הוגדר קישור תשלום, מציג טופס הגדרה
+/// חד-פעמי. אחרי ההגדרה, תמיד מציג ישר את טבלת התשלומים
+/// עם כפתור "שלם עכשיו".
+class ElectricityScreen extends ConsumerWidget {
+  final String householdId;
+
+  const ElectricityScreen({super.key, required this.householdId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(billLinkSettingsProvider(householdId));
+
+    return settingsAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => const Scaffold(body: Center(child: Text('שגיאה בטעינה'))),
+      data: (settings) {
+        if (!settings.isElectricityConfigured) {
+          return _UrlSetupScreen(
+            title: AppStrings.electricityTitle,
+            onSave: (url) => ref.read(billsRepositoryProvider).saveElectricityUrl(householdId, url),
+          );
+        }
+
+        return BillPeriodTableScreen(
+          householdId: householdId,
+          category: BillCategory.electricity,
+          title: AppStrings.electricityTitle,
+          payButtons: [(label: AppStrings.payNowButton, url: settings.electricityUrl!)],
+        );
+      },
+    );
+  }
+}
+
+/// טופס פשוט להזנת כתובת אתר תשלום, בשימוש חוזר לחשמל/מים/ארנונה.
+class _UrlSetupScreen extends StatefulWidget {
+  final String title;
+  final Future<void> Function(String url) onSave;
+
+  const _UrlSetupScreen({required this.title, required this.onSave});
+
+  @override
+  State<_UrlSetupScreen> createState() => _UrlSetupScreenState();
+}
+
+class _UrlSetupScreenState extends State<_UrlSetupScreen> {
+  final _controller = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final url = _controller.text.trim();
+    if (url.isEmpty) return;
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(url);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(AppStrings.enterPaymentUrlTitle, style: AppTextStyles.heading2),
+            const SizedBox(height: 8),
+            const Text(AppStrings.enterPaymentUrlBody, style: AppTextStyles.bodySecondary),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              keyboardType: TextInputType.url,
+              textDirection: TextDirection.ltr,
+              decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isSaving ? null : _save,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text(AppStrings.saveAndContinue, style: AppTextStyles.button),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/bills/water_and_tax_screen.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך מים+ארנונה - בפעם הראשונה שואל האם ביחד או בנפרד, לוקח
+/// כתובת/ות תשלום, ואז תמיד מציג ישר את הטבלה/ות המתאימות.
+class WaterAndTaxScreen extends ConsumerWidget {
+  final String householdId;
+
+  const WaterAndTaxScreen({super.key, required this.householdId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(billLinkSettingsProvider(householdId));
+
+    return settingsAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => const Scaffold(body: Center(child: Text('שגיאה בטעינה'))),
+      data: (settings) {
+        if (!settings.isWaterTaxConfigured) {
+          return _WaterTaxSetupScreen(householdId: householdId);
+        }
+
+        if (settings.waterAndTaxCombined == true) {
+          return BillPeriodTableScreen(
+            householdId: householdId,
+            category: BillCategory.waterAndTax,
+            title: AppStrings.waterAndTaxTitle,
+            payButtons: [(label: AppStrings.payNowButton, url: settings.combinedWaterTaxUrl!)],
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              _CategoryLink(
+                icon: Icons.water_drop_outlined,
+                label: 'מים',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BillPeriodTableScreen(
+                      householdId: householdId,
+                      category: BillCategory.water,
+                      title: 'מים',
+                      payButtons: [(label: AppStrings.payWaterButton, url: settings.waterUrl!)],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _CategoryLink(
+                icon: Icons.account_balance_outlined,
+                label: 'ארנונה',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BillPeriodTableScreen(
+                      householdId: householdId,
+                      category: BillCategory.tax,
+                      title: 'ארנונה',
+                      payButtons: [(label: AppStrings.payTaxButton, url: settings.taxUrl!)],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CategoryLink extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _CategoryLink({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: AppTextStyles.heading2.copyWith(fontSize: 15))),
+              const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WaterTaxSetupScreen extends ConsumerStatefulWidget {
+  final String householdId;
+
+  const _WaterTaxSetupScreen({required this.householdId});
+
+  @override
+  ConsumerState<_WaterTaxSetupScreen> createState() => _WaterTaxSetupScreenState();
+}
+
+class _WaterTaxSetupScreenState extends ConsumerState<_WaterTaxSetupScreen> {
+  bool? _combined;
+  final _combinedUrlController = TextEditingController();
+  final _waterUrlController = TextEditingController();
+  final _taxUrlController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _combinedUrlController.dispose();
+    _waterUrlController.dispose();
+    _taxUrlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(billsRepositoryProvider);
+      if (_combined == true) {
+        final url = _combinedUrlController.text.trim();
+        if (url.isEmpty) return;
+        await repo.saveCombinedWaterTaxUrl(widget.householdId, url);
+      } else {
+        final waterUrl = _waterUrlController.text.trim();
+        final taxUrl = _taxUrlController.text.trim();
+        if (waterUrl.isEmpty || taxUrl.isEmpty) return;
+        await repo.saveSeparateWaterTaxUrls(widget.householdId, waterUrl, taxUrl);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.waterAndTaxTitle)),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(AppStrings.waterTaxCombinedQuestion, style: AppTextStyles.heading2),
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text(AppStrings.combinedOption)),
+                ButtonSegment(value: false, label: Text(AppStrings.separateOption)),
+              ],
+              selected: _combined == null ? {} : {_combined!},
+              emptySelectionAllowed: true,
+              onSelectionChanged: (s) => setState(() => _combined = s.isEmpty ? null : s.first),
+            ),
+            const SizedBox(height: 20),
+            if (_combined == true)
+              TextField(
+                controller: _combinedUrlController,
+                keyboardType: TextInputType.url,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(labelText: AppStrings.paymentUrlLabel),
+              ),
+            if (_combined == false) ...[
+              TextField(
+                controller: _waterUrlController,
+                keyboardType: TextInputType.url,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(labelText: AppStrings.waterUrlLabel),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _taxUrlController,
+                keyboardType: TextInputType.url,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(labelText: AppStrings.taxUrlLabel),
+              ),
+            ],
+            const SizedBox(height: 20),
+            if (_combined != null)
+              ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(AppStrings.saveAndContinue, style: AppTextStyles.button),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+cat > 'lib/features/home/tabs/home_tab_content.dart' << 'HMEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../app/config/app_colors.dart';
+import '../../../app/config/app_text_styles.dart';
+import '../../../app/config/app_strings.dart';
+import '../../../providers/shopping_provider.dart';
+import '../../bills/electricity_screen.dart';
+import '../../bills/vaad_bayit_screen.dart';
+import '../../bills/water_and_tax_screen.dart';
+import '../home_module.dart';
+
+/// תוכן טאב "בית" - רשת 4 חלונות: קניות, לוח שנה, משימות, רכבים.
+/// קניות ולוח שנה זמינים גם כטאבים משלהם בסרגל התחתון - זה כאן
+/// בעצם קיצור דרך נוסף שנשאר מהעיצוב המקורי.
+class HomeTabContent extends ConsumerWidget {
+  final String householdId;
+  final List<HomeModule> tiles;
+  final ValueChanged<int> onSelectTab;
+
+  const HomeTabContent({
+    super.key,
+    required this.householdId,
+    required this.tiles,
+    required this.onSelectTab,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingCount = ref.watch(totalPendingItemsCountProvider(householdId));
+    final upcoming = ref.watch(upcomingShoppingDatesProvider(householdId));
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: [
+            _Tile(
+              module: tiles[0],
+              color: AppColors.itemPurchased,
+              badgeCount: pendingCount > 0 ? pendingCount : null,
+              onTap: () => onSelectTab(1),
+            ),
+            _Tile(
+              module: tiles[1],
+              color: AppColors.primary,
+              badgeCount: upcoming.isNotEmpty ? upcoming.length : null,
+              onTap: () => onSelectTab(2),
+            ),
+            _Tile(
+              module: tiles[2],
+              color: AppColors.itemNewBadge,
+              onTap: () => onSelectTab(3),
+            ),
+            _Tile(module: tiles[3], color: AppColors.itemNotFound, onTap: null),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _BillsSection(householdId: householdId),
+      ],
+    );
+  }
+}
+
+/// כרטיס רחב עם 3 עמודות: ועד בית (פעיל), חשמל ומים+ארנונה
+/// (בקרוב - עדיין אין להם מסכים אמיתיים).
+class _BillsSection extends StatelessWidget {
+  final String householdId;
+
+  const _BillsSection({required this.householdId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _BillColumn(
+                  icon: Icons.apartment_outlined,
+                  label: AppStrings.vaadBayitTitle,
+                  available: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => VaadBayitScreen(householdId: householdId),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _BillColumn(
+                  icon: Icons.bolt_outlined,
+                  label: AppStrings.electricityTitle,
+                  available: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ElectricityScreen(householdId: householdId),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _BillColumn(
+                  icon: Icons.water_drop_outlined,
+                  label: AppStrings.waterAndTaxTitle,
+                  available: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => WaterAndTaxScreen(householdId: householdId),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BillColumn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool available;
+  final VoidCallback? onTap;
+
+  const _BillColumn({
+    required this.icon,
+    required this.label,
+    required this.available,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Opacity(
+        opacity: available ? 1 : 0.5,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(height: 6),
+              Text(label, style: AppTextStyles.body.copyWith(fontSize: 12), textAlign: TextAlign.center),
+              if (!available)
+                Text(AppStrings.comingSoon,
+                    style: AppTextStyles.bodySecondary.copyWith(fontSize: 10)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Tile extends StatelessWidget {
+  final HomeModule module;
+  final Color color;
+  final int? badgeCount;
+  final VoidCallback? onTap;
+
+  const _Tile({required this.module, required this.color, this.badgeCount, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool available = onTap != null;
+
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Opacity(
+          opacity: available ? 1 : 0.55,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(module.icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(module.title, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
+                      const SizedBox(height: 2),
+                      if (badgeCount != null)
+                        Text('$badgeCount', style: AppTextStyles.heading1.copyWith(fontSize: 20))
+                      else if (!available)
+                        Text(AppStrings.comingSoon,
+                            style: AppTextStyles.bodySecondary.copyWith(fontSize: 11))
+                      else
+                        Text(module.subtitle,
+                            style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+HMEOF
+echo 'DONE - full bills feature, FREE (no Blaze/Storage needed)!'
