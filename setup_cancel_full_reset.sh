@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > 'lib/services/firebase/bills_service.dart' << 'HMEOF'
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/bill_payment_model.dart';
 
@@ -145,3 +148,5 @@ class BillsService {
       _docId(category, year, periodStartMonth);
 }
 
+HMEOF
+echo 'DONE - canceling a payment now also clears any reminder!'

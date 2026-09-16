@@ -50,5 +50,15 @@ class AppTextStyles {
       letterSpacing: 0.2,
     );
   }
+
+  /// כותרת קטגוריה+שנה (למשל "ועד בית · 2026") - אותו גופן סריף
+  /// אלגנטי, קצת יותר גדול ובצבע ראשי, במקום כותרת AppBar יבשה.
+  static TextStyle categoryTitle({double fontSize = 19}) {
+    return GoogleFonts.frankRuhlLibre(
+      fontSize: fontSize,
+      color: AppColors.primaryDark,
+      fontWeight: FontWeight.w600,
+    );
+  }
 }
 

@@ -2,24 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/config/app_colors.dart';
 import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
 import '../../models/bill_payment_model.dart';
 import '../../providers/bills_provider.dart';
 import 'bill_period_table_screen.dart';
 
-/// מסך "ועד בית" - טבלת 12 החודשים של השנה הנוכחית. כל שורה
-/// מראה אם שולם (נשמר עם סכום+אמצעי תשלום) או לא, וניתנת
-/// **להחלקה** כדי לבטל תשלום קיים בלי לפתוח את חלונית העריכה.
-class VaadBayitScreen extends ConsumerWidget {
+/// מסך "ועד בית" - טבלת 12 החודשים של שנה נתונה (ניתן לדפדף בין
+/// שנים עם החצים ב-AppBar - לא נשארים תקועים רק על השנה הנוכחית).
+/// כל שורה ניתנת **להחלקה** (משמאל לימין) כדי לבטל תשלום קיים.
+class VaadBayitScreen extends ConsumerStatefulWidget {
   final String householdId;
 
   const VaadBayitScreen({super.key, required this.householdId});
 
+  @override
+  ConsumerState<VaadBayitScreen> createState() => _VaadBayitScreenState();
+}
+
+class _VaadBayitScreenState extends ConsumerState<VaadBayitScreen> {
+  late int _year;
+
   static final List<String> _monthNames = AppStrings.monthNames.split(',');
 
+  @override
+  void initState() {
+    super.initState();
+    _year = DateTime.now().year;
+    maybeShowSwipeHintAfterDelay(context);
+  }
+
   Future<void> _openMonthSheet(BuildContext context, WidgetRef ref, int month) async {
-    final year = DateTime.now().year;
     final billsAsync = ref.read(billsForYearProvider(
-      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+      (householdId: widget.householdId, category: BillCategory.vaadBayit, year: _year),
     ));
     final existing = (billsAsync.value ?? []).where((b) => b.periodStartMonth == month);
     final bill = existing.isNotEmpty ? existing.first : null;
@@ -28,9 +42,9 @@ class VaadBayitScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => BillPeriodEditSheet(
-        householdId: householdId,
+        householdId: widget.householdId,
         category: BillCategory.vaadBayit,
-        year: year,
+        year: _year,
         periodStartMonth: month,
         periodLabel: _monthNames[month - 1],
         existing: bill,
@@ -39,24 +53,38 @@ class VaadBayitScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _cancelPayment(WidgetRef ref, int year, int month) {
+  Future<void> _cancelPayment(WidgetRef ref, int month) {
     return ref.read(billsRepositoryProvider).cancelPayment(
-          householdId: householdId,
+          householdId: widget.householdId,
           category: BillCategory.vaadBayit,
-          year: year,
+          year: _year,
           periodStartMonth: month,
         );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final year = DateTime.now().year;
+  Widget build(BuildContext context) {
     final billsAsync = ref.watch(billsForYearProvider(
-      (householdId: householdId, category: BillCategory.vaadBayit, year: year),
+      (householdId: widget.householdId, category: BillCategory.vaadBayit, year: _year),
     ));
 
     return Scaffold(
-      appBar: AppBar(title: Text('${AppStrings.vaadBayitTitle} · $year')),
+      appBar: AppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: () => setState(() => _year--),
+            ),
+            Text('${AppStrings.vaadBayitTitle} · $_year', style: AppTextStyles.categoryTitle()),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: () => setState(() => _year++),
+            ),
+          ],
+        ),
+      ),
       body: billsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
@@ -73,11 +101,11 @@ class VaadBayitScreen extends ConsumerWidget {
               final isPaid = bill?.isPaid ?? false;
 
               return Dismissible(
-                key: ValueKey('vaad-$month-$isPaid'),
-                direction: isPaid ? DismissDirection.startToEnd : DismissDirection.none,
+                key: ValueKey('vaad-$_year-$month-$isPaid'),
+                direction: isPaid ? DismissDirection.endToStart : DismissDirection.none,
                 background: Container(
                   color: AppColors.error,
-                  alignment: AlignmentDirectional.centerStart,
+                  alignment: AlignmentDirectional.centerEnd,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: const Text(
                     AppStrings.cancelPaymentAction,
@@ -85,7 +113,7 @@ class VaadBayitScreen extends ConsumerWidget {
                   ),
                 ),
                 confirmDismiss: (direction) async {
-                  await _cancelPayment(ref, year, month);
+                  await _cancelPayment(ref, month);
                   return false;
                 },
                 child: ListTile(

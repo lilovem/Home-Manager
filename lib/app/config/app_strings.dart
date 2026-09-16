@@ -135,7 +135,7 @@ class AppStrings {
   static const String waterAndTaxTitle = 'מים + ארנונה';
   static const String paidStatus = 'שולם';
   static const String notPaidStatus = 'לא שולם';
-  static const String amountLabel = 'סכום ששולם';
+  static const String amountLabel = 'סכום';
   static const String paymentMethodLabel = 'אמצעי תשלום';
   static const String saveButton = 'שמור';
   static const String monthNames = 'ינואר,פברואר,מרץ,אפריל,מאי,יוני,יולי,אוגוסט,ספטמבר,אוקטובר,נובמבר,דצמבר';
@@ -177,6 +177,9 @@ class AppStrings {
   static const String billReminderBody = 'הגיע הזמן לשלם - בדקו את מסך החשבונות';
   static const String reminderInPastError = 'התאריך/שעה שנבחרו כבר עברו';
   static const String shoppingEventLabel = 'קנייה';
+  static const String reminderNeedsAmountTitle = 'חסר סכום';
+  static const String reminderNeedsAmountBody = 'כדי לשמור תזכורת יש להזין קודם סכום.';
+  static const String swipeHintMessage = 'טיפ: אפשר לבטל תשלום קיים בהחלקה ימינה על השורה';
   static const String timeModeWheel = 'עבור לגלגל';
   static const String timeModeManual = 'עבור להקלדה';
   static const String carriedOverSectionTitle = 'לא נמצאו - הועברו לקנייה הבאה';

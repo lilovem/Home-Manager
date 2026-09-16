@@ -25,6 +25,23 @@ void openPaymentLink(String url) {
   html.window.open(normalized, '_blank');
 }
 
+/// מציג "טיפ" חד-פעמי (פעם אחת בכל דפדפן, לא בכל כניסה) אחרי 5
+/// שניות, על האפשרות להחליק ולבטל תשלום. נשמר ב-localStorage כדי
+/// שלא יחזור על עצמו לאחר הפעם הראשונה.
+void maybeShowSwipeHintAfterDelay(BuildContext context) {
+  Future.delayed(const Duration(seconds: 5), () {
+    if (!context.mounted) return;
+    if (html.window.localStorage['seenBillSwipeHint'] == 'true') return;
+    html.window.localStorage['seenBillSwipeHint'] = 'true';
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(AppStrings.swipeHintMessage),
+        duration: Duration(seconds: 5),
+      ),
+    );
+  });
+}
+
 /// שולף מתוך ההגדרות את הקישור השמור עבור קטגוריה נתונה (חשמל/
 /// מים/ארנונה/מים+ארנונה-ביחד). ריק/null = עדיין לא הוגדר.
 String? _currentUrlForCategory(BillLinkSettings settings, BillCategory category) {
@@ -43,10 +60,11 @@ String? _currentUrlForCategory(BillLinkSettings settings, BillCategory category)
 }
 
 /// מסך טבלת תשלומים דו-חודשית - משמש לחשמל, מים, ארנונה (בנפרד
-/// או ביחד). כל שורה ניתנת **להחלקה** (swipe) כדי לבטל תשלום קיים.
-/// בכל כניסה לתקופה, חלונית העריכה מציעה מחדש "שלם עכשיו" (סריקת
-/// ברקוד או קישור לאתר) - אין יותר מסך הגדרה כפוי מראש.
-class BillPeriodTableScreen extends ConsumerWidget {
+/// או ביחד). ניתן לדפדף בין שנים עם החצים ב-AppBar. כל שורה
+/// ניתנת **להחלקה** (משמאל לימין) כדי לבטל תשלום קיים. בכל כניסה
+/// לתקופה, חלונית העריכה מציעה מחדש "שלם עכשיו" (סריקת ברקוד או
+/// קישור לאתר) - אין יותר מסך הגדרה כפוי מראש.
+class BillPeriodTableScreen extends ConsumerStatefulWidget {
   final String householdId;
   final BillCategory category;
 
@@ -56,11 +74,25 @@ class BillPeriodTableScreen extends ConsumerWidget {
     required this.category,
   });
 
+  @override
+  ConsumerState<BillPeriodTableScreen> createState() => _BillPeriodTableScreenState();
+}
+
+class _BillPeriodTableScreenState extends ConsumerState<BillPeriodTableScreen> {
+  late int _year;
+
   static const _periodStartMonths = [1, 3, 5, 7, 9, 11];
   static final _monthNames = AppStrings.monthNames.split(',');
 
+  @override
+  void initState() {
+    super.initState();
+    _year = DateTime.now().year;
+    maybeShowSwipeHintAfterDelay(context);
+  }
+
   String get _title {
-    switch (category) {
+    switch (widget.category) {
       case BillCategory.electricity:
         return AppStrings.electricityTitle;
       case BillCategory.waterAndTax:
@@ -79,10 +111,9 @@ class BillPeriodTableScreen extends ConsumerWidget {
     return '${_monthNames[startMonth - 1]}-${_monthNames[endMonth - 1]}';
   }
 
-  Future<void> _openPeriodSheet(BuildContext context, WidgetRef ref, int startMonth) async {
-    final year = DateTime.now().year;
+  Future<void> _openPeriodSheet(BuildContext context, int startMonth) async {
     final billsAsync = ref.read(billsForYearProvider(
-      (householdId: householdId, category: category, year: year),
+      (householdId: widget.householdId, category: widget.category, year: _year),
     ));
     final existing =
         (billsAsync.value ?? []).where((b) => b.periodStartMonth == startMonth);
@@ -92,9 +123,9 @@ class BillPeriodTableScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => BillPeriodEditSheet(
-        householdId: householdId,
-        category: category,
-        year: year,
+        householdId: widget.householdId,
+        category: widget.category,
+        year: _year,
         periodStartMonth: startMonth,
         periodLabel: _periodLabel(startMonth),
         existing: bill,
@@ -103,24 +134,38 @@ class BillPeriodTableScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _cancelPayment(WidgetRef ref, int year, int startMonth) {
+  Future<void> _cancelPayment(int startMonth) {
     return ref.read(billsRepositoryProvider).cancelPayment(
-          householdId: householdId,
-          category: category,
-          year: year,
+          householdId: widget.householdId,
+          category: widget.category,
+          year: _year,
           periodStartMonth: startMonth,
         );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final year = DateTime.now().year;
+  Widget build(BuildContext context) {
     final billsAsync = ref.watch(billsForYearProvider(
-      (householdId: householdId, category: category, year: year),
+      (householdId: widget.householdId, category: widget.category, year: _year),
     ));
 
     return Scaffold(
-      appBar: AppBar(title: Text('$_title · $year')),
+      appBar: AppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: () => setState(() => _year--),
+            ),
+            Text('$_title · $_year', style: AppTextStyles.categoryTitle()),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: () => setState(() => _year++),
+            ),
+          ],
+        ),
+      ),
       body: billsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
@@ -137,11 +182,11 @@ class BillPeriodTableScreen extends ConsumerWidget {
               final isPaid = bill?.isPaid ?? false;
 
               return Dismissible(
-                key: ValueKey('$category-$startMonth-$isPaid'),
-                direction: isPaid ? DismissDirection.startToEnd : DismissDirection.none,
+                key: ValueKey('${widget.category}-$_year-$startMonth-$isPaid'),
+                direction: isPaid ? DismissDirection.endToStart : DismissDirection.none,
                 background: Container(
                   color: AppColors.error,
-                  alignment: AlignmentDirectional.centerStart,
+                  alignment: AlignmentDirectional.centerEnd,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: const Text(
                     AppStrings.cancelPaymentAction,
@@ -149,7 +194,7 @@ class BillPeriodTableScreen extends ConsumerWidget {
                   ),
                 ),
                 confirmDismiss: (direction) async {
-                  await _cancelPayment(ref, year, startMonth);
+                  await _cancelPayment(startMonth);
                   return false;
                 },
                 child: ListTile(
@@ -175,7 +220,7 @@ class BillPeriodTableScreen extends ConsumerWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  onTap: () => _openPeriodSheet(context, ref, startMonth),
+                  onTap: () => _openPeriodSheet(context, startMonth),
                 ),
               );
             },
@@ -463,30 +508,36 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
       return;
     }
 
-    await ref.read(billsRepositoryProvider).saveReminder(
-          householdId: widget.householdId,
-          category: widget.category,
-          year: widget.year,
-          periodStartMonth: widget.periodStartMonth,
-          reminderAt: combined,
-        );
-    if (mounted) setState(() => _reminderAt = combined);
+    // רק state מקומי - נשמר בפועל רק כשלוחצים "שמור" למטה.
+    setState(() => _reminderAt = combined);
   }
 
-  Future<void> _clearReminder() async {
-    await ref.read(billsRepositoryProvider).clearReminder(
-          householdId: widget.householdId,
-          category: widget.category,
-          year: widget.year,
-          periodStartMonth: widget.periodStartMonth,
-        );
-    if (mounted) setState(() => _reminderAt = null);
+  void _clearReminder() {
+    setState(() => _reminderAt = null);
   }
 
   Future<void> _save() async {
+    final amount = double.tryParse(_amountController.text.trim());
+
+    if (_reminderAt != null && amount == null) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text(AppStrings.reminderNeedsAmountTitle),
+          content: const Text(AppStrings.reminderNeedsAmountBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(AppStrings.close),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
     try {
-      final amount = double.tryParse(_amountController.text.trim());
       await ref.read(billsRepositoryProvider).saveBillDetails(
             householdId: widget.householdId,
             category: widget.category,
@@ -495,6 +546,26 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
             amount: amount,
             paymentMethod: _paymentMethod,
           );
+
+      // תזכורת נשמרת/מתבטלת רק כאן, בלחיצת "שמור" - לא ברגע הבחירה.
+      final hadReminder = widget.existing?.reminderAt != null;
+      if (_reminderAt != null) {
+        await ref.read(billsRepositoryProvider).saveReminder(
+              householdId: widget.householdId,
+              category: widget.category,
+              year: widget.year,
+              periodStartMonth: widget.periodStartMonth,
+              reminderAt: _reminderAt!,
+            );
+      } else if (hadReminder) {
+        await ref.read(billsRepositoryProvider).clearReminder(
+              householdId: widget.householdId,
+              category: widget.category,
+              year: widget.year,
+              periodStartMonth: widget.periodStartMonth,
+            );
+      }
+
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (mounted) {

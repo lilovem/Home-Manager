@@ -103,12 +103,12 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(Icons.chevron_left),
               onPressed: () => _changeMonth(-1),
             ),
             Text('${_month.month}/${_month.year}', style: AppTextStyles.heading2),
             IconButton(
-              icon: const Icon(Icons.chevron_left),
+              icon: const Icon(Icons.chevron_right),
               onPressed: () => _changeMonth(1),
             ),
           ],
