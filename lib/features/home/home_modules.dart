@@ -34,7 +34,10 @@ List<HomeModule> buildFeaturedModules({required String householdId}) {
 }
 
 /// שאר מודולי העתיד - מוצגים ברשת הרגילה מתחת לכרטיסיות המומלצות,
-/// כולם עדיין "בקרוב". כדי להוסיף מודול חדש בעתיד:
+/// כולם עדיין "בקרוב". "חשבונות" הוסר מכאן - יש כבר מודול חשבונות
+/// מלא ופעיל במסך הבית, אז אריח כפול כאן רק מבלבל.
+///
+/// כדי להוסיף מודול חדש בעתיד:
 /// 1. בונים את המסך שלו תחת lib/features/<module_name>/
 /// 2. מוסיפים כאן HomeModule עם isAvailable: true ו-screenBuilder מתאים
 List<HomeModule> buildHomeModules({required String householdId}) {
@@ -53,11 +56,6 @@ List<HomeModule> buildHomeModules({required String householdId}) {
       title: 'חוגים',
       subtitle: 'פעילויות ולוחות זמנים',
       icon: Icons.sports_soccer_outlined,
-    ),
-    HomeModule(
-      title: 'חשבונות',
-      subtitle: 'חשמל, מים, ארנונה ומנויים',
-      icon: Icons.receipt_long_outlined,
     ),
     HomeModule(
       title: 'מסמכים',

@@ -1,3 +1,81 @@
+#!/bin/bash
+set -e
+
+echo "מתקין: פתיחת אתר מיד עם זיהוי ברקוד (לחיצה אחת) + כל התיקונים הקודמים..."
+
+mkdir -p 'lib/features/home'
+cat > 'lib/features/home/home_modules.dart' << 'DARTEOF'
+import 'package:flutter/material.dart';
+import 'home_module.dart';
+import '../shopping/shopping_choice_screen.dart';
+
+/// 4 המודולים ה"מומלצים" שמוצגים בכרטיסיות סטטיסטיקה צבעוניות
+/// בראש מסך הבית (בהשראת עיצוב שהמשתמש שלח) - קניות (פעיל), ואז
+/// משימות/רכבים/לוח שנה כ"בקרוב" (לוח שנה כן מציג נתון אמיתי,
+/// המבוסס על תאריכי רשימות קניות קיימים - ראה home_screen.dart).
+List<HomeModule> buildFeaturedModules({required String householdId}) {
+  return [
+    HomeModule(
+      title: 'קניות',
+      subtitle: 'פריטים ברשימה',
+      icon: Icons.shopping_cart_outlined,
+      isAvailable: true,
+      screenBuilder: (_) => ShoppingChoiceScreen(householdId: householdId),
+    ),
+    const HomeModule(
+      title: 'לוח שנה',
+      subtitle: 'אירועים קרובים',
+      icon: Icons.calendar_month_outlined,
+    ),
+    const HomeModule(
+      title: 'משימות',
+      subtitle: 'ניהול משק הבית היומיומי',
+      icon: Icons.checklist_outlined,
+    ),
+    const HomeModule(
+      title: 'רכבים',
+      subtitle: 'טסטים, טיפולים וקילומטראז\'',
+      icon: Icons.directions_car_outlined,
+    ),
+  ];
+}
+
+/// שאר מודולי העתיד - מוצגים ברשת הרגילה מתחת לכרטיסיות המומלצות,
+/// כולם עדיין "בקרוב". "חשבונות" הוסר מכאן - יש כבר מודול חשבונות
+/// מלא ופעיל במסך הבית, אז אריח כפול כאן רק מבלבל.
+///
+/// כדי להוסיף מודול חדש בעתיד:
+/// 1. בונים את המסך שלו תחת lib/features/<module_name>/
+/// 2. מוסיפים כאן HomeModule עם isAvailable: true ו-screenBuilder מתאים
+List<HomeModule> buildHomeModules({required String householdId}) {
+  return const [
+    HomeModule(
+      title: 'ביטוחים',
+      subtitle: 'פוליסות ותאריכי חידוש',
+      icon: Icons.shield_outlined,
+    ),
+    HomeModule(
+      title: 'רישיונות',
+      subtitle: 'תעודות ומסמכים בעלי תוקף',
+      icon: Icons.badge_outlined,
+    ),
+    HomeModule(
+      title: 'חוגים',
+      subtitle: 'פעילויות ולוחות זמנים',
+      icon: Icons.sports_soccer_outlined,
+    ),
+    HomeModule(
+      title: 'מסמכים',
+      subtitle: 'קבצים ותעודות חשובות',
+      icon: Icons.folder_outlined,
+    ),
+  ];
+}
+
+DARTEOF
+
+mkdir -p 'lib/features/bills'
+cat > 'lib/features/bills/bill_period_table_screen.dart' << 'DARTEOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: avoid_web_libraries_in_flutter
@@ -299,6 +377,11 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
   late bool _markedPaid;
   bool _isSaving = false;
 
+  /// הערך הגולמי שנסרק מהברקוד (בד"כ לינק לאתר התשלום). לא נשמר
+  /// ב-Firestore (רק paymentMethod נשמר) - זה רק מאפשר להציג כפתור
+  /// "פתח את הקישור שנסרק" בתוך אותה חלונית עריכה.
+  String? _scannedBarcodeValue;
+
   @override
   void initState() {
     super.initState();
@@ -414,15 +497,19 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
     if (choice == null) return;
 
     if (choice == 'barcode') {
-      // BarcodeScanScreen עצמו כבר פותח את האתר (דיאלוג "נמצא ברקוד!"
-      // עם כפתור "פתח באתר" שמופיע מיד עם הזיהוי) - כאן רק מסמנים
-      // שהתשלום בוצע דרך ברקוד, בלי צורך בכפתור נוסף בחלונית הזו.
       final result = await Navigator.of(context).push<String>(
         MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
       );
+      // תיקון: קודם הערך שנסרק בפועל היה נזרק - רק מסמנים
+      // "אמצעי תשלום: ברקוד" ולא עושים איתו כלום, בלי לפתוח אתר
+      // ובלי אפילו להראות שמשהו בכלל נסרק. עכשיו שומרים את הערך
+      // ומציגים כפתור "פתח קישור" בחלונית - לוחצים עליו זו לחיצה
+      // אמיתית של המשתמש, אז הדפדפן לא חוסם את הפתיחה כפופ-אפ
+      // (בניגוד לניסיון לפתוח אוטומטית מיד אחרי הסריקה - זה ייחסם).
       if (result != null && result.isNotEmpty && mounted) {
         setState(() {
           _paymentMethod = AppStrings.paymentMethodBarcode;
+          _scannedBarcodeValue = result;
         });
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -692,6 +779,16 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
               style: AppTextStyles.bodySecondary,
             ),
           ],
+          if (_scannedBarcodeValue != null) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              // קריאה סינכרונית ל-openPaymentLink ישירות מתוך onPressed -
+              // זו לחיצה אמיתית של המשתמש, אז window.open לא ייחסם.
+              onPressed: () => openPaymentLink(_scannedBarcodeValue!),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text(AppStrings.openScannedLinkButton),
+            ),
+          ],
           const SizedBox(height: 12),
           if (_reminderAt == null)
             OutlinedButton.icon(
@@ -751,3 +848,576 @@ class _BillPeriodEditSheetState extends ConsumerState<BillPeriodEditSheet> {
   }
 }
 
+DARTEOF
+
+mkdir -p 'lib/features/bills'
+cat > 'lib/features/bills/vaad_bayit_screen.dart' << 'DARTEOF'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../models/bill_payment_model.dart';
+import '../../providers/bills_provider.dart';
+import 'bill_period_table_screen.dart';
+
+/// מסך "ועד בית" - טבלת 12 החודשים של שנה נתונה (ניתן לדפדף בין
+/// שנים עם החצים ב-AppBar - לא נשארים תקועים רק על השנה הנוכחית).
+/// כל שורה ניתנת **להחלקה** (משמאל לימין) כדי לבטל תשלום קיים.
+class VaadBayitScreen extends ConsumerStatefulWidget {
+  final String householdId;
+
+  const VaadBayitScreen({super.key, required this.householdId});
+
+  @override
+  ConsumerState<VaadBayitScreen> createState() => _VaadBayitScreenState();
+}
+
+class _VaadBayitScreenState extends ConsumerState<VaadBayitScreen> {
+  late int _year;
+
+  static final List<String> _monthNames = AppStrings.monthNames.split(',');
+
+  @override
+  void initState() {
+    super.initState();
+    _year = DateTime.now().year;
+    maybeShowSwipeHintAfterDelay(context);
+  }
+
+  Future<void> _openMonthSheet(BuildContext context, WidgetRef ref, int month) async {
+    final billsAsync = ref.read(billsForYearProvider(
+      (householdId: widget.householdId, category: BillCategory.vaadBayit, year: _year),
+    ));
+    final existing = (billsAsync.value ?? []).where((b) => b.periodStartMonth == month);
+    final bill = existing.isNotEmpty ? existing.first : null;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => BillPeriodEditSheet(
+        householdId: widget.householdId,
+        category: BillCategory.vaadBayit,
+        year: _year,
+        periodStartMonth: month,
+        periodLabel: _monthNames[month - 1],
+        existing: bill,
+        showPaymentMethod: true,
+      ),
+    );
+  }
+
+  Future<void> _cancelPayment(WidgetRef ref, int month) {
+    return ref.read(billsRepositoryProvider).cancelPayment(
+          householdId: widget.householdId,
+          category: BillCategory.vaadBayit,
+          year: _year,
+          periodStartMonth: month,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final billsAsync = ref.watch(billsForYearProvider(
+      (householdId: widget.householdId, category: BillCategory.vaadBayit, year: _year),
+    ));
+
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: () => setState(() => _year--),
+            ),
+            Text('${AppStrings.vaadBayitTitle} · $_year', style: AppTextStyles.categoryTitle()),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: () => setState(() => _year++),
+            ),
+          ],
+        ),
+      ),
+      body: billsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+        data: (bills) {
+          final byMonth = {for (final b in bills) b.periodStartMonth: b};
+
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: 12,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final bill = byMonth[month];
+              final isPaid = bill?.isPaid ?? false;
+              final hasData = hasSavedBillData(bill);
+
+              return Dismissible(
+                key: ValueKey('vaad-$_year-$month-$hasData'),
+                direction: hasData ? DismissDirection.endToStart : DismissDirection.none,
+                background: Container(
+                  color: AppColors.error,
+                  alignment: AlignmentDirectional.centerEnd,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Text(
+                    AppStrings.cancelPaymentAction,
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                confirmDismiss: (direction) async {
+                  await _cancelPayment(ref, month);
+                  return false;
+                },
+                child: ListTile(
+                  leading: Icon(
+                    isPaid ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                  ),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_monthNames[index]),
+                      if (bill?.reminderAt != null) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.alarm, size: 24, color: Colors.green),
+                      ],
+                    ],
+                  ),
+                  subtitle: bill?.amount != null ? Text('₪${bill!.amount}') : null,
+                  trailing: Text(
+                    isPaid ? AppStrings.paidStatus : AppStrings.notPaidStatus,
+                    style: TextStyle(
+                      color: isPaid ? AppColors.itemPurchased : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => _openMonthSheet(context, ref, month),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+DARTEOF
+
+mkdir -p 'lib/features/bills'
+cat > 'lib/features/bills/barcode_scan_screen.dart' << 'DARTEOF'
+import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import '../../app/config/app_strings.dart';
+
+/// פותח קישור בכרטיסייה חדשה - קריאה **סינכרונית** (בלי await
+/// ביניים), כדי שדפדפנים לא יחסמו את זה כפופ-אפ. חייבת לקרות תוך
+/// כדי לחיצה אמיתית של המשתמש (onPressed), לא אוטומטית מיד אחרי
+/// שהמצלמה מזהה ברקוד - זו לא "לחיצה" מבחינת הדפדפן, ופתיחה
+/// אוטומטית באותו רגע כמעט תמיד תיחסם.
+///
+/// כפילות מכוונת של הפונקציה המקבילה ב-bill_period_table_screen.dart
+/// - לא מייבאים אותה משם כדי למנוע import מעגלי (הקובץ ההוא כן
+/// מייבא את המסך הזה).
+void _openScannedLink(String url) {
+  final normalized =
+      (url.startsWith('http://') || url.startsWith('https://')) ? url : 'https://$url';
+  html.window.open(normalized, '_blank');
+}
+
+/// מסך סריקת ברקוד - פותח את המצלמה, סורק ברקוד/QR על שובר תשלום
+/// פיזי. ברגע שמזהים ברקוד, מוצג **מיד** דיאלוג עם הקישור שנמצא
+/// וכפתור "פתח באתר" גדול - זו הדרך הכי "מיידית" שאפשר להציע:
+/// לחיצה אחת בדיוק ברגע הזיהוי, בלי לחזור למסך הקודם ולחפש כפתור.
+/// פתיחה אוטומטית לגמרי (בלי שום לחיצה) לא אפשרית בדפדפן - חסימת
+/// פופ-אפים דורשת שהפתיחה תקרה תוך כדי לחיצה אמיתית.
+class BarcodeScanScreen extends StatefulWidget {
+  const BarcodeScanScreen({super.key});
+
+  @override
+  State<BarcodeScanScreen> createState() => _BarcodeScanScreenState();
+}
+
+class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
+  final MobileScannerController _controller = MobileScannerController();
+  bool _dialogShowing = false;
+  bool _detectedOnce = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    final barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+
+    if (!_detectedOnce) {
+      setState(() => _detectedOnce = true);
+    }
+
+    if (_dialogShowing) return;
+    final value = barcodes.first.rawValue;
+    if (value == null || value.isEmpty) return;
+
+    _dialogShowing = true;
+    _controller.stop();
+    _showFoundDialog(value);
+  }
+
+  Future<void> _showFoundDialog(String value) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.barcodeDetectedTitle),
+        content: Text(
+          value,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _controller.start();
+              if (mounted) setState(() => _dialogShowing = false);
+            },
+            child: const Text(AppStrings.rescanButton),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // קריאה סינכרונית ישירות מתוך onPressed - זו לחיצה
+              // אמיתית של המשתמש, אז הדפדפן לא חוסם את הפתיחה.
+              _openScannedLink(value);
+              Navigator.of(dialogContext).pop();
+              if (mounted) Navigator.of(context).pop(value);
+            },
+            child: const Text(AppStrings.openInSiteButton),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(AppStrings.scanBarcodeTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            tooltip: AppStrings.toggleFlashTooltip,
+            onPressed: () => _controller.toggleTorch(),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+            // אם למצלמה אין גישה בכלל (הרשאה נדחתה, אין מצלמה,
+            // הדפדפן לא תומך) - מוצגת הודעת שגיאה מפורשת במקום מסך
+            // מצלמה ריק/שחור שנראה כאילו הוא "עובד".
+            errorBuilder: (context, error, child) {
+              return Container(
+                color: Colors.black,
+                padding: const EdgeInsets.all(24),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.videocam_off, color: Colors.white, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${AppStrings.cameraErrorPrefix}\n${error.toString()}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          // מסגרת ויזואלית שהופכת לירוקה ברגע שמזהים ברקוד -
+          // אינדיקציה מיידית שהמצלמה בכלל "רואה" משהו.
+          Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _detectedOnce ? Colors.greenAccent : Colors.white,
+                  width: 4,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 24,
+            left: 24,
+            right: 24,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _detectedOnce ? AppStrings.barcodeFoundHint : AppStrings.scanBarcodeHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+DARTEOF
+
+mkdir -p 'lib/services/firebase'
+cat > 'lib/services/firebase/bills_service.dart' << 'DARTEOF'
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/bill_payment_model.dart';
+
+/// שירות Firestore לרשומות תשלום חשבונות (ועד בית/חשמל/מים+ארנונה).
+/// כל רשומה מזוהה באמצעות מזהה קבוע (לא auto-id) - כך אפשר
+/// לכתוב עליה מחדש (get-or-create) בלי לחפש קודם.
+class BillsService {
+  final FirebaseFirestore _firestore;
+
+  BillsService(this._firestore);
+
+  CollectionReference<Map<String, dynamic>> _billsCollection(String householdId) {
+    return _firestore.collection('households').doc(householdId).collection('bills');
+  }
+
+  String _docId(BillCategory category, int year, int periodStartMonth) {
+    return '${billCategoryToString(category)}_${year}_$periodStartMonth';
+  }
+
+  Stream<List<BillPayment>> watchBills({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+  }) {
+    return _billsCollection(householdId)
+        .where('category', isEqualTo: billCategoryToString(category))
+        .where('year', isEqualTo: year)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BillPayment.fromFirestore(doc.id, doc.data()))
+            .toList());
+  }
+
+  /// שומר סכום+אמצעי תשלום+תזכורת. `markPaid` קובע במפורש את
+  /// סטטוס "שולם" - **לא** אוטומטי לפי נוכחות סכום; זה נשלט רק
+  /// ע"י כפתור "שולם" הייעודי בחלונית העריכה.
+  ///
+  /// `amount`/`paymentMethod` נכתבים **תמיד**, גם כש-null - כדי
+  /// שניקוי שדה הסכום ולחיצה על "שמור" באמת ימחק את הערך השמור
+  /// ב-Firestore ולא ישאיר את הערך הישן (זה היה הבאג: כתיבה
+  /// מותנית ב-`if (amount != null)` פשוט דילגה על מחיקה).
+  Future<void> saveBillDetails({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    double? amount,
+    String? paymentMethod,
+    required bool markPaid,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    final data = <String, dynamic>{
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      'amount': amount,
+      'paymentMethod': paymentMethod,
+      'paidManually': markPaid,
+    };
+    if (markPaid) {
+      data['paidAt'] = FieldValue.serverTimestamp();
+    } else {
+      data['paidAt'] = null;
+    }
+    await _billsCollection(householdId).doc(id).set(data, SetOptions(merge: true));
+  }
+
+  /// מבטל תשלום שכבר סומן - מחזיר את התקופה למצב "לא שולם" (ה-חוג
+  /// הירוק נעלם), מנקה את הסכום ואמצעי התשלום, **וגם מבטל תזכורת**
+  /// אם הייתה מוגדרת - איפוס מלא ושלם של התקופה.
+  Future<void> cancelPayment({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).update({
+      'paidManually': false,
+      'paidAt': null,
+      'amount': null,
+      'paymentMethod': null,
+      'reminderAt': null,
+      'reminderShown': false,
+    });
+  }
+
+  /// שומר תזכורת לתאריך+שעה עתידיים לתקופה מסוימת.
+  Future<void> saveReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+    required DateTime reminderAt,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).set({
+      'category': billCategoryToString(category),
+      'year': year,
+      'periodStartMonth': periodStartMonth,
+      'reminderAt': Timestamp.fromDate(reminderAt),
+      'reminderShown': false,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> clearReminder({
+    required String householdId,
+    required BillCategory category,
+    required int year,
+    required int periodStartMonth,
+  }) async {
+    final id = _docId(category, year, periodStartMonth);
+    await _billsCollection(householdId).doc(id).update({
+      'reminderAt': null,
+      'reminderShown': false,
+    });
+  }
+
+  Future<void> markReminderShown({
+    required String householdId,
+    required String billDocId,
+  }) async {
+    await _billsCollection(householdId).doc(billDocId).update({'reminderShown': true});
+  }
+
+  /// מוחק את **כל** רשומות התשלום של מים/ארנונה (כל הצורות - ביחד
+  /// ובנפרד, כל השנים) - קורה כשמאפסים את בחירת "ביחד/בנפרד",
+  /// כי מעבר בין המבנים "מאבד" גישה לרשומות הישנות (הן נשמרות תחת
+  /// שם קטגוריה שונה ב-Firestore) - עדיף למחוק בפועל מאשר להשאיר
+  /// נתונים יתומים שאף מסך לא יראה יותר.
+  Future<void> clearWaterTaxPayments(String householdId) async {
+    const categories = ['waterAndTax', 'water', 'tax'];
+    final batch = _firestore.batch();
+    for (final cat in categories) {
+      final snapshot =
+          await _billsCollection(householdId).where('category', isEqualTo: cat).get();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+    await batch.commit();
+  }
+
+  Stream<List<BillPayment>> watchAllScheduledReminders(String householdId) {
+    return _billsCollection(householdId)
+        .where('reminderAt', isNull: false)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => BillPayment.fromFirestore(doc.id, doc.data())).toList());
+  }
+
+  /// מאזין לכל התזכורות שהוגדרו ב-household (בכל הקטגוריות יחד) -
+  /// משמש כדי לבדוק ברקע אילו תזכורות "הגיע זמנן". הסינון של
+  /// reminderShown נעשה בצד הלקוח (לא בשאילתה) כדי להימנע מהצורך
+  /// ב-composite index ב-Firestore.
+  Stream<List<BillPayment>> watchAllReminders(String householdId) {
+    return _billsCollection(householdId)
+        .where('reminderAt', isNull: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BillPayment.fromFirestore(doc.id, doc.data()))
+            .where((bill) => !bill.reminderShown)
+            .toList());
+  }
+
+  String billDocId(BillCategory category, int year, int periodStartMonth) =>
+      _docId(category, year, periodStartMonth);
+}
+
+DARTEOF
+
+# מוסיף כל מחרוזת בנפרד ל-AppStrings, רק אם היא עוד לא קיימת.
+if grep -q 'barcodeNotDetectedMessage' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "barcodeNotDetectedMessage כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String barcodeNotDetectedMessage = 'לא זוהה ברקוד בתמונה. נסה שוב או בחר תשלום בקישור.';" lib/app/config/app_strings.dart
+  echo "barcodeNotDetectedMessage נוסף."
+fi
+if grep -q 'openScannedLinkButton' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "openScannedLinkButton כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String openScannedLinkButton = 'פתח קישור מהברקוד שנסרק';" lib/app/config/app_strings.dart
+  echo "openScannedLinkButton נוסף."
+fi
+if grep -q 'toggleFlashTooltip' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "toggleFlashTooltip כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String toggleFlashTooltip = 'הפעל/כבה פנס';" lib/app/config/app_strings.dart
+  echo "toggleFlashTooltip נוסף."
+fi
+if grep -q 'cameraErrorPrefix' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "cameraErrorPrefix כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String cameraErrorPrefix = 'לא ניתן לגשת למצלמה:';" lib/app/config/app_strings.dart
+  echo "cameraErrorPrefix נוסף."
+fi
+if grep -q 'barcodeFoundHint' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "barcodeFoundHint כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String barcodeFoundHint = 'זוהה! טוען...';" lib/app/config/app_strings.dart
+  echo "barcodeFoundHint נוסף."
+fi
+if grep -q 'barcodeDetectedTitle' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "barcodeDetectedTitle כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String barcodeDetectedTitle = 'נמצא ברקוד!';" lib/app/config/app_strings.dart
+  echo "barcodeDetectedTitle נוסף."
+fi
+if grep -q 'openInSiteButton' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "openInSiteButton כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String openInSiteButton = 'פתח באתר';" lib/app/config/app_strings.dart
+  echo "openInSiteButton נוסף."
+fi
+if grep -q 'rescanButton' lib/app/config/app_strings.dart 2>/dev/null; then
+  echo "rescanButton כבר קיים - מדלג."
+else
+  sed -i "/class AppStrings {/a\\
+  static const String rescanButton = 'סרוק שוב';" lib/app/config/app_strings.dart
+  echo "rescanButton נוסף."
+fi
+
+echo "הותקן בהצלחה! עכשיו הרץ: flutter pub get ואז הפעל מחדש את השרת."

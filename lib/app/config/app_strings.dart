@@ -4,6 +4,14 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String rescanButton = 'סרוק שוב';
+  static const String openInSiteButton = 'פתח באתר';
+  static const String barcodeDetectedTitle = 'נמצא ברקוד!';
+  static const String barcodeFoundHint = 'זוהה! טוען...';
+  static const String cameraErrorPrefix = 'לא ניתן לגשת למצלמה:';
+  static const String toggleFlashTooltip = 'הפעל/כבה פנס';
+  static const String barcodeNotDetectedMessage = 'לא זוהה ברקוד בתמונה. נסה שוב או בחר תשלום בקישור.';
+  static const String openScannedLinkButton = 'פתח קישור מהברקוד שנסרק';
   AppStrings._();
 
   // כללי

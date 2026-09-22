@@ -31,11 +31,14 @@ class BillsService {
             .toList());
   }
 
-  /// שומר סכום+אמצעי תשלום, ותמיד מסמן את התקופה כ"שולם" (אין
-  /// יותר מנגנון קבלות - השמירה עצמה היא אישור התשלום).
   /// שומר סכום+אמצעי תשלום+תזכורת. `markPaid` קובע במפורש את
   /// סטטוס "שולם" - **לא** אוטומטי לפי נוכחות סכום; זה נשלט רק
   /// ע"י כפתור "שולם" הייעודי בחלונית העריכה.
+  ///
+  /// `amount`/`paymentMethod` נכתבים **תמיד**, גם כש-null - כדי
+  /// שניקוי שדה הסכום ולחיצה על "שמור" באמת ימחק את הערך השמור
+  /// ב-Firestore ולא ישאיר את הערך הישן (זה היה הבאג: כתיבה
+  /// מותנית ב-`if (amount != null)` פשוט דילגה על מחיקה).
   Future<void> saveBillDetails({
     required String householdId,
     required BillCategory category,
@@ -50,12 +53,14 @@ class BillsService {
       'category': billCategoryToString(category),
       'year': year,
       'periodStartMonth': periodStartMonth,
-      if (amount != null) 'amount': amount,
-      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      'amount': amount,
+      'paymentMethod': paymentMethod,
       'paidManually': markPaid,
     };
     if (markPaid) {
       data['paidAt'] = FieldValue.serverTimestamp();
+    } else {
+      data['paidAt'] = null;
     }
     await _billsCollection(householdId).doc(id).set(data, SetOptions(merge: true));
   }
@@ -118,8 +123,6 @@ class BillsService {
     await _billsCollection(householdId).doc(billDocId).update({'reminderShown': true});
   }
 
-  /// כמו watchAllReminders, אבל **בלי** לסנן reminderShown - משמש
-  /// לתצוגה בלוח השנה (רוצים להראות תזכורות גם אחרי שכבר "צלצלו").
   /// מוחק את **כל** רשומות התשלום של מים/ארנונה (כל הצורות - ביחד
   /// ובנפרד, כל השנים) - קורה כשמאפסים את בחירת "ביחד/בנפרד",
   /// כי מעבר בין המבנים "מאבד" גישה לרשומות הישנות (הן נשמרות תחת

@@ -100,10 +100,11 @@ class _VaadBayitScreenState extends ConsumerState<VaadBayitScreen> {
               final month = index + 1;
               final bill = byMonth[month];
               final isPaid = bill?.isPaid ?? false;
+              final hasData = hasSavedBillData(bill);
 
               return Dismissible(
-                key: ValueKey('vaad-$_year-$month-$isPaid'),
-                direction: isPaid ? DismissDirection.endToStart : DismissDirection.none,
+                key: ValueKey('vaad-$_year-$month-$hasData'),
+                direction: hasData ? DismissDirection.endToStart : DismissDirection.none,
                 background: Container(
                   color: AppColors.error,
                   alignment: AlignmentDirectional.centerEnd,
