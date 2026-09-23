@@ -1,3 +1,9 @@
+#!/bin/bash
+set -e
+echo "=== מתקן את קובץ כללי האבטחה (firestore.rules) ==="
+
+echo "כותב firestore.rules..."
+cat > firestore.rules << 'FIX_RULES_EOF'
 rules_version = '2';
 
 service cloud.firestore {
@@ -11,3 +17,9 @@ service cloud.firestore {
     }
   }
 }
+FIX_RULES_EOF
+
+echo ""
+echo "=== הקובץ תוקן! ==="
+echo "עכשיו חובה להריץ כדי שהתיקון באמת ייכנס לתוקף:"
+echo "firebase deploy --only firestore:rules --project home-manager-9407a"

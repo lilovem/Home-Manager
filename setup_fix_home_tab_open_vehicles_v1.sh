@@ -1,3 +1,10 @@
+#!/bin/bash
+set -e
+echo "=== מתקן את פתיחת כרטיס רכבים במסך הבית ==="
+
+mkdir -p lib/features/home/tabs
+echo "כותב lib/features/home/tabs/home_tab_content.dart..."
+cat > lib/features/home/tabs/home_tab_content.dart << 'FIX_HOME_TAB_EOF'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/config/app_colors.dart';
@@ -257,3 +264,9 @@ class _Tile extends StatelessWidget {
     );
   }
 }
+FIX_HOME_TAB_EOF
+
+echo ""
+echo "=== הסתיים! ==="
+echo "עכשיו תריץ: flutter pub get"
+echo "ואז הפעל מחדש את שרת הפיתוח (כמו קודם, עם --web-port=8000)."

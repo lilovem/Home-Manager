@@ -36,5 +36,12 @@ dev_dependencies:
   flutter_lints: ^4.0.0
 
 flutter:
+  assets:
+    - assets/vehicle_backgrounds/sunset_mountains.jpg
+    - assets/vehicle_backgrounds/red_coast_sunset.jpg
+    - assets/vehicle_backgrounds/blue_night_mountain.jpg
+    - assets/vehicle_backgrounds/yellow_palms_sunset.jpg
+    - assets/vehicle_backgrounds/city_dusk_road.jpg
+    - assets/vehicle_backgrounds/white_coast_sunset.jpg
   uses-material-design: true
 

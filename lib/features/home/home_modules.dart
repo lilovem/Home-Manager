@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_module.dart';
 import '../shopping/shopping_choice_screen.dart';
+import '../vehicles/vehicles_list_screen.dart';
 
 /// 4 המודולים ה"מומלצים" שמוצגים בכרטיסיות סטטיסטיקה צבעוניות
 /// בראש מסך הבית (בהשראת עיצוב שהמשתמש שלח) - קניות (פעיל), ואז
@@ -25,10 +26,12 @@ List<HomeModule> buildFeaturedModules({required String householdId}) {
       subtitle: 'ניהול משק הבית היומיומי',
       icon: Icons.checklist_outlined,
     ),
-    const HomeModule(
+    HomeModule(
       title: 'רכבים',
       subtitle: 'טסטים, טיפולים וקילומטראז\'',
       icon: Icons.directions_car_outlined,
+      isAvailable: true,
+      screenBuilder: (_) => VehiclesListScreen(householdId: householdId),
     ),
   ];
 }
@@ -64,4 +67,3 @@ List<HomeModule> buildHomeModules({required String householdId}) {
     ),
   ];
 }
-

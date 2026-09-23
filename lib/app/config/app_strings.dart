@@ -4,6 +4,118 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String unmuteMaintenanceTooltip = "הפעל התראות לטיפול זה";
+
+  static const String muteMaintenanceTooltip = "השתק התראות לטיפול זה";
+
+  static const String nextServiceInLabel = "הטיפול הבא בעוד";
+
+  static const String maintenanceSettingsTitle = "הגדרות טווחי טיפולים";
+
+  static const String maintenanceLayoutHubOption = "עיגול מרכזי";
+
+  static const String maintenanceLayoutIconsOption = "שורת אייקונים";
+
+  static const String maintenanceLayoutPickerTitle = "עיצוב תצוגת הטיפולים";
+
+  static const String vehicleDetailsTitle = "פרטי הרכב";
+
+  static const String tapPlusToAddVehicle = "לחצו על + למטה כדי להוסיף רכב ראשון";
+
+  static const String chooseBackgroundTooltip = "בחר רקע";
+
+  static const String closeAction = "סגור";
+
+  static const String editServiceRecordTitle = "עריכת תיעוד טיפול";
+
+  static const String numberOnlyError = "יש להזין מספר בלבד";
+
+  static const String requiredFieldError = "שדה חובה";
+
+  static const String deleteAction = "מחיקה";
+
+  static const String notesLabelOptional = "הערות (לא חובה)";
+
+  static const String costLabelOptional = "עלות (לא חובה)";
+
+  static const String mileageAtServiceLabel = "ק\"מ בזמן הטיפול";
+
+  static const String serviceDateLabel = "תאריך הטיפול";
+
+  static const String otherServiceTypeLabel = "אחר";
+
+  static const String serviceTypeLabel = "סוג הטיפול";
+
+  static const String noServiceRecordsYet = "עדיין לא תועדו טיפולים לרכב זה";
+
+  static const String addServiceRecordTitle = "תיעוד טיפול חדש";
+
+  static const String addServiceRecordButton = "הוסף תיעוד טיפול";
+
+  static const String serviceHistoryTitle = "היסטוריית טיפולים";
+
+  static const String remainingKmLabel = "נותרו";
+
+  static const String overdueByLabel = "באיחור של";
+
+  static const String maintenanceSectionTitle = "טיפולים";
+
+  static const String intervalKmLabel = "מרווח בק\"מ";
+
+  static const String editIntervalTooltip = "ערוך מרווח טיפול";
+
+  static const String editIntervalTitlePrefix = "עריכת מרווח -";
+
+  static const String kmUnit = "ק\"מ";
+
+  static const String updateMileageButton = "עדכן";
+
+  static const String updateMileageTitle = "עדכון קילומטראז'";
+
+  static const String deleteVehicleConfirmBody = "פעולה זו תמחק את הרכב לצמיתות - כולל כל היסטוריית הטיפולים שלו. לא ניתן לשחזר.";
+
+  static const String deleteVehicleConfirmTitle = "למחוק את";
+
+  static const String daysUntilLicenseLabel = "ימים לחידוש רישיון:";
+
+  static const String licenseExpiredLabel = "הרישיון פג תוקף";
+
+  static const String daysLabel = "ימים";
+
+  static const String expiredLabel = "פג תוקף";
+
+  static const String notSetLabel = "לא הוגדר";
+
+  static const String comprehensiveInsuranceLabel = "ביטוח מקיף";
+
+  static const String mandatoryInsuranceLabel = "ביטוח חובה";
+
+  static const String licenseExpiryLabel = "רישיון רכב";
+
+  static const String importantDatesTitle = "תאריכים חשובים";
+
+  static const String mileageEditedElsewhereHint = "ניתן לעדכן קילומטראז' ממסך פרטי הרכב";
+
+  static const String currentMileageLabel = "קילומטראז' נוכחי";
+
+  static const String licensePlateLabel = "מספר רישוי";
+
+  static const String yearLabel = "שנת ייצור";
+
+  static const String modelLabel = "דגם";
+
+  static const String manufacturerLabel = "יצרן";
+
+  static const String editVehicleTitle = "עריכת רכב";
+
+  static const String addVehicleTitle = "הוספת רכב";
+
+  static const String addVehicleButton = "הוסף רכב";
+
+  static const String noVehiclesYet = "עדיין לא הוספת רכבים";
+
+  static const String vehiclesTitle = "רכבים";
+
   static const String rescanButton = 'סרוק שוב';
   static const String openInSiteButton = 'פתח באתר';
   static const String barcodeDetectedTitle = 'נמצא ברקוד!';
