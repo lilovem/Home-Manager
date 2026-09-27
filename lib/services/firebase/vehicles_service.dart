@@ -139,6 +139,19 @@ class VehiclesService {
     });
   }
 
+  /// שומר עלות ביטוח שנתית (חובה/מקיף) - fieldKey הוא אחד מ-
+  /// mandatoryInsuranceAnnualCost / comprehensiveInsuranceAnnualCost.
+  Future<void> updateInsuranceCost({
+    required String householdId,
+    required String vehicleId,
+    required String fieldKey,
+    required double cost,
+  }) {
+    return _vehiclesCollection(householdId).doc(vehicleId).update({
+      fieldKey: cost,
+    });
+  }
+
   Future<void> updateMaintenanceInterval({
     required String householdId,
     required String vehicleId,
@@ -255,3 +268,4 @@ class VehiclesService {
     await batch.commit();
   }
 }
+

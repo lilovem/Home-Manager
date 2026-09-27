@@ -38,6 +38,12 @@ class Vehicle {
   final String? mandatoryInsuranceDocumentDataUrl;
   final String? comprehensiveInsuranceDocumentDataUrl;
 
+  /// עלות שנתית (בש"ח) של כל אחד מהביטוחים - מוזנת ידנית ע"י המשתמש
+  /// (אין דרך אוטומטית לדעת את זה), מוצגת בעמוד הביטוחים לצד "המסע
+  /// לחידוש". null כשעדיין לא הוזן סכום.
+  final double? mandatoryInsuranceAnnualCost;
+  final double? comprehensiveInsuranceAnnualCost;
+
   final DateTime? createdAt;
 
   const Vehicle({
@@ -56,6 +62,8 @@ class Vehicle {
     this.licenseDocumentDataUrl,
     this.mandatoryInsuranceDocumentDataUrl,
     this.comprehensiveInsuranceDocumentDataUrl,
+    this.mandatoryInsuranceAnnualCost,
+    this.comprehensiveInsuranceAnnualCost,
     required this.createdAt,
   });
 
@@ -89,6 +97,9 @@ class Vehicle {
       mandatoryInsuranceDocumentDataUrl: data['mandatoryInsuranceDocumentDataUrl'] as String?,
       comprehensiveInsuranceDocumentDataUrl:
           data['comprehensiveInsuranceDocumentDataUrl'] as String?,
+      mandatoryInsuranceAnnualCost: (data['mandatoryInsuranceAnnualCost'] as num?)?.toDouble(),
+      comprehensiveInsuranceAnnualCost:
+          (data['comprehensiveInsuranceAnnualCost'] as num?)?.toDouble(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -218,3 +229,4 @@ String formatPrettyDateHe(DateTime date) {
   final month = _kHebrewMonthNames[date.month - 1];
   return '${date.day} ב$month ${date.year}';
 }
+

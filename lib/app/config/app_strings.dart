@@ -4,6 +4,17 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String renewalJourneyTitle = "המסע לחידוש";
+  static const String notSetCostLabel = "לא הוזן";
+  static const String insuranceCostFieldLabel = "סכום בשקלים";
+  static const String editInsuranceCostTitle = "עדכון עלות ביטוח שנתית";
+  static const String nextServiceLabel = "הטיפול הבא";
+  static const String serviceHistoryScreenTitle = "היסטוריית טיפולים";
+  static const String serviceHistoryButton = "היסטוריית טיפולים";
+  static const String noUpcomingMaintenance = "אין טיפולים קרובים כרגע";
+  static const String upcomingMaintenanceTitle = "הטיפולים הקרובים";
+  static const String addMaintenanceTooltip = "הוספת טיפול";
+  static const String maintenancePageTitle = "טיפולים";
   static const String shareFallbackDownloadMessage = "השיתוף הישיר לא נתמך בדפדפן הזה - הקובץ הורד למחשב, אפשר לצרף אותו ידנית.";
 
   static const String okButton = "הבנתי";

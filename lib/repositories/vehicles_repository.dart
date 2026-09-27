@@ -102,6 +102,20 @@ class VehiclesRepository {
     );
   }
 
+  Future<void> updateInsuranceCost({
+    required String householdId,
+    required String vehicleId,
+    required String fieldKey,
+    required double cost,
+  }) {
+    return _service.updateInsuranceCost(
+      householdId: householdId,
+      vehicleId: vehicleId,
+      fieldKey: fieldKey,
+      cost: cost,
+    );
+  }
+
   Future<void> updateMaintenanceInterval({
     required String householdId,
     required String vehicleId,
@@ -184,3 +198,4 @@ class VehiclesRepository {
     );
   }
 }
+
