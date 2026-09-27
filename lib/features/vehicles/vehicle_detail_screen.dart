@@ -697,6 +697,98 @@ class _MaintenanceTopPreview extends ConsumerWidget {
     }
   }
 
+  static const Map<String, String> _shortNames = {
+    'oilChange': 'קטן',
+    'majorService': 'גדול',
+    'tires': 'צמיגים',
+    'battery': 'מצבר',
+    'brakes': 'בלמים',
+  };
+
+  Widget _tile(BuildContext context, WidgetRef ref, String key) {
+    final name = kMaintenanceTemplateNames[key] ?? key;
+    final shortName = _shortNames[key] ?? name;
+    final interval =
+        vehicle.maintenanceIntervals[key] ?? kDefaultMaintenanceIntervals[key] ?? 10000;
+    final icon = _kMaintenanceIcons[key] ?? Icons.build_outlined;
+
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _editIntervalDialog(context, ref, key, name, interval),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Icon(icon, color: _greenIcon, size: 17),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                shortName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _addTile(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AddServiceRecordScreen(
+              householdId: householdId,
+              vehicleId: vehicle.id,
+              currentMileage: vehicle.currentMileage,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: _greenIcon.withOpacity(0.18),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _greenIcon.withOpacity(0.5)),
+                ),
+                child: Icon(Icons.add, color: _greenIcon, size: 20),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                AppStrings.addMaintenanceTooltip,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
@@ -706,83 +798,12 @@ class _MaintenanceTopPreview extends ConsumerWidget {
           AppStrings.maintenancePageTitle,
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 78,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              ..._kAllMaintenanceKeys.map((key) {
-                final name = kMaintenanceTemplateNames[key] ?? key;
-                final interval = vehicle.maintenanceIntervals[key] ??
-                    kDefaultMaintenanceIntervals[key] ??
-                    10000;
-                final icon = _kMaintenanceIcons[key] ?? Icons.build_outlined;
-
-                return Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => _editIntervalDialog(context, ref, key, name, interval),
-                    child: Container(
-                      width: 76,
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(icon, color: _greenIcon, size: 18),
-                          const SizedBox(height: 4),
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            '$interval ${AppStrings.kmUnit}',
-                            style: const TextStyle(color: Colors.white60, fontSize: 8),
-                            textDirection: TextDirection.ltr,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AddServiceRecordScreen(
-                        householdId: householdId,
-                        vehicleId: vehicle.id,
-                        currentMileage: vehicle.currentMileage,
-                      ),
-                    ),
-                  ),
-                  child: Container(
-                    width: 56,
-                    decoration: BoxDecoration(
-                      color: _greenIcon.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _greenIcon.withOpacity(0.5)),
-                    ),
-                    child: Center(
-                      child: Icon(Icons.add, color: _greenIcon, size: 24),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            ..._kAllMaintenanceKeys.map((key) => _tile(context, ref, key)),
+            _addTile(context),
+          ],
         ),
       ],
     );
@@ -942,9 +963,112 @@ class _MainInfoBottom extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Center(child: _MileageCard(vehicle: vehicle, onUpdate: onUpdateMileage)),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _NextServiceCard(householdId: householdId, vehicle: vehicle),
+        const SizedBox(height: 12),
+        _NotesCard(householdId: householdId, vehicle: vehicle),
       ],
+    );
+  }
+}
+
+/// הערה חופשית לרכב - טקסט קצר שאפשר להוסיף/לערוך/למחוק בכל רגע
+/// (למשל תזכורת "לבדוק לחץ אוויר"), נשמר ישירות במסמך הרכב.
+class _NotesCard extends ConsumerWidget {
+  final String householdId;
+  final Vehicle vehicle;
+
+  const _NotesCard({required this.householdId, required this.vehicle});
+
+  Future<void> _editNotes(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController(text: vehicle.notes ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.notesTitle),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: AppStrings.notesHint),
+        ),
+        actions: [
+          if (vehicle.notes != null && vehicle.notes!.isNotEmpty)
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(''),
+              child: const Text(AppStrings.deleteAction, style: TextStyle(color: AppColors.error)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text(AppStrings.saveButton),
+          ),
+        ],
+      ),
+    );
+    if (result != null) {
+      await ref.read(vehiclesRepositoryProvider).updateNotes(
+            householdId: householdId,
+            vehicleId: vehicle.id,
+            notes: result,
+          );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasNotes = vehicle.notes != null && vehicle.notes!.isNotEmpty;
+
+    return InkWell(
+      onTap: () => _editNotes(context, ref),
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 2,
+        color: Colors.white.withOpacity(0.8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.sticky_note_2_outlined, color: AppColors.primary, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStrings.notesTitle,
+                      style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      hasNotes ? vehicle.notes! : AppStrings.notesHint,
+                      style: hasNotes
+                          ? AppTextStyles.heading2.copyWith(fontSize: 13)
+                          : AppTextStyles.bodySecondary.copyWith(fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1188,6 +1312,7 @@ class _InsuranceBottom extends StatelessWidget {
       children: [
         Text(
           AppStrings.insuranceAnnualCostTitle,
+          textAlign: TextAlign.center,
           style: AppTextStyles.heading2.copyWith(fontSize: 12),
         ),
         const SizedBox(height: 6),
@@ -1344,45 +1469,46 @@ class _RenewalJourneyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final days = daysUntil(expiryDate);
     final isExpired = days != null && days < 0;
+    final urgencyColor = colorForDaysRemaining(days);
     double progress = 0;
     if (days != null) {
       progress = (1 - (days / 365)).clamp(0.0, 1.0);
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 14),
-          const SizedBox(width: 5),
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 6),
           SizedBox(
-            width: 42,
+            width: 44,
             child: Text(
               label,
-              style: AppTextStyles.bodySecondary.copyWith(fontSize: 9),
+              style: AppTextStyles.bodySecondary.copyWith(fontSize: 10),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
             child: SizedBox(
-              height: 20,
+              height: 26,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final trackWidth = (constraints.maxWidth - 18).clamp(0.0, double.infinity);
+                  final trackWidth = (constraints.maxWidth - 20).clamp(0.0, double.infinity);
                   final carLeft = trackWidth * progress;
                   return Stack(
                     clipBehavior: Clip.none,
                     alignment: Alignment.centerLeft,
                     children: [
                       Container(
-                        height: 3,
+                        height: 4,
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                         decoration: BoxDecoration(
                           color: AppColors.divider,
@@ -1391,11 +1517,11 @@ class _RenewalJourneyRow extends StatelessWidget {
                       ),
                       Positioned(
                         left: carLeft,
-                        child: Icon(Icons.directions_car, color: color, size: 16),
+                        child: Icon(Icons.directions_car, color: color, size: 20),
                       ),
                       const Positioned(
                         right: 0,
-                        child: Icon(Icons.flag, color: Colors.black45, size: 14),
+                        child: Icon(Icons.flag, color: Color(0xFFE53935), size: 18),
                       ),
                     ],
                   );
@@ -1403,9 +1529,9 @@ class _RenewalJourneyRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 5),
           SizedBox(
-            width: 38,
+            width: 40,
             child: Text(
               isExpired
                   ? AppStrings.expiredLabel
@@ -1413,9 +1539,9 @@ class _RenewalJourneyRow extends StatelessWidget {
                       ? AppStrings.notSetLabel
                       : '$days ${AppStrings.daysLabel}',
               style: TextStyle(
-                color: isExpired ? AppColors.error : color,
+                color: isExpired ? AppColors.error : urgencyColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 9,
+                fontSize: 10,
               ),
               textAlign: TextAlign.end,
               maxLines: 1,
@@ -1549,48 +1675,43 @@ class _MileageCard extends StatelessWidget {
       elevation: 2,
       color: Colors.white.withOpacity(0.8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryLight,
-                shape: BoxShape.circle,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onUpdate,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.speed_outlined, color: AppColors.primary, size: 20),
               ),
-              child: const Icon(Icons.speed_outlined, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppStrings.currentMileageLabel,
-                    style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
-                  ),
-                  Text(
-                    '${vehicle.currentMileage} ${AppStrings.kmUnit}',
-                    style: AppTextStyles.heading2.copyWith(fontSize: 16),
-                    textDirection: TextDirection.ltr,
-                  ),
-                ],
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.currentMileageLabel,
+                      style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      '${vehicle.currentMileage} ${AppStrings.kmUnit}',
+                      style: AppTextStyles.heading2.copyWith(fontSize: 16),
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              tooltip: AppStrings.updateMileageButton,
-              onPressed: onUpdate,
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -116,6 +116,18 @@ class VehiclesRepository {
     );
   }
 
+  Future<void> updateNotes({
+    required String householdId,
+    required String vehicleId,
+    required String? notes,
+  }) {
+    return _service.updateNotes(
+      householdId: householdId,
+      vehicleId: vehicleId,
+      notes: notes,
+    );
+  }
+
   Future<void> updateMaintenanceInterval({
     required String householdId,
     required String vehicleId,

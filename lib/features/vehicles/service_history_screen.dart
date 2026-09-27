@@ -32,21 +32,6 @@ class ServiceHistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.serviceHistoryScreenTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppStrings.addServiceRecordButton,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => AddServiceRecordScreen(
-                  householdId: householdId,
-                  vehicleId: vehicleId,
-                  currentMileage: currentMileage,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: Consumer(
         builder: (context, ref, _) {

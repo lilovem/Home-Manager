@@ -152,6 +152,17 @@ class VehiclesService {
     });
   }
 
+  /// שומר/מנקה הערה חופשית לרכב (notes == null/ריק מוחק את ההערה).
+  Future<void> updateNotes({
+    required String householdId,
+    required String vehicleId,
+    required String? notes,
+  }) {
+    return _vehiclesCollection(householdId).doc(vehicleId).update({
+      'notes': (notes == null || notes.trim().isEmpty) ? null : notes.trim(),
+    });
+  }
+
   Future<void> updateMaintenanceInterval({
     required String householdId,
     required String vehicleId,

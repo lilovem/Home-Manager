@@ -44,6 +44,11 @@ class Vehicle {
   final double? mandatoryInsuranceAnnualCost;
   final double? comprehensiveInsuranceAnnualCost;
 
+  /// הערה חופשית לרכב - טקסט קצר שהמשתמש יכול לרשום ולמחוק בעצמו
+  /// (למשל "לזכור לבדוק לחץ אוויר"), מוצג במסך הראשי מתחת ל"הטיפול
+  /// הבא". null/ריק כשאין הערה.
+  final String? notes;
+
   final DateTime? createdAt;
 
   const Vehicle({
@@ -64,6 +69,7 @@ class Vehicle {
     this.comprehensiveInsuranceDocumentDataUrl,
     this.mandatoryInsuranceAnnualCost,
     this.comprehensiveInsuranceAnnualCost,
+    this.notes,
     required this.createdAt,
   });
 
@@ -100,6 +106,7 @@ class Vehicle {
       mandatoryInsuranceAnnualCost: (data['mandatoryInsuranceAnnualCost'] as num?)?.toDouble(),
       comprehensiveInsuranceAnnualCost:
           (data['comprehensiveInsuranceAnnualCost'] as num?)?.toDouble(),
+      notes: data['notes'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
