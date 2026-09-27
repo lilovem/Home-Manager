@@ -591,24 +591,17 @@ class _MainInfoPage extends StatelessWidget {
         Text(
           vehicle.displayName,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 16),
         ),
         Text(
           vehicle.licensePlate,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
+          style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w600),
           textDirection: TextDirection.ltr,
         ),
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(
-              child: _DateChip(
-                label: AppStrings.licenseExpiryLabel,
-                date: vehicle.licenseExpiryDate,
-              ),
-            ),
-            const SizedBox(width: 8),
             Expanded(
               child: _DateChip(
                 label: AppStrings.mandatoryInsuranceLabel,
@@ -782,7 +775,7 @@ class _MaintenanceTopPreview extends ConsumerWidget {
       children: [
         Text(
           AppStrings.maintenancePageTitle,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 16),
         ),
         const SizedBox(height: 16),
         Row(
@@ -842,7 +835,7 @@ class _InsurancePage extends StatelessWidget {
         Text(
           AppStrings.insuranceDocumentsTitle,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 16),
         ),
         const SizedBox(height: 10),
         ...rows.map((row) {
@@ -1041,14 +1034,13 @@ class _NotesCard extends ConsumerWidget {
                       AppStrings.notesTitle,
                       style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
                     ),
-                    Text(
-                      hasNotes ? vehicle.notes! : AppStrings.notesHint,
-                      style: hasNotes
-                          ? AppTextStyles.heading2.copyWith(fontSize: 13)
-                          : AppTextStyles.bodySecondary.copyWith(fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    if (hasNotes)
+                      Text(
+                        vehicle.notes!,
+                        style: AppTextStyles.heading2.copyWith(fontSize: 13),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
               ),
@@ -1113,11 +1105,23 @@ class _NextServiceCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Text(
-                    next.remaining < 0
-                        ? '${AppStrings.overdueByLabel} ${-next.remaining} ${AppStrings.kmUnit}'
-                        : '${AppStrings.nextServiceInLabel} ${next.remaining} ${AppStrings.kmUnit}',
-                    style: TextStyle(color: next.color, fontWeight: FontWeight.bold, fontSize: 13),
+                  Text.rich(
+                    TextSpan(
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      children: [
+                        TextSpan(
+                          text: next.remaining < 0
+                              ? '${AppStrings.overdueByLabel} '
+                              : '${AppStrings.nextServiceInLabel} ',
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                        TextSpan(
+                          text:
+                              '${next.remaining < 0 ? -next.remaining : next.remaining} ${AppStrings.kmUnit}',
+                          style: TextStyle(color: next.color),
+                        ),
+                      ],
+                    ),
                     textAlign: TextAlign.end,
                   ),
                 ],
@@ -1680,27 +1684,30 @@ class _DateChip extends StatelessWidget {
     final displayColor = days != null && days > 30 ? const Color(0xFF7CE0C6) : color;
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: displayColor.withOpacity(0.5)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             days == null
                 ? AppStrings.notSetLabel
                 : days < 0
                     ? AppStrings.expiredLabel
                     : '$days ${AppStrings.daysLabel}',
-            style: TextStyle(color: displayColor, fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(color: displayColor, fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ],
       ),
@@ -1728,16 +1735,29 @@ class _MileageCard extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryLight,
-                  shape: BoxShape.circle,
+              // "שעון" דשבורד עיטורי - טבעת התקדמות קבועה ואייקון מד-מהירות
+              // במרכזה, כדי שהקילומטראז' יראה כמו תצוגה ברכב.
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 52,
+                      height: 52,
+                      child: CircularProgressIndicator(
+                        value: 0.72,
+                        strokeWidth: 4,
+                        backgroundColor: AppColors.divider,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
+                    const Icon(Icons.speed_outlined, color: AppColors.primary, size: 22),
+                  ],
                 ),
-                child: const Icon(Icons.speed_outlined, color: AppColors.primary, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Flexible(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1747,10 +1767,28 @@ class _MileageCard extends StatelessWidget {
                       AppStrings.currentMileageLabel,
                       style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
                     ),
-                    Text(
-                      '${AppStrings.kmUnit} ${vehicle.currentMileage}',
-                      style: AppTextStyles.heading2.copyWith(fontSize: 16),
-                      textDirection: TextDirection.ltr,
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        textDirection: TextDirection.ltr,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            AppStrings.kmUnit,
+                            style: AppTextStyles.bodySecondary.copyWith(fontSize: 12),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${vehicle.currentMileage}',
+                            style: AppTextStyles.heading2.copyWith(fontSize: 18),
+                            textDirection: TextDirection.ltr,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
