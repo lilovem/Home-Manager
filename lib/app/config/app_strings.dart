@@ -4,6 +4,7 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String insuranceAnnualCostTitle = "עלות ביטוח שנתית";
   static const String renewalJourneyTitle = "המסע לחידוש";
   static const String notSetCostLabel = "לא הוזן";
   static const String insuranceCostFieldLabel = "סכום בשקלים";

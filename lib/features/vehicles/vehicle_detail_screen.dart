@@ -14,8 +14,8 @@ import 'vehicle_photo_picker.dart';
 import 'vehicles_background_provider.dart';
 import 'vehicles_list_screen.dart' show colorForDaysRemaining, daysUntil;
 
-/// אייקון קבוע לכל סוג טיפול - משותף בין בורר סוגי הטיפול בעמוד
-/// הטיפולים לבין חלוניות הפרטים שנפתחות ממקומות שונים במסך.
+/// אייקון קבוע לכל סוג טיפול - משותף בין הרשת (_MaintenanceSection),
+/// בורר סוגי הטיפול, ותצוגת התקציר בכרטיס העליון.
 const Map<String, IconData> _kMaintenanceIcons = {
   'oilChange': Icons.opacity,
   'majorService': Icons.build_circle_outlined,
@@ -24,8 +24,8 @@ const Map<String, IconData> _kMaintenanceIcons = {
 };
 
 /// סטטוס טיפול מחושב עבור סוג טיפול בודד (כמה ק"מ נשארו/כמה איחור) -
-/// מחושב פעם אחת ומשותף בין עמוד 1 ("הטיפול הבא"), עמוד 2 (הרשימה
-/// הקצרה של הטיפולים הקרובים) וחלונית הפרטים, כדי לא לכפול לוגיקה.
+/// מחושב פעם אחת ומשותף בין תצוגת "הטיפול הבא", רשת הטיפולים,
+/// ותקציר הכרטיס העליון, כדי לא לכפול לוגיקה.
 class MaintenanceStatus {
   final String key;
   final String name;
@@ -83,9 +83,8 @@ List<MaintenanceStatus> computeMaintenanceStatuses(
   }).toList();
 }
 
-/// חלונית פרטי טיפול משותפת - נפתחת מעמוד 1 ("הטיפול הבא"), מהרשימה
-/// הקצרה בעמוד 2 ומבורר סוגי הטיפול. מציגה כמה נשאר/כמה איחור
-/// ותיאור קצר של הטיפול.
+/// חלונית פרטי טיפול משותפת - נפתחת מ"הטיפול הבא", מרשת הטיפולים,
+/// ומבורר סוגי הטיפול. מציגה כמה נשאר/כמה איחור ותיאור קצר.
 void showMaintenanceDetailSheet(BuildContext context, MaintenanceStatus status) {
   showModalBottomSheet(
     context: context,
@@ -131,11 +130,11 @@ void showMaintenanceDetailSheet(BuildContext context, MaintenanceStatus status) 
   );
 }
 
-/// מסך פרטי רכב בודד - כל התוכן מרוכז בכרטיס אחד עם 3 עמודים
-/// שמחליקים ביניהם (ראה _DatesHeaderCard): מסך ראשי, טיפולים,
-/// וביטוחים. אין גלילה כלל במסך הזה - הכרטיס תופס את כל הגובה
-/// שנשאר מתחת לסרגל העליון.
-class VehicleDetailScreen extends ConsumerWidget {
+/// מסך פרטי רכב בודד - כרטיס עליון קבוע בגודלו (בדיוק כמו שהיה) עם 3
+/// עמודים שמחליקים ביניהם (מסך ראשי/טיפולים/ביטוחים), ומתחתיו אזור
+/// אחד שמשתנה אוטומטית לפי העמוד המוצג למעלה - כך שכל עמוד "מרגיש"
+/// כמו מסך שלם, בלי גלילה בשום מקום.
+class VehicleDetailScreen extends ConsumerStatefulWidget {
   final String householdId;
   final String vehicleId;
 
@@ -144,6 +143,13 @@ class VehicleDetailScreen extends ConsumerWidget {
     required this.householdId,
     required this.vehicleId,
   });
+
+  @override
+  ConsumerState<VehicleDetailScreen> createState() => _VehicleDetailScreenState();
+}
+
+class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
+  int _activePage = 0;
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Vehicle vehicle) async {
     final confirmed = await showDialog<bool>(
@@ -167,7 +173,7 @@ class VehicleDetailScreen extends ConsumerWidget {
     if (confirmed == true) {
       await ref
           .read(vehiclesRepositoryProvider)
-          .deleteVehicle(householdId: householdId, vehicleId: vehicle.id);
+          .deleteVehicle(householdId: widget.householdId, vehicleId: vehicle.id);
       if (context.mounted) Navigator.of(context).pop();
     }
   }
@@ -201,7 +207,7 @@ class VehicleDetailScreen extends ConsumerWidget {
 
     if (result != null) {
       await ref.read(vehiclesRepositoryProvider).updateMileage(
-            householdId: householdId,
+            householdId: widget.householdId,
             vehicleId: vehicle.id,
             newMileage: result,
           );
@@ -209,10 +215,11 @@ class VehicleDetailScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vehicleAsync =
-        ref.watch(vehicleDetailProvider((householdId: householdId, vehicleId: vehicleId)));
-    final backgroundId = ref.watch(vehiclesBackgroundIdProvider(householdId)).value ?? 'none';
+  Widget build(BuildContext context) {
+    final vehicleAsync = ref
+        .watch(vehicleDetailProvider((householdId: widget.householdId, vehicleId: widget.vehicleId)));
+    final backgroundId =
+        ref.watch(vehiclesBackgroundIdProvider(widget.householdId)).value ?? 'none';
     final background = backgroundOptionById(backgroundId);
     final hasBackground = background.id != 'none';
 
@@ -239,7 +246,7 @@ class VehicleDetailScreen extends ConsumerWidget {
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => AddEditVehicleScreen(
-                          householdId: householdId,
+                          householdId: widget.householdId,
                           existing: vehicle,
                         ),
                       ),
@@ -276,11 +283,25 @@ class VehicleDetailScreen extends ConsumerWidget {
 
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: _DatesHeaderCard(
-                  householdId: householdId,
-                  vehicle: vehicle,
-                  onUpdateMileage: () => _updateMileage(context, ref, vehicle),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _DatesHeaderCard(
+                      householdId: widget.householdId,
+                      vehicle: vehicle,
+                      onPageChanged: (i) => setState(() => _activePage = i),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: _BottomContentArea(
+                        page: _activePage,
+                        householdId: widget.householdId,
+                        vehicle: vehicle,
+                        onUpdateMileage: () => _updateMileage(context, ref, vehicle),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -291,21 +312,20 @@ class VehicleDetailScreen extends ConsumerWidget {
   }
 }
 
-/// כרטיס בולט שתופס את כל הגובה הפנוי מתחת לסרגל העליון - 3
-/// "עמודים" ניתנים להחלקה (PageView) עם נקודות סימון (dots) למטה:
-/// עמוד 1 - מסך ראשי (תמונה/שם/מספר רישוי, קילומטראז', צ'יפים
-/// לרישיון/ביטוחים, והטיפול הבא). עמוד 2 - "טיפולים" (בחירת סוג
-/// טיפול/עריכת מרווחים, טיפולים קרובים, קישור להיסטוריה). עמוד 3 -
-/// "ביטוחים" (מסמכים + עלויות + מסע לחידוש). שלושת העמודים על אותו
-/// רקע גרדיאנט כהה.
+/// כרטיס בולט למעלה - קבוע בגודלו (בדיוק כמו שהיה) עם 3 עמודים
+/// ניתנים להחלקה: עמוד 1 - מסך ראשי (תמונה/שם/מספר רישוי + 3 צ'יפים
+/// עם כמות הימים שנותרו). עמוד 2 - תקציר "טיפולים". עמוד 3 -
+/// "ביטוחים" (מסמכים עם העלאה/צפייה/מחיקה/שיתוף). שלושת העמודים על
+/// אותו רקע גרדיאנט כהה. משנה עמוד גם מדווח החוצה (onPageChanged) כדי
+/// שהאזור שמתחת לכרטיס ידע איזה תוכן להציג.
 class _DatesHeaderCard extends ConsumerStatefulWidget {
   final String householdId;
   final Vehicle vehicle;
-  final VoidCallback onUpdateMileage;
+  final ValueChanged<int> onPageChanged;
   const _DatesHeaderCard({
     required this.householdId,
     required this.vehicle,
-    required this.onUpdateMileage,
+    required this.onPageChanged,
   });
 
   @override
@@ -320,14 +340,6 @@ class _DatesHeaderCardState extends ConsumerState<_DatesHeaderCard> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  void _goToPage(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
   Future<void> _saveDocument(String fieldKey, String? dataUrl) {
@@ -507,23 +519,21 @@ class _DatesHeaderCardState extends ConsumerState<_DatesHeaderCard> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         children: [
-          Expanded(
+          SizedBox(
+            height: 210,
             child: PageView(
               controller: _pageController,
-              onPageChanged: (i) => setState(() => _page = i),
+              onPageChanged: (i) {
+                setState(() => _page = i);
+                widget.onPageChanged(i);
+              },
               children: [
-                _MainInfoPage(
-                  householdId: widget.householdId,
-                  vehicle: vehicle,
-                  onUpdateMileage: widget.onUpdateMileage,
-                  onNavigateToInsurance: () => _goToPage(2),
-                ),
-                _MaintenancePage(householdId: widget.householdId, vehicle: vehicle),
+                _MainInfoPage(householdId: widget.householdId, vehicle: vehicle),
+                _MaintenanceTopPreview(householdId: widget.householdId, vehicle: vehicle),
                 _InsurancePage(
-                  householdId: widget.householdId,
                   vehicle: vehicle,
                   onUploadTap: _showUploadSourceSheet,
                   onView: _viewDocument,
@@ -532,7 +542,7 @@ class _DatesHeaderCardState extends ConsumerState<_DatesHeaderCard> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(3, (i) {
@@ -554,31 +564,17 @@ class _DatesHeaderCardState extends ConsumerState<_DatesHeaderCard> {
   }
 }
 
-/// עמוד 1 בהחלקה - מסך ראשי: תמונה/שם/מספר רישוי + קילומטראז' (עם
-/// עריכה), 3 צ'יפים קומפקטיים לרישיון/ביטוח חובה/ביטוח מקיף (לחיצה
-/// עליהם קופצת ישר לעמוד הביטוחים), ובתחתית - תצוגת "הטיפול הבא"
-/// (הפריט הכי דחוף מתוך כל סוגי הטיפול העוקבים).
-class _MainInfoPage extends ConsumerWidget {
+/// עמוד 1 בהחלקה - התוכן המקורי: תמונה/שם/מספר רישוי, ומתחת 3
+/// צ'יפים עם כמות הימים שנותרו לכל תאריך (בדיוק כמו שהיה).
+class _MainInfoPage extends StatelessWidget {
   final String householdId;
   final Vehicle vehicle;
-  final VoidCallback onUpdateMileage;
-  final VoidCallback onNavigateToInsurance;
-
-  const _MainInfoPage({
-    required this.householdId,
-    required this.vehicle,
-    required this.onUpdateMileage,
-    required this.onNavigateToInsurance,
-  });
+  const _MainInfoPage({required this.householdId, required this.vehicle});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final recordsAsync = ref.watch(
-      vehicleServiceRecordsProvider((householdId: householdId, vehicleId: vehicle.id)),
-    );
-
+  Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,7 +583,7 @@ class _MainInfoPage extends ConsumerWidget {
               offset: const Offset(0, -6),
               child: _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,186 +600,339 @@ class _MainInfoPage extends ConsumerWidget {
                 ],
               ),
             ),
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onUpdateMileage,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${vehicle.currentMileage}',
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                          textDirection: TextDirection.ltr,
-                        ),
-                        const SizedBox(width: 3),
-                        const Icon(Icons.edit_outlined, color: Colors.white54, size: 12),
-                      ],
-                    ),
-                    const Text(
-                      AppStrings.kmUnit,
-                      style: TextStyle(color: Colors.white60, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
+        const SizedBox(height: 18),
         Row(
           children: [
             Expanded(
-              child: _CompactStatusChip(
+              child: _DateChip(
                 label: AppStrings.licenseExpiryLabel,
                 date: vehicle.licenseExpiryDate,
-                onTap: onNavigateToInsurance,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Expanded(
-              child: _CompactStatusChip(
+              child: _DateChip(
                 label: AppStrings.mandatoryInsuranceLabel,
                 date: vehicle.mandatoryInsuranceExpiryDate,
-                onTap: onNavigateToInsurance,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Expanded(
-              child: _CompactStatusChip(
+              child: _DateChip(
                 label: AppStrings.comprehensiveInsuranceLabel,
                 date: vehicle.comprehensiveInsuranceExpiryDate,
-                onTap: onNavigateToInsurance,
               ),
             ),
           ],
-        ),
-        recordsAsync.when(
-          data: (records) {
-            final statuses = computeMaintenanceStatuses(vehicle, records)
-              ..sort((a, b) => a.remaining.compareTo(b.remaining));
-            if (statuses.isEmpty) return const SizedBox.shrink();
-            final next = statuses.first;
-            return InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => showMaintenanceDetailSheet(context, next),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(next.icon, color: next.color, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${AppStrings.nextServiceLabel}: ${next.name}',
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      next.remaining < 0
-                          ? '${AppStrings.overdueByLabel} ${-next.remaining}'
-                          : '${AppStrings.nextServiceInLabel} ${next.remaining}',
-                      style: TextStyle(color: next.color, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (e, st) => const SizedBox.shrink(),
         ),
       ],
     );
   }
 }
 
-/// צ'יפ קומפקטי לתצוגת סטטוס תאריך (רישיון/ביטוח) - כמו _DateChip
-/// הישן, אבל קטן משמעותית (רק מספר הימים, בלי המילה "ימים") כדי
-/// שיהיה מקום גם לקילומטראז' וגם ל"טיפול הבא" באותו עמוד. לחיצה
-/// עליו קופצת לעמוד הביטוחים לפרטים המלאים.
-class _CompactStatusChip extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final VoidCallback onTap;
-
-  const _CompactStatusChip({required this.label, required this.date, required this.onTap});
+/// עמוד 2 בהחלקה - תקציר "טיפולים" קטן בתוך הכרטיס העליון: אייקון,
+/// כותרת, ועיגול צבעוני לכל סוג טיפול (לפי דחיפות). כל הפרטים
+/// המלאים (עריכת מרווחים, טיפולים קרובים, היסטוריה) מוצגים באזור
+/// שמתחת לכרטיס.
+class _MaintenanceTopPreview extends ConsumerWidget {
+  final String householdId;
+  final Vehicle vehicle;
+  const _MaintenanceTopPreview({required this.householdId, required this.vehicle});
 
   @override
-  Widget build(BuildContext context) {
-    final days = daysUntil(date);
-    final color = colorForDaysRemaining(days);
-    final displayColor = days != null && days > 30 ? const Color(0xFF7CE0C6) : color;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recordsAsync = ref.watch(
+      vehicleServiceRecordsProvider((householdId: householdId, vehicleId: vehicle.id)),
+    );
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: displayColor.withOpacity(0.5)),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.build_circle_outlined, color: Colors.white, size: 42),
+        const SizedBox(height: 10),
+        Text(
+          AppStrings.maintenancePageTitle,
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 9),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              days == null
-                  ? AppStrings.notSetLabel
-                  : days < 0
-                      ? AppStrings.expiredLabel
-                      : '$days',
-              style: TextStyle(color: displayColor, fontWeight: FontWeight.bold, fontSize: 13),
-              textDirection: TextDirection.ltr,
-            ),
-          ],
+        const SizedBox(height: 18),
+        recordsAsync.when(
+          data: (records) {
+            final statuses = computeMaintenanceStatuses(vehicle, records);
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: statuses.map((s) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: s.color.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: s.color.withOpacity(0.6)),
+                    ),
+                    child: Icon(s.icon, color: s.color, size: 18),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+          loading: () => const SizedBox(height: 36),
+          error: (e, st) => const SizedBox(height: 36),
         ),
-      ),
+      ],
     );
   }
 }
 
-/// עמוד 2 בהחלקה - "טיפולים": למעלה בורר אופקי של סוגי הטיפול (עם
-/// המרווח הנוכחי של כל אחד, לחיצה פותחת עריכת מרווח) + כפתור עגול
-/// להוספת תיעוד טיפול חדש. למטה - הטיפולים הקרובים ביותר וכפתור
-/// לפתיחת היסטוריית הטיפולים המלאה (מסך נפרד, עם אפשרות מחיקה).
-class _MaintenancePage extends StatelessWidget {
+/// עמוד 3 בהחלקה - "ביטוחים": שורה לכל אחד מ-3 התאריכים (רישיון,
+/// ביטוח חובה, ביטוח מקיף) עם התאריך עצמו, וכפתור להעלאת/צפייה
+/// בקובץ סרוק/מצולם של המסמך הפיזי (בדיוק כמו שהיה).
+class _InsurancePage extends StatelessWidget {
+  final Vehicle vehicle;
+  final void Function(BuildContext context, String fieldKey) onUploadTap;
+  final void Function(BuildContext context, String? dataUrl) onView;
+  final void Function(BuildContext context, String fieldKey) onDelete;
+
+  const _InsurancePage({
+    required this.vehicle,
+    required this.onUploadTap,
+    required this.onView,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = [
+      (
+        label: AppStrings.licenseExpiryLabel,
+        date: vehicle.licenseExpiryDate,
+        fieldKey: 'licenseDocumentDataUrl',
+        documentDataUrl: vehicle.licenseDocumentDataUrl,
+      ),
+      (
+        label: AppStrings.mandatoryInsuranceLabel,
+        date: vehicle.mandatoryInsuranceExpiryDate,
+        fieldKey: 'mandatoryInsuranceDocumentDataUrl',
+        documentDataUrl: vehicle.mandatoryInsuranceDocumentDataUrl,
+      ),
+      (
+        label: AppStrings.comprehensiveInsuranceLabel,
+        date: vehicle.comprehensiveInsuranceExpiryDate,
+        fieldKey: 'comprehensiveInsuranceDocumentDataUrl',
+        documentDataUrl: vehicle.comprehensiveInsuranceDocumentDataUrl,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          AppStrings.insuranceDocumentsTitle,
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
+        ),
+        const SizedBox(height: 10),
+        ...rows.map((row) {
+          final days = daysUntil(row.date);
+          final color = colorForDaysRemaining(days);
+          final displayColor = days != null && days > 30 ? const Color(0xFF7CE0C6) : color;
+          final hasDocument = row.documentDataUrl != null;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(row.label,
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(
+                        row.date == null ? AppStrings.notSetLabel : formatPrettyDateHe(row.date!),
+                        style: TextStyle(
+                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasDocument)
+                  IconButton(
+                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 20),
+                    tooltip: AppStrings.viewDocumentTooltip,
+                    onPressed: () => onView(context, row.documentDataUrl),
+                  ),
+                IconButton(
+                  icon: Icon(
+                    hasDocument ? Icons.sync : Icons.upload_file_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  tooltip: AppStrings.uploadDocumentTooltip,
+                  onPressed: () => onUploadTap(context, row.fieldKey),
+                ),
+                if (hasDocument)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 20),
+                    tooltip: AppStrings.deleteDocumentTooltip,
+                    onPressed: () => onDelete(context, row.fieldKey),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+/// אזור שמוצג מתחת לכרטיס העליון - מתחלף אוטומטית לפי העמוד שמוצג
+/// למעלה (page), כדי שכל עמוד ירגיש מלא ומעניין בלי גלילה.
+class _BottomContentArea extends StatelessWidget {
+  final int page;
+  final String householdId;
+  final Vehicle vehicle;
+  final VoidCallback onUpdateMileage;
+
+  const _BottomContentArea({
+    required this.page,
+    required this.householdId,
+    required this.vehicle,
+    required this.onUpdateMileage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    switch (page) {
+      case 1:
+        return _MaintenanceBottom(householdId: householdId, vehicle: vehicle);
+      case 2:
+        return _InsuranceBottom(householdId: householdId, vehicle: vehicle);
+      default:
+        return _MainInfoBottom(
+          householdId: householdId,
+          vehicle: vehicle,
+          onUpdateMileage: onUpdateMileage,
+        );
+    }
+  }
+}
+
+/// אזור תחתון לעמוד 1 - קילומטראז' (עם עריכה, בדיוק כמו שהיה) ומתחתיו
+/// "הטיפול הבא" (הכי דחוף מתוך כל סוגי הטיפול העוקבים).
+class _MainInfoBottom extends StatelessWidget {
+  final String householdId;
+  final Vehicle vehicle;
+  final VoidCallback onUpdateMileage;
+
+  const _MainInfoBottom({
+    required this.householdId,
+    required this.vehicle,
+    required this.onUpdateMileage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Center(child: _MileageCard(vehicle: vehicle, onUpdate: onUpdateMileage)),
+        const SizedBox(height: 24),
+        _NextServiceCard(householdId: householdId, vehicle: vehicle),
+      ],
+    );
+  }
+}
+
+/// כרטיס "הטיפול הבא" - מציג את הפריט הכי דחוף מתוך כל סוגי הטיפול
+/// העוקבים, בסגנון עקבי לכרטיס הקילומטראז' שמעליו.
+class _NextServiceCard extends ConsumerWidget {
   final String householdId;
   final Vehicle vehicle;
 
-  const _MaintenancePage({required this.householdId, required this.vehicle});
+  const _NextServiceCard({required this.householdId, required this.vehicle});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recordsAsync = ref.watch(
+      vehicleServiceRecordsProvider((householdId: householdId, vehicleId: vehicle.id)),
+    );
+
+    return recordsAsync.when(
+      data: (records) {
+        final statuses = computeMaintenanceStatuses(vehicle, records)
+          ..sort((a, b) => a.remaining.compareTo(b.remaining));
+        if (statuses.isEmpty) return const SizedBox.shrink();
+        final next = statuses.first;
+
+        return InkWell(
+          onTap: () => showMaintenanceDetailSheet(context, next),
+          borderRadius: BorderRadius.circular(16),
+          child: Card(
+            elevation: 2,
+            color: Colors.white.withOpacity(0.8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration:
+                        BoxDecoration(color: next.color.withOpacity(0.15), shape: BoxShape.circle),
+                    child: Icon(next.icon, color: next.color, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          AppStrings.nextServiceLabel,
+                          style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                        ),
+                        Text(next.name, style: AppTextStyles.heading2.copyWith(fontSize: 15)),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    next.remaining < 0
+                        ? '${AppStrings.overdueByLabel} ${-next.remaining} ${AppStrings.kmUnit}'
+                        : '${AppStrings.nextServiceInLabel} ${next.remaining} ${AppStrings.kmUnit}',
+                    style: TextStyle(color: next.color, fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.end,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, st) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// אזור תחתון לעמוד 2 - בורר סוגי הטיפול (עריכת מרווחים + הוספת
+/// תיעוד), מתחתיו רשת הטיפולים (בדיוק כמו שהיה במקור), ובתחתית כפתור
+/// לפתיחת היסטוריית הטיפולים המלאה במסך נפרד.
+class _MaintenanceBottom extends StatelessWidget {
+  final String householdId;
+  final Vehicle vehicle;
+
+  const _MaintenanceBottom({required this.householdId, required this.vehicle});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          AppStrings.maintenancePageTitle,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
-        ),
-        const SizedBox(height: 6),
         _MaintenanceTypeSelector(
           householdId: householdId,
           vehicle: vehicle,
@@ -797,9 +946,31 @@ class _MaintenancePage extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         Expanded(
-          child: _MaintenancePageBottom(householdId: householdId, vehicle: vehicle),
+          child: Center(
+            child: _MaintenanceSection(householdId: householdId, vehicle: vehicle),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ServiceHistoryScreen(
+                  householdId: householdId,
+                  vehicleId: vehicle.id,
+                  currentMileage: vehicle.currentMileage,
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.history, size: 18),
+            label: const Text(AppStrings.serviceHistoryButton),
+          ),
         ),
       ],
     );
@@ -807,9 +978,8 @@ class _MaintenancePage extends StatelessWidget {
 }
 
 /// בורר סוגי הטיפול - רשימה אופקית של "כרטיסיות" (אחת לכל סוג),
-/// לחיצה על כרטיסייה פותחת עריכת המרווח שלה. זו הדרך היחידה לערוך
-/// מרווחים כעת - קלטה את מקום חלונית ה-☰ הישנה. כפתור "+" בסוף
-/// הרשימה פותח את מסך הוספת תיעוד הטיפול.
+/// לחיצה על כרטיסייה פותחת עריכת המרווח שלה - קלטה את מקום חלונית
+/// ה-☰ הישנה. כפתור "+" בסוף הרשימה פותח את מסך הוספת תיעוד הטיפול.
 class _MaintenanceTypeSelector extends ConsumerWidget {
   final String householdId;
   final Vehicle vehicle;
@@ -866,7 +1036,7 @@ class _MaintenanceTypeSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
-      height: 64,
+      height: 66,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -882,27 +1052,28 @@ class _MaintenanceTypeSelector extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(14),
                 onTap: () => _editIntervalDialog(context, ref, key, name, interval),
                 child: Container(
-                  width: 82,
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+                  width: 84,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(icon, color: Colors.white, size: 17),
-                      const SizedBox(height: 3),
+                      Icon(icon, color: AppColors.primary, size: 18),
+                      const SizedBox(height: 4),
                       Text(
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                        style: AppTextStyles.bodySecondary
+                            .copyWith(fontSize: 10, fontWeight: FontWeight.w600),
                       ),
                       Text(
                         '$interval ${AppStrings.kmUnit}',
-                        style: const TextStyle(color: Colors.white60, fontSize: 9),
+                        style: AppTextStyles.bodySecondary.copyWith(fontSize: 9),
                         textDirection: TextDirection.ltr,
                       ),
                     ],
@@ -919,12 +1090,12 @@ class _MaintenanceTypeSelector extends ConsumerWidget {
               child: Container(
                 width: 60,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.25),
+                  color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white38),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.4)),
                 ),
                 child: const Center(
-                  child: Icon(Icons.add, color: Colors.white, size: 24),
+                  child: Icon(Icons.add, color: AppColors.primary, size: 26),
                 ),
               ),
             ),
@@ -935,13 +1106,17 @@ class _MaintenanceTypeSelector extends ConsumerWidget {
   }
 }
 
-/// חלק תחתון של עמוד הטיפולים - הטיפולים הקרובים ביותר (עד 2), וכפתור
-/// לפתיחת היסטוריית הטיפולים המלאה במסך נפרד (שם אפשר גם למחוק).
-class _MaintenancePageBottom extends ConsumerWidget {
+/// רשת הטיפולים - שורת אייקונים קטנים וקומפקטיים (אחד לכל סוג
+/// טיפול), צבועים לפי דחיפות. לחיצה על אייקון פותחת חלונית עם כל
+/// הפרטים (בדיוק כמו שהיה במקור, לפני היום).
+class _MaintenanceSection extends ConsumerWidget {
   final String householdId;
   final Vehicle vehicle;
 
-  const _MaintenancePageBottom({required this.householdId, required this.vehicle});
+  const _MaintenanceSection({
+    required this.householdId,
+    required this.vehicle,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -950,214 +1125,131 @@ class _MaintenancePageBottom extends ConsumerWidget {
     );
 
     return recordsAsync.when(
-      loading: () => const SizedBox.shrink(),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
       error: (e, st) => const SizedBox.shrink(),
       data: (records) {
-        final statuses = computeMaintenanceStatuses(vehicle, records)
-          ..sort((a, b) => a.remaining.compareTo(b.remaining));
-        final upcoming = statuses.take(2).toList();
+        final statuses = computeMaintenanceStatuses(vehicle, records);
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  AppStrings.upcomingMaintenanceTitle,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+        final tiles = statuses.map((s) {
+          final isUrgent = s.remaining < 0;
+
+          return Material(
+            color: Colors.white.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => showMaintenanceDetailSheet(context, s),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: s.color.withOpacity(0.35)),
                 ),
-                const SizedBox(height: 4),
-                if (upcoming.isEmpty)
-                  Text(
-                    AppStrings.noUpcomingMaintenance,
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
-                  )
-                else
-                  ...upcoming.map((s) => InkWell(
-                        onTap: () => showMaintenanceDetailSheet(context, s),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
-                            children: [
-                              Icon(s.icon, color: s.color, size: 15),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  s.name,
-                                  style: const TextStyle(color: Colors.white, fontSize: 11),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                s.remaining < 0
-                                    ? '${AppStrings.overdueByLabel} ${-s.remaining}'
-                                    : '${AppStrings.nextServiceInLabel} ${s.remaining}',
-                                style: TextStyle(
-                                    color: s.color, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: s.color.withOpacity(0.15),
+                            shape: BoxShape.circle,
                           ),
+                          child: Icon(s.icon, color: s.color, size: 16),
                         ),
-                      )),
-              ],
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white38),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                ),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ServiceHistoryScreen(
-                      householdId: householdId,
-                      vehicleId: vehicle.id,
-                      currentMileage: vehicle.currentMileage,
+                        const Spacer(),
+                        if (isUrgent)
+                          const Icon(Icons.error, color: AppColors.error, size: 14),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      s.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySecondary
+                          .copyWith(fontWeight: FontWeight.w600, fontSize: 12),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      s.remaining < 0
+                          ? '${AppStrings.overdueByLabel} ${-s.remaining} ${AppStrings.kmUnit}'
+                          : '${AppStrings.nextServiceInLabel} ${s.remaining} ${AppStrings.kmUnit}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: s.color, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text(AppStrings.serviceHistoryButton, style: TextStyle(fontSize: 12)),
               ),
             ),
-          ],
+          );
+        }).toList();
+
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.35,
+          children: tiles,
         );
       },
     );
   }
 }
 
-/// עמוד 3 בהחלקה - "ביטוחים": שורה לכל אחד מ-3 המסמכים (רישיון,
-/// ביטוח חובה, ביטוח מקיף) עם התאריך והעלאת/צפייה/מחיקה/שיתוף של
-/// הקובץ הסרוק. בתחתית - עלות שנתית לחובה/מקיף (עריכה בהקשה), ו"מסע
-/// לחידוש" ויזואלי לכל אחד מ-3 המסמכים.
-class _InsurancePage extends StatelessWidget {
+/// אזור תחתון לעמוד 3 - עלות ביטוח שנתית (חובה/מקיף, עריכה בהקשה)
+/// ו"מסע לחידוש" ויזואלי לכל אחד מ-3 המסמכים (רישיון/חובה/מקיף).
+class _InsuranceBottom extends StatelessWidget {
   final String householdId;
   final Vehicle vehicle;
-  final void Function(BuildContext context, String fieldKey) onUploadTap;
-  final void Function(BuildContext context, String? dataUrl) onView;
-  final void Function(BuildContext context, String fieldKey) onDelete;
 
-  const _InsurancePage({
-    required this.householdId,
-    required this.vehicle,
-    required this.onUploadTap,
-    required this.onView,
-    required this.onDelete,
-  });
+  const _InsuranceBottom({required this.householdId, required this.vehicle});
 
   @override
   Widget build(BuildContext context) {
-    final rows = [
-      (
-        label: AppStrings.licenseExpiryLabel,
-        date: vehicle.licenseExpiryDate,
-        fieldKey: 'licenseDocumentDataUrl',
-        documentDataUrl: vehicle.licenseDocumentDataUrl,
-      ),
-      (
-        label: AppStrings.mandatoryInsuranceLabel,
-        date: vehicle.mandatoryInsuranceExpiryDate,
-        fieldKey: 'mandatoryInsuranceDocumentDataUrl',
-        documentDataUrl: vehicle.mandatoryInsuranceDocumentDataUrl,
-      ),
-      (
-        label: AppStrings.comprehensiveInsuranceLabel,
-        date: vehicle.comprehensiveInsuranceExpiryDate,
-        fieldKey: 'comprehensiveInsuranceDocumentDataUrl',
-        documentDataUrl: vehicle.comprehensiveInsuranceDocumentDataUrl,
-      ),
-    ];
-
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          AppStrings.insuranceDocumentsTitle,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 14),
+          AppStrings.insuranceAnnualCostTitle,
+          style: AppTextStyles.heading2.copyWith(fontSize: 14),
         ),
-        const SizedBox(height: 4),
-        ...rows.map((row) {
-          final days = daysUntil(row.date);
-          final color = colorForDaysRemaining(days);
-          final displayColor = days != null && days > 30 ? const Color(0xFF7CE0C6) : color;
-          final hasDocument = row.documentDataUrl != null;
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(row.label,
-                          style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                      Text(
-                        row.date == null ? AppStrings.notSetLabel : formatPrettyDateHe(row.date!),
-                        style: TextStyle(
-                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                if (hasDocument)
-                  IconButton(
-                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 18),
-                    tooltip: AppStrings.viewDocumentTooltip,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => onView(context, row.documentDataUrl),
-                  ),
-                IconButton(
-                  icon: Icon(
-                    hasDocument ? Icons.sync : Icons.upload_file_outlined,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  tooltip: AppStrings.uploadDocumentTooltip,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => onUploadTap(context, row.fieldKey),
-                ),
-                if (hasDocument)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 18),
-                    tooltip: AppStrings.deleteDocumentTooltip,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => onDelete(context, row.fieldKey),
-                  ),
-              ],
-            ),
-          );
-        }),
-        const SizedBox(height: 6),
-        _InsuranceCostRow(householdId: householdId, vehicle: vehicle),
         const SizedBox(height: 8),
+        _InsuranceCostRow(householdId: householdId, vehicle: vehicle),
+        const SizedBox(height: 22),
         Text(
           AppStrings.renewalJourneyTitle,
-          style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+          style: AppTextStyles.heading2.copyWith(fontSize: 14),
         ),
-        const SizedBox(height: 2),
-        _RenewalJourneyRow(
+        const SizedBox(height: 8),
+        _RenewalJourneyCard(
           label: AppStrings.licenseExpiryLabel,
+          icon: Icons.badge_outlined,
           expiryDate: vehicle.licenseExpiryDate,
-          color: const Color(0xFF7FD6FF),
+          color: const Color(0xFF4F9DDE),
         ),
-        _RenewalJourneyRow(
+        _RenewalJourneyCard(
           label: AppStrings.mandatoryInsuranceLabel,
+          icon: Icons.shield_outlined,
           expiryDate: vehicle.mandatoryInsuranceExpiryDate,
-          color: const Color(0xFFFFB768),
+          color: const Color(0xFFE0982E),
         ),
-        _RenewalJourneyRow(
+        _RenewalJourneyCard(
           label: AppStrings.comprehensiveInsuranceLabel,
+          icon: Icons.security,
           expiryDate: vehicle.comprehensiveInsuranceExpiryDate,
-          color: const Color(0xFF7CE0C6),
+          color: const Color(0xFF3FA97A),
         ),
       ],
     );
@@ -1178,7 +1270,8 @@ class _InsuranceCostRow extends ConsumerWidget {
     String fieldKey,
     double? current,
   ) async {
-    final controller = TextEditingController(text: current == null ? '' : current.toStringAsFixed(0));
+    final controller =
+        TextEditingController(text: current == null ? '' : current.toStringAsFixed(0));
     final result = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1216,21 +1309,23 @@ class _InsuranceCostRow extends ConsumerWidget {
   Widget _chip(BuildContext context, WidgetRef ref, String label, String fieldKey, double? cost) {
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => _editCost(context, ref, fieldKey, cost),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(10),
+            color: Colors.white.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.divider),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+              Text(label, style: AppTextStyles.bodySecondary.copyWith(fontSize: 11)),
+              const SizedBox(height: 2),
               Text(
                 cost == null ? AppStrings.notSetCostLabel : '₪${cost.toStringAsFixed(0)}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                style: AppTextStyles.heading2.copyWith(fontSize: 15),
               ),
             ],
           ),
@@ -1250,7 +1345,7 @@ class _InsuranceCostRow extends ConsumerWidget {
           'mandatoryInsuranceAnnualCost',
           vehicle.mandatoryInsuranceAnnualCost,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         _chip(
           context,
           ref,
@@ -1267,12 +1362,18 @@ class _InsuranceCostRow extends ConsumerWidget {
 /// התפוגה), לפי אחוז הזמן שחלף. מכיוון שאין לנו תאריך תחילת פוליסה
 /// שמור, ההתקדמות מחושבת יחסית לשנה אחורה מהתפוגה (הערכה סבירה
 /// לביטוח/רישיון שמתחדשים אחת לשנה).
-class _RenewalJourneyRow extends StatelessWidget {
+class _RenewalJourneyCard extends StatelessWidget {
   final String label;
+  final IconData icon;
   final DateTime? expiryDate;
   final Color color;
 
-  const _RenewalJourneyRow({required this.label, required this.expiryDate, required this.color});
+  const _RenewalJourneyCard({
+    required this.label,
+    required this.icon,
+    required this.expiryDate,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1283,68 +1384,71 @@ class _RenewalJourneyRow extends StatelessWidget {
       progress = (1 - (days / 365)).clamp(0.0, 1.0);
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 44,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 9),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Expanded(
-            child: SizedBox(
-              height: 20,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final trackWidth = (constraints.maxWidth - 18).clamp(0.0, double.infinity);
-                  final carLeft = trackWidth * progress;
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.centerLeft,
-                    children: [
-                      Container(
-                        height: 3,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      Positioned(
-                        left: carLeft,
-                        child: Icon(Icons.directions_car, color: color, size: 15),
-                      ),
-                      const Positioned(
-                        right: 0,
-                        child: Icon(Icons.flag, color: Colors.white70, size: 13),
-                      ),
-                    ],
-                  );
-                },
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppTextStyles.bodySecondary.copyWith(fontWeight: FontWeight.bold, fontSize: 12),
               ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 40,
-            child: Text(
-              isExpired
-                  ? AppStrings.expiredLabel
-                  : days == null
-                      ? AppStrings.notSetLabel
-                      : '$days ${AppStrings.daysLabel}',
-              style: TextStyle(
-                color: isExpired ? AppColors.error : Colors.white70,
-                fontSize: 9,
+              const Spacer(),
+              Text(
+                isExpired
+                    ? AppStrings.expiredLabel
+                    : days == null
+                        ? AppStrings.notSetLabel
+                        : '$days ${AppStrings.daysLabel}',
+                style: TextStyle(
+                  color: isExpired ? AppColors.error : color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
-              textAlign: TextAlign.end,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 26,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final trackWidth = (constraints.maxWidth - 22).clamp(0.0, double.infinity);
+                final carLeft = trackWidth * progress;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Container(
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Positioned(
+                      left: carLeft,
+                      child: Icon(Icons.directions_car, color: color, size: 20),
+                    ),
+                    const Positioned(
+                      right: 0,
+                      child: Icon(Icons.flag, color: Colors.black45, size: 18),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1415,6 +1519,108 @@ class _VehicleIconLarge extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DateChip extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+
+  const _DateChip({required this.label, required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final days = daysUntil(date);
+    final color = colorForDaysRemaining(days);
+    // על הרקע הכהה, "רחוק"/ירוק צריך גוון בהיר יותר כדי לבלוט טוב.
+    final displayColor = days != null && days > 30 ? const Color(0xFF7CE0C6) : color;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: displayColor.withOpacity(0.5)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            days == null
+                ? AppStrings.notSetLabel
+                : days < 0
+                    ? AppStrings.expiredLabel
+                    : '$days ${AppStrings.daysLabel}',
+            style: TextStyle(color: displayColor, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MileageCard extends StatelessWidget {
+  final Vehicle vehicle;
+  final VoidCallback onUpdate;
+
+  const _MileageCard({required this.vehicle, required this.onUpdate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      color: Colors.white.withOpacity(0.8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.speed_outlined, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.currentMileageLabel,
+                    style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                  ),
+                  Text(
+                    '${vehicle.currentMileage} ${AppStrings.kmUnit}',
+                    style: AppTextStyles.heading2.copyWith(fontSize: 16),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              tooltip: AppStrings.updateMileageButton,
+              onPressed: onUpdate,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
       ),
     );
   }
