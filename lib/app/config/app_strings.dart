@@ -4,8 +4,8 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
-  static const String notesHint = "הקש להוספת הערה";
-  static const String notesTitle = "הערות";
+  static const String notesHint = "הקש להוספת תזכורת";
+  static const String notesTitle = "תזכורות";
   static const String insuranceAnnualCostTitle = "עלות ביטוח שנתית";
   static const String renewalJourneyTitle = "המסע לחידוש";
   static const String notSetCostLabel = "לא הוזן";

@@ -24,15 +24,13 @@ const Map<String, IconData> _kMaintenanceIcons = {
   'brakes': Icons.album_outlined,
 };
 
-/// כל 5 סוגי הטיפול (כולל צמיגים) - משמש רק להגדרת טווחים (בכרטיס
-/// העליון), בשונה מ-kTrackedMaintenanceKeys (4 סוגים) שמשמש למעקב
-/// האוטומטי אחרי "כמה נשאר" ברשת שמתחת לכרטיס.
+/// סוגי הטיפול שניתן לערוך את הטווח שלהם ישירות מהכרטיס העליון -
+/// רק טיפול קטן וטיפול גדול (הכי נפוצים), כדי שהכרטיס יישאר נקי
+/// ומרווח. שאר סוגי הטיפול (מצבר/בלמים) עדיין עוקבים אוטומטית
+/// ברשת שמתחת לכרטיס, לפי kTrackedMaintenanceKeys.
 const List<String> _kAllMaintenanceKeys = [
   'oilChange',
   'majorService',
-  'tires',
-  'battery',
-  'brakes',
 ];
 
 /// סטטוס טיפול מחושב עבור סוג טיפול בודד (כמה ק"מ נשארו/כמה איחור) -
@@ -588,33 +586,20 @@ class _MainInfoPage extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Transform.translate(
-              offset: const Offset(0, -6),
-              child: _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    vehicle.displayName,
-                    style: AppTextStyles.heading2.copyWith(color: Colors.white),
-                  ),
-                  Text(
-                    vehicle.licensePlate,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
-                    textDirection: TextDirection.ltr,
-                  ),
-                ],
-              ),
-            ),
-          ],
+        _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
+        const SizedBox(height: 10),
+        Text(
+          vehicle.displayName,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
-        const SizedBox(height: 18),
+        Text(
+          vehicle.licensePlate,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+          textDirection: TextDirection.ltr,
+        ),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -714,30 +699,31 @@ class _MaintenanceTopPreview extends ConsumerWidget {
 
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => _editIntervalDialog(context, ref, key, name, interval),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.08),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white24),
                 ),
-                child: Icon(icon, color: _greenIcon, size: 17),
+                child: Icon(icon, color: _greenIcon, size: 24),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 shortName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -749,7 +735,7 @@ class _MaintenanceTopPreview extends ConsumerWidget {
   Widget _addTile(BuildContext context) {
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => AddServiceRecordScreen(
@@ -760,27 +746,27 @@ class _MaintenanceTopPreview extends ConsumerWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: _greenIcon.withOpacity(0.18),
                   shape: BoxShape.circle,
                   border: Border.all(color: _greenIcon.withOpacity(0.5)),
                 ),
-                child: Icon(Icons.add, color: _greenIcon, size: 20),
+                child: Icon(Icons.add, color: _greenIcon, size: 26),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               const Text(
                 AppStrings.addMaintenanceTooltip,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -855,6 +841,7 @@ class _InsurancePage extends StatelessWidget {
       children: [
         Text(
           AppStrings.insuranceDocumentsTitle,
+          textAlign: TextAlign.center,
           style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
         ),
         const SizedBox(height: 10),
@@ -1317,12 +1304,13 @@ class _InsuranceBottom extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         _InsuranceCostRow(householdId: householdId, vehicle: vehicle),
-        const SizedBox(height: 12),
+        const SizedBox(height: 18),
         Text(
           AppStrings.renewalJourneyTitle,
+          textAlign: TextAlign.center,
           style: AppTextStyles.heading2.copyWith(fontSize: 12),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         _RenewalJourneyRow(
           label: AppStrings.licenseExpiryLabel,
           icon: Icons.badge_outlined,
@@ -1476,19 +1464,19 @@ class _RenewalJourneyRow extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 15),
+          Icon(icon, color: color, size: 17),
           const SizedBox(width: 6),
           SizedBox(
-            width: 44,
+            width: 46,
             child: Text(
               label,
               style: AppTextStyles.bodySecondary.copyWith(fontSize: 10),
@@ -1498,10 +1486,10 @@ class _RenewalJourneyRow extends StatelessWidget {
           ),
           Expanded(
             child: SizedBox(
-              height: 26,
+              height: 32,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final trackWidth = (constraints.maxWidth - 20).clamp(0.0, double.infinity);
+                  final trackWidth = (constraints.maxWidth - 24).clamp(0.0, double.infinity);
                   final carLeft = trackWidth * progress;
                   return Stack(
                     clipBehavior: Clip.none,
@@ -1517,11 +1505,11 @@ class _RenewalJourneyRow extends StatelessWidget {
                       ),
                       Positioned(
                         left: carLeft,
-                        child: Icon(Icons.directions_car, color: color, size: 20),
+                        child: Icon(Icons.directions_car, color: color, size: 24),
                       ),
                       const Positioned(
                         right: 0,
-                        child: Icon(Icons.flag, color: Color(0xFFE53935), size: 18),
+                        child: Icon(Icons.flag, color: Color(0xFFE53935), size: 20),
                       ),
                     ],
                   );
@@ -1573,18 +1561,75 @@ class _VehicleIconLarge extends ConsumerWidget {
         );
   }
 
+  Future<void> _deletePhoto(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.deleteDocumentConfirmTitle),
+        content: const Text(AppStrings.deleteDocumentConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.deleteAction, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(vehiclesRepositoryProvider).updateVehiclePhoto(
+            householdId: householdId,
+            vehicleId: vehicle.id,
+            photoDataUrl: null,
+          );
+    }
+  }
+
+  void _showPhotoMenu(BuildContext context, WidgetRef ref, bool hasPhoto) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.choosePhotoOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _changePhoto(ref);
+              },
+            ),
+            if (hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B)),
+                title: const Text(AppStrings.deleteDocumentTooltip),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _deletePhoto(context, ref);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final photoBytes = decodeVehiclePhotoDataUrl(vehicle.photoDataUrl);
 
     return GestureDetector(
-      onTap: () => _changePhoto(ref),
+      onTap: () => _showPhotoMenu(context, ref, photoBytes != null),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            width: 68,
-            height: 68,
+            width: 88,
+            height: 88,
             decoration: BoxDecoration(
               gradient: photoBytes == null
                   ? const LinearGradient(
@@ -1603,7 +1648,7 @@ class _VehicleIconLarge extends ConsumerWidget {
                   : null,
             ),
             child: photoBytes == null
-                ? const Icon(Icons.directions_car_filled, color: Colors.white, size: 36)
+                ? const Icon(Icons.directions_car_filled, color: Colors.white, size: 44)
                 : null,
           ),
           Positioned(
@@ -1612,7 +1657,7 @@ class _VehicleIconLarge extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-              child: const Icon(Icons.camera_alt, color: Colors.white, size: 13),
+              child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
             ),
           ),
         ],
@@ -1703,7 +1748,7 @@ class _MileageCard extends StatelessWidget {
                       style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
                     ),
                     Text(
-                      '${vehicle.currentMileage} ${AppStrings.kmUnit}',
+                      '${AppStrings.kmUnit} ${vehicle.currentMileage}',
                       style: AppTextStyles.heading2.copyWith(fontSize: 16),
                       textDirection: TextDirection.ltr,
                     ),
