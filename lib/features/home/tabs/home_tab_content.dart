@@ -36,15 +36,15 @@ class HomeTabContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       children: [
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 1.9,
           children: [
             _Tile(
               module: tiles[0],
@@ -70,7 +70,7 @@ class HomeTabContent extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _BillsSection(householdId: householdId),
       ],
     );
@@ -88,7 +88,7 @@ class _BillsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
@@ -97,8 +97,8 @@ class _BillsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
-          const SizedBox(height: 12),
+          Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 13)),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -166,23 +166,23 @@ class _BillColumn extends StatelessWidget {
       child: Opacity(
         opacity: available ? 1 : 0.5,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: AppColors.primary, size: 22),
+                child: Icon(icon, color: AppColors.primary, size: 18),
               ),
-              const SizedBox(height: 6),
-              Text(label, style: AppTextStyles.body.copyWith(fontSize: 12), textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+              Text(label, style: AppTextStyles.body.copyWith(fontSize: 11), textAlign: TextAlign.center),
               if (!available)
                 Text(AppStrings.comingSoon,
-                    style: AppTextStyles.bodySecondary.copyWith(fontSize: 10)),
+                    style: AppTextStyles.bodySecondary.copyWith(fontSize: 9)),
             ],
           ),
         ),
@@ -212,30 +212,30 @@ class _Tile extends StatelessWidget {
         child: Opacity(
           opacity: available ? 1 : 0.55,
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.divider),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(module.icon, color: color, size: 22),
+                  child: Icon(module.icon, color: color, size: 19),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(module.title, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
-                      const SizedBox(height: 2),
+                      Text(module.title, style: AppTextStyles.heading2.copyWith(fontSize: 13)),
+                      const SizedBox(height: 1),
                       if (badgeCount != null)
                         Text('$badgeCount', style: AppTextStyles.heading1.copyWith(fontSize: 20))
                       else if (!available)

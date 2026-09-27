@@ -1,4 +1,4 @@
-analyzer:
+qanalyzer:
   exclude:
     - build/**
     - web/**
@@ -8,4 +8,8 @@ linter:
   rules:
     prefer_const_constructors: true
     prefer_single_quotes: true
+analyzer:
+  exclude:
+    - build/**
+    - web/**
 

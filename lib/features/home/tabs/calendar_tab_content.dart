@@ -9,12 +9,14 @@ import '../../../models/shopping_list_model.dart';
 import '../../../providers/bills_provider.dart';
 import '../../../providers/shopping_provider.dart';
 import '../../shopping/shopping_list_screen.dart';
+import '../../vehicles/vehicle_calendar_provider.dart';
 
 /// תוכן טאב "לוח שנה" - לוח חודשי אמיתי עם גלילה בין חודשים,
 /// לחיצה על יום מציגה מה מתוכנן בו, ולמטה "אירועים קרובים" ל-3
-/// ימים קדימה. מבוסס על שני מקורות אמיתיים: תאריכי רשימות קניות,
-/// **וגם** תזכורות תשלום שהוגדרו (ר' bill_reminder_listener.dart
-/// להתראה בפועל - זה כאן רק התצוגה החזותית בלוח).
+/// ימים קדימה. מבוסס על שלושה מקורות אמיתיים: תאריכי רשימות קניות,
+/// תזכורות תשלום שהוגדרו (ר' bill_reminder_listener.dart להתראה
+/// בפועל - זה כאן רק התצוגה החזותית בלוח), **וגם** תאריכי רישיון/
+/// ביטוחים של הרכבים (ר' vehicle_calendar_provider.dart).
 class CalendarTabContent extends ConsumerStatefulWidget {
   final String householdId;
 
@@ -52,6 +54,7 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
     final lists = ref.watch(shoppingListsProvider(widget.householdId)).value ?? [];
     final reminders =
         ref.watch(allScheduledRemindersProvider(widget.householdId)).value ?? [];
+    final vehicleEvents = ref.watch(vehicleDateEventsProvider(widget.householdId));
 
     final datedListsWithItems = <ShoppingList>[];
     for (final list in lists) {
@@ -76,7 +79,10 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
     final markedDaysFromReminders = billReminders
         .where((b) => b.reminderAt!.year == _month.year && b.reminderAt!.month == _month.month)
         .map((b) => b.reminderAt!.day);
-    final markedDays = {...markedDaysFromLists, ...markedDaysFromReminders};
+    final markedDaysFromVehicles = vehicleEvents
+        .where((e) => e.date.year == _month.year && e.date.month == _month.month)
+        .map((e) => e.date.day);
+    final markedDays = {...markedDaysFromLists, ...markedDaysFromReminders, ...markedDaysFromVehicles};
 
     final selectedDayLists = _selectedDay == null
         ? <ShoppingList>[]
@@ -84,6 +90,9 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
     final selectedDayReminders = _selectedDay == null
         ? <BillPayment>[]
         : billReminders.where((b) => _isSameDay(b.reminderAt!, _selectedDay!)).toList();
+    final selectedDayVehicleEvents = _selectedDay == null
+        ? <VehicleDateEvent>[]
+        : vehicleEvents.where((e) => _isSameDay(e.date, _selectedDay!)).toList();
 
     final upcomingLists = datedListsWithItems
         .where((l) =>
@@ -94,6 +103,11 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
         .where((b) =>
             !b.reminderAt!.isBefore(todayStart) &&
             b.reminderAt!.isBefore(todayStart.add(const Duration(days: 3))))
+        .toList();
+    final upcomingVehicleEvents = vehicleEvents
+        .where((e) =>
+            !e.date.isBefore(todayStart) &&
+            e.date.isBefore(todayStart.add(const Duration(days: 3))))
         .toList();
 
     return ListView(
@@ -175,7 +189,9 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
             style: AppTextStyles.heading2.copyWith(fontSize: 14),
           ),
           const SizedBox(height: 8),
-          if (selectedDayLists.isEmpty && selectedDayReminders.isEmpty)
+          if (selectedDayLists.isEmpty &&
+              selectedDayReminders.isEmpty &&
+              selectedDayVehicleEvents.isEmpty)
             Text(AppStrings.noEventOnThisDay, style: AppTextStyles.bodySecondary)
           else ...[
             ...selectedDayLists.map(
@@ -202,12 +218,21 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
                 ),
               ),
             ),
+            ...selectedDayVehicleEvents.map(
+              (e) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.directions_car, color: Colors.deepOrange, size: 26),
+                  title: Text('${e.dateLabel} · ${e.vehicleLabel}'),
+                  subtitle: Text(DateFormatter.dateOnly(e.date)),
+                ),
+              ),
+            ),
           ],
         ],
         const Divider(height: 28),
         Text(AppStrings.upcomingEventsTitle, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
         const SizedBox(height: 8),
-        if (upcomingLists.isEmpty && upcomingReminders.isEmpty)
+        if (upcomingLists.isEmpty && upcomingReminders.isEmpty && upcomingVehicleEvents.isEmpty)
           Text(AppStrings.noUpcomingEvents, style: AppTextStyles.bodySecondary)
         else ...[
           ...upcomingLists.map(
@@ -238,9 +263,23 @@ class _CalendarTabContentState extends ConsumerState<CalendarTabContent> {
               ),
             ),
           ),
+          ...upcomingVehicleEvents.map(
+            (e) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_car, size: 22, color: Colors.deepOrange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('${e.dateLabel} · ${e.vehicleLabel}', style: AppTextStyles.body),
+                  ),
+                  Text(DateFormatter.dateOnly(e.date), style: AppTextStyles.bodySecondary),
+                ],
+              ),
+            ),
+          ),
         ],
       ],
     );
   }
 }
-

@@ -20,10 +20,23 @@ class Vehicle {
   /// למשתמש יש נתונים מדויקים יותר מספר הרכב שלו.
   final Map<String, int> maintenanceIntervals;
 
+  /// קילומטראז' הרכב בזמן שהוא *נוסף* לאפליקציה (קבוע, לא משתנה
+  /// לעולם אחרי היצירה). משמש כ"נקודת פתיחה" לחישוב הטיפול הבא
+  /// כשעדיין אין אף תיעוד טיפול אמיתי לסוג טיפול מסוים - כדי שרכב
+  /// שנוסף עם קילומטראז' גבוה (למשל 50,000) לא ייראה מיד "באיחור
+  /// ענק", אלא יתחיל למנות את המרווח מהרגע שנוסף לאפליקציה.
+  final int initialMileage;
+
   /// תמונה אמיתית של הרכב שהמשתמש העלה (Data URL - base64 מכווץ),
   /// לתצוגה במקום האייקון הגנרי. נשמר ישירות במסמך הרכב ב-Firestore
   /// (בלי Firebase Storage בתשלום) - ראה vehicle_photo_picker.dart.
   final String? photoDataUrl;
+
+  /// תמונות (Data URL) של מסמכי הרישיון/ביטוחים - צילום/סריקה של
+  /// הקובץ הפיזי, לתיעוד ולצפייה מהיר בלי לחפש את הנייר המקורי.
+  final String? licenseDocumentDataUrl;
+  final String? mandatoryInsuranceDocumentDataUrl;
+  final String? comprehensiveInsuranceDocumentDataUrl;
 
   final DateTime? createdAt;
 
@@ -38,7 +51,11 @@ class Vehicle {
     this.mandatoryInsuranceExpiryDate,
     this.comprehensiveInsuranceExpiryDate,
     required this.maintenanceIntervals,
+    required this.initialMileage,
     this.photoDataUrl,
+    this.licenseDocumentDataUrl,
+    this.mandatoryInsuranceDocumentDataUrl,
+    this.comprehensiveInsuranceDocumentDataUrl,
     required this.createdAt,
   });
 
@@ -46,13 +63,14 @@ class Vehicle {
 
   factory Vehicle.fromFirestore(String id, Map<String, dynamic> data) {
     final rawIntervals = data['maintenanceIntervals'] as Map<String, dynamic>?;
+    final currentMileage = (data['currentMileage'] as num?)?.toInt() ?? 0;
     return Vehicle(
       id: id,
       manufacturer: data['manufacturer'] as String? ?? '',
       model: data['model'] as String? ?? '',
       year: data['year'] as int?,
       licensePlate: data['licensePlate'] as String? ?? '',
-      currentMileage: (data['currentMileage'] as num?)?.toInt() ?? 0,
+      currentMileage: currentMileage,
       licenseExpiryDate: (data['licenseExpiryDate'] as Timestamp?)?.toDate(),
       mandatoryInsuranceExpiryDate:
           (data['mandatoryInsuranceExpiryDate'] as Timestamp?)?.toDate(),
@@ -61,7 +79,16 @@ class Vehicle {
       maintenanceIntervals: rawIntervals != null
           ? rawIntervals.map((key, value) => MapEntry(key, (value as num).toInt()))
           : Map<String, int>.from(kDefaultMaintenanceIntervals),
+      // אם השדה עוד לא קיים (רכב ישן, או ברגע הראשון של רכב חדש
+      // לפני שהכתיבה חוזרת) - נופלים זמנית על הקילומטראז' הנוכחי,
+      // כך שהתצוגה מיד נכונה (לא "באיחור") גם לפני שהתיקון האוטומטי
+      // ב-VehiclesService משלים כתיבה חד-פעמית של השדה בפועל.
+      initialMileage: (data['initialMileage'] as num?)?.toInt() ?? currentMileage,
       photoDataUrl: data['photoDataUrl'] as String?,
+      licenseDocumentDataUrl: data['licenseDocumentDataUrl'] as String?,
+      mandatoryInsuranceDocumentDataUrl: data['mandatoryInsuranceDocumentDataUrl'] as String?,
+      comprehensiveInsuranceDocumentDataUrl:
+          data['comprehensiveInsuranceDocumentDataUrl'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -82,6 +109,7 @@ class Vehicle {
       if (year != null) 'year': year,
       'licensePlate': licensePlate,
       'currentMileage': currentMileage,
+      'initialMileage': currentMileage,
       'licenseExpiryDate':
           licenseExpiryDate != null ? Timestamp.fromDate(licenseExpiryDate) : null,
       'mandatoryInsuranceExpiryDate': mandatoryInsuranceExpiryDate != null

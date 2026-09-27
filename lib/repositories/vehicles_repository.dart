@@ -88,6 +88,20 @@ class VehiclesRepository {
     );
   }
 
+  Future<void> updateDocumentPhoto({
+    required String householdId,
+    required String vehicleId,
+    required String fieldKey,
+    required String? dataUrl,
+  }) {
+    return _service.updateDocumentPhoto(
+      householdId: householdId,
+      vehicleId: vehicleId,
+      fieldKey: fieldKey,
+      dataUrl: dataUrl,
+    );
+  }
+
   Future<void> updateMaintenanceInterval({
     required String householdId,
     required String vehicleId,

@@ -180,6 +180,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
 
     final featured = buildFeaturedModules(householdId: household.id);
     final restModules = buildHomeModules(householdId: household.id);
+    final isCalendarTab = _selectedTab == 2;
 
     final Widget body;
     switch (_selectedTab) {
@@ -232,7 +233,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // חלק עליון קבוע - לא בתוך גלילה, נשאר גלוי בכל הטאבים.
+            // חלק עליון קבוע - לא בתוך גלילה, נשאר גלוי בכל הטאבים
+            // (חוץ מטאב "לוח שנה", ר' isCalendarTab למטה - שם רק
+            // הלוגו נשאר, כדי שללוח השנה יהיה כמה שיותר מקום).
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: Container(
@@ -265,46 +268,49 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text('${AppStrings.greetingPrefix} ${household.name}!',
-                  style: AppTextStyles.heading2.copyWith(fontSize: 16)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: _HouseholdCard(
-                name: household.name,
-                membersCount: household.memberIds.length,
-                onInvite: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => InvitePartnerScreen(
-                      householdId: household.id,
-                      householdName: household.name,
-                    ),
-                  ),
-                ),
-                onManageMembers: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => HouseholdMembersScreen(
-                      householdId: household.id,
-                      isOwner: household.createdBy ==
-                          ref.read(authStateChangesProvider).value?.uid,
-                    ),
-                  ),
-                ),
-                onSwitchHousehold: () => _showHouseholdSwitcher(context, ref),
-              ),
-            ),
-            if (_permissionStatus == 'default' || _permissionStatus == 'denied')
+            if (!isCalendarTab && (_permissionStatus == 'default' || _permissionStatus == 'denied'))
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                 child: _NotificationBanner(
                   isBlocked: _permissionStatus == 'denied',
                   onEnable: _requestPermission,
                 ),
               ),
-            const Divider(height: 1),
-            // גוף המסך - משתנה לפי הטאב הנבחר.
+            if (!isCalendarTab) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text('${AppStrings.greetingPrefix} ${household.name}!',
+                    style: AppTextStyles.heading2.copyWith(fontSize: 16)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: _HouseholdCard(
+                  name: household.name,
+                  membersCount: household.memberIds.length,
+                  onInvite: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => InvitePartnerScreen(
+                        householdId: household.id,
+                        householdName: household.name,
+                      ),
+                    ),
+                  ),
+                  onManageMembers: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => HouseholdMembersScreen(
+                        householdId: household.id,
+                        isOwner: household.createdBy ==
+                            ref.read(authStateChangesProvider).value?.uid,
+                      ),
+                    ),
+                  ),
+                  onSwitchHousehold: () => _showHouseholdSwitcher(context, ref),
+                ),
+              ),
+              const Divider(height: 1),
+            ],
+            // גוף המסך - משתנה לפי הטאב הנבחר. בטאב "לוח שנה" זה מקבל
+            // כמעט את כל המסך (רק הלוגו למעלה, בלי שאר החלק הקבוע).
             Expanded(child: body),
           ],
         ),
@@ -326,7 +332,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   }
 }
 
-/// באנר שמזמין להפעיל התראות, או מסביר איך לתקן אם נחסמו.
+/// באנר שמזמין להפעיל התראות, או מסביר איך לתקן אם נחסמו - שורה
+/// אחת דקה וקומפקטית (לא כרטיס גדול), כדי שלא תדחוף את שאר התוכן
+/// (למשל מקטע החשבונות בטאב הבית) מתחת לקיפול המסך.
 class _NotificationBanner extends StatelessWidget {
   final bool isBlocked;
   final VoidCallback onEnable;
@@ -337,10 +345,10 @@ class _NotificationBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: isBlocked ? AppColors.surface : AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: isBlocked ? Border.all(color: AppColors.divider) : null,
       ),
       child: Row(
@@ -348,28 +356,29 @@ class _NotificationBanner extends StatelessWidget {
           Icon(
             isBlocked ? Icons.notifications_off_outlined : Icons.notifications_active_outlined,
             color: isBlocked ? AppColors.textSecondary : AppColors.primary,
+            size: 18,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppStrings.enableNotificationsTitle,
-                    style: AppTextStyles.heading2.copyWith(fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(
-                  isBlocked
-                      ? AppStrings.notificationsBlockedBody
-                      : AppStrings.enableNotificationsBody,
-                  style: AppTextStyles.bodySecondary.copyWith(fontSize: 12),
-                ),
-              ],
+            child: Text(
+              isBlocked
+                  ? AppStrings.notificationsBlockedBody
+                  : AppStrings.enableNotificationsTitle,
+              style: AppTextStyles.bodySecondary.copyWith(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (!isBlocked)
             TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               onPressed: onEnable,
-              child: const Text(AppStrings.enableNotificationsButton),
+              child: const Text(AppStrings.enableNotificationsButton,
+                  style: TextStyle(fontSize: 12)),
             ),
         ],
       ),
@@ -472,4 +481,3 @@ class _HouseholdCard extends StatelessWidget {
     );
   }
 }
-

@@ -30,7 +30,16 @@ class VehiclesService {
   Stream<Vehicle?> watchVehicle(String householdId, String vehicleId) {
     return _vehiclesCollection(householdId).doc(vehicleId).snapshots().map((doc) {
       if (!doc.exists) return null;
-      return Vehicle.fromFirestore(doc.id, doc.data()!);
+      final data = doc.data()!;
+      // תיקון חד-פעמי לרכבים (חדשים או ישנים) שעדיין אין להם
+      // 'initialMileage' שמור - כותב אותו כקילומטראז' הנוכחי, כדי
+      // שהטיפולים לא ייראו "באיחור ענק" מיד עם הוספת הרכב. אחרי
+      // הכתיבה הראשונה השדה כבר יהיה קיים ולא נכתוב שוב.
+      if (data['initialMileage'] == null) {
+        final currentMileage = (data['currentMileage'] as num?)?.toInt() ?? 0;
+        doc.reference.update({'initialMileage': currentMileage});
+      }
+      return Vehicle.fromFirestore(doc.id, data);
     });
   }
 
@@ -79,6 +88,7 @@ class VehiclesService {
       licensePlate: '',
       currentMileage: 0,
       maintenanceIntervals: const {},
+      initialMileage: 0,
       createdAt: null,
     ).toFirestoreForUpdate(
       manufacturer: manufacturer,
@@ -111,6 +121,21 @@ class VehiclesService {
   }) {
     return _vehiclesCollection(householdId).doc(vehicleId).update({
       'photoDataUrl': photoDataUrl,
+    });
+  }
+
+  /// שומר/מנקה תמונה (Data URL) של קובץ רישיון/ביטוח סרוק/מצולם.
+  /// fieldKey הוא אחד מ-3 שדות קבועים על מסמך הרכב:
+  /// licenseDocumentDataUrl / mandatoryInsuranceDocumentDataUrl /
+  /// comprehensiveInsuranceDocumentDataUrl.
+  Future<void> updateDocumentPhoto({
+    required String householdId,
+    required String vehicleId,
+    required String fieldKey,
+    required String? dataUrl,
+  }) {
+    return _vehiclesCollection(householdId).doc(vehicleId).update({
+      fieldKey: dataUrl,
     });
   }
 

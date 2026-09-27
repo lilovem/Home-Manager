@@ -4,6 +4,32 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String shareFallbackDownloadMessage = "השיתוף הישיר לא נתמך בדפדפן הזה - הקובץ הורד למחשב, אפשר לצרף אותו ידנית.";
+
+  static const String okButton = "הבנתי";
+
+  static const String fileTooLargeMessage = "אנא בחרי קובץ PDF קטן יותר (עד כ-700KB) כדי שניתן יהיה לשמור אותו.";
+
+  static const String fileTooLargeTitle = "הקובץ גדול מדי";
+
+  static const String deleteDocumentConfirmMessage = "הפעולה תמחק את המסמך השמור. אפשר להעלות מסמך חדש בכל עת.";
+
+  static const String deleteDocumentConfirmTitle = "למחוק את הקובץ?";
+
+  static const String deleteDocumentTooltip = "מחיקת הקובץ";
+
+  static const String choosePdfOption = "בחירת קובץ PDF";
+
+  static const String choosePhotoOption = "בחירת תמונה מהגלריה";
+
+  static const String takePhotoOption = "צילום עם המצלמה";
+
+  static const String viewDocumentTooltip = "צפייה בקובץ";
+
+  static const String uploadDocumentTooltip = "העלאת קובץ";
+
+  static const String insuranceDocumentsTitle = "מסמכי רישיון וביטוח";
+
   static const String unmuteMaintenanceTooltip = "הפעל התראות לטיפול זה";
 
   static const String muteMaintenanceTooltip = "השתק התראות לטיפול זה";

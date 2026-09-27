@@ -352,16 +352,191 @@ class VehicleDetailScreen extends ConsumerWidget {
   }
 }
 
-/// כרטיס בולט למעלה עם 3 "צ'יפים" - רישיון, ביטוח חובה, ביטוח מקיף -
-/// כל אחד עם מספר הימים שנשארו, בצבע לפי דחיפות, על רקע גרדיאנט
-/// כהה שמדגיש אותם ונותן מראה "יוקרתי" יותר.
-class _DatesHeaderCard extends StatelessWidget {
+/// כרטיס בולט למעלה - שני "עמודים" ניתנים להחלקה (PageView) עם
+/// נקודות סימון (dots) למטה: עמוד 1 - המסך הראשי הרגיל (תמונה/שם/
+/// מספר רישוי + 3 צ'יפים עם ימים שנשארו). עמוד 2 - "ביטוחים": אותם
+/// 3 תאריכים בפירוט, עם אפשרות להעלות/לצפות בקובץ סרוק/מצולם של
+/// המסמך הפיזי לכל אחד מהם. שני העמודים על אותו רקע גרדיאנט כהה.
+class _DatesHeaderCard extends ConsumerStatefulWidget {
   final String householdId;
   final Vehicle vehicle;
   const _DatesHeaderCard({required this.householdId, required this.vehicle});
 
   @override
+  ConsumerState<_DatesHeaderCard> createState() => _DatesHeaderCardState();
+}
+
+class _DatesHeaderCardState extends ConsumerState<_DatesHeaderCard> {
+  final PageController _pageController = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveDocument(String fieldKey, String? dataUrl) {
+    return ref.read(vehiclesRepositoryProvider).updateDocumentPhoto(
+          householdId: widget.householdId,
+          vehicleId: widget.vehicle.id,
+          fieldKey: fieldKey,
+          dataUrl: dataUrl,
+        );
+  }
+
+  Future<void> _uploadPhotoDocument(String fieldKey, {required bool useCamera}) async {
+    final dataUrl = await pickAndCompressPhoto(useCamera: useCamera);
+    if (dataUrl == null) return;
+    await _saveDocument(fieldKey, dataUrl);
+  }
+
+  Future<void> _uploadPdfDocument(String fieldKey) async {
+    final dataUrl = await pickPdfDataUrl();
+    if (dataUrl == null) return;
+    if (dataUrlSizeBytes(dataUrl) > 700 * 1024) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text(AppStrings.fileTooLargeTitle),
+          content: const Text(AppStrings.fileTooLargeMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(AppStrings.okButton),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await _saveDocument(fieldKey, dataUrl);
+  }
+
+  /// פותחת חלונית תחתונה עם 3 דרכי הוספה - צילום ישיר, גלריה, או
+  /// קובץ PDF - כדי לרכז את כל אפשרויות ההוספה בלחיצה אחת נקייה
+  /// במקום כמה כפתורים נפרדים בשורה.
+  void _showUploadSourceSheet(BuildContext context, String fieldKey) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.takePhotoOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _uploadPhotoDocument(fieldKey, useCamera: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.choosePhotoOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _uploadPhotoDocument(fieldKey, useCamera: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.choosePdfOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _uploadPdfDocument(fieldKey);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteDocument(BuildContext context, String fieldKey) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.deleteDocumentConfirmTitle),
+        content: const Text(AppStrings.deleteDocumentConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.deleteAction, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _saveDocument(fieldKey, null);
+    }
+  }
+
+  Future<void> _shareDocument(String dataUrl) async {
+    final isPdf = mimeTypeOfDataUrl(dataUrl) == 'application/pdf';
+    final fileName = isPdf ? 'document.pdf' : 'document.jpg';
+    final shared = await shareDataUrlFile(
+      dataUrl: dataUrl,
+      fileName: fileName,
+      title: AppStrings.appName,
+    );
+    if (!shared) {
+      downloadDataUrlFile(dataUrl: dataUrl, fileName: fileName);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.shareFallbackDownloadMessage)),
+        );
+      }
+    }
+  }
+
+  void _viewDocument(BuildContext context, String? dataUrl) {
+    if (dataUrl == null) return;
+    if (mimeTypeOfDataUrl(dataUrl) == 'application/pdf') {
+      openDataUrlInNewTab(dataUrl);
+      return;
+    }
+    final bytes = decodeVehiclePhotoDataUrl(dataUrl);
+    if (bytes == null) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          alignment: Alignment.topLeft,
+          children: [
+            InteractiveViewer(
+              child: Image.memory(Uint8List.fromList(bytes)),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.share_outlined, color: Colors.white),
+                  onPressed: () => _shareDocument(dataUrl),
+                  style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final vehicle = widget.vehicle;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -381,55 +556,212 @@ class _DatesHeaderCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       child: Column(
         children: [
-          Row(
-            children: [
-              _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle.displayName,
-                      style: AppTextStyles.heading2.copyWith(color: Colors.white),
-                    ),
-                    Text(
-                      vehicle.licensePlate,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
-                      textDirection: TextDirection.ltr,
-                    ),
-                  ],
+          SizedBox(
+            height: 210,
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (i) => setState(() => _page = i),
+              children: [
+                _MainInfoPage(householdId: widget.householdId, vehicle: vehicle),
+                _InsurancePage(
+                  vehicle: vehicle,
+                  onUploadTap: _showUploadSourceSheet,
+                  onView: _viewDocument,
+                  onDelete: _confirmDeleteDocument,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
           Row(
-            children: [
-              Expanded(
-                child: _DateChip(
-                  label: AppStrings.licenseExpiryLabel,
-                  date: vehicle.licenseExpiryDate,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(2, (i) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: _page == i ? 18 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _page == i ? Colors.white : Colors.white38,
+                  borderRadius: BorderRadius.circular(3),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _DateChip(
-                  label: AppStrings.mandatoryInsuranceLabel,
-                  date: vehicle.mandatoryInsuranceExpiryDate,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _DateChip(
-                  label: AppStrings.comprehensiveInsuranceLabel,
-                  date: vehicle.comprehensiveInsuranceExpiryDate,
-                ),
-              ),
-            ],
+              );
+            }),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// עמוד 1 בהחלקה - התוכן שהיה קודם ב-_DatesHeaderCard: תמונה/שם/
+/// מספר רישוי, ומתחת 3 צ'יפים עם כמות הימים שנותרו לכל תאריך.
+class _MainInfoPage extends StatelessWidget {
+  final String householdId;
+  final Vehicle vehicle;
+  const _MainInfoPage({required this.householdId, required this.vehicle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Transform.translate(
+              offset: const Offset(0, -6),
+              child: _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vehicle.displayName,
+                    style: AppTextStyles.heading2.copyWith(color: Colors.white),
+                  ),
+                  Text(
+                    vehicle.licensePlate,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _DateChip(
+                label: AppStrings.licenseExpiryLabel,
+                date: vehicle.licenseExpiryDate,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _DateChip(
+                label: AppStrings.mandatoryInsuranceLabel,
+                date: vehicle.mandatoryInsuranceExpiryDate,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _DateChip(
+                label: AppStrings.comprehensiveInsuranceLabel,
+                date: vehicle.comprehensiveInsuranceExpiryDate,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// עמוד 2 בהחלקה - "ביטוחים": שורה לכל אחד מ-3 התאריכים (רישיון,
+/// ביטוח חובה, ביטוח מקיף) עם התאריך עצמו, וכפתור להעלאת/צפייה
+/// בקובץ סרוק/מצולם של המסמך הפיזי. התאריכים האלה כבר מופיעים
+/// אוטומטית גם בלוח השנה הראשי של האפליקציה (אין צורך בתזכורת
+/// נפרדת - ראה vehicle_calendar_provider.dart).
+class _InsurancePage extends StatelessWidget {
+  final Vehicle vehicle;
+  final void Function(BuildContext context, String fieldKey) onUploadTap;
+  final void Function(BuildContext context, String? dataUrl) onView;
+  final void Function(BuildContext context, String fieldKey) onDelete;
+
+  const _InsurancePage({
+    required this.vehicle,
+    required this.onUploadTap,
+    required this.onView,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = [
+      (
+        label: AppStrings.licenseExpiryLabel,
+        date: vehicle.licenseExpiryDate,
+        fieldKey: 'licenseDocumentDataUrl',
+        documentDataUrl: vehicle.licenseDocumentDataUrl,
+      ),
+      (
+        label: AppStrings.mandatoryInsuranceLabel,
+        date: vehicle.mandatoryInsuranceExpiryDate,
+        fieldKey: 'mandatoryInsuranceDocumentDataUrl',
+        documentDataUrl: vehicle.mandatoryInsuranceDocumentDataUrl,
+      ),
+      (
+        label: AppStrings.comprehensiveInsuranceLabel,
+        date: vehicle.comprehensiveInsuranceExpiryDate,
+        fieldKey: 'comprehensiveInsuranceDocumentDataUrl',
+        documentDataUrl: vehicle.comprehensiveInsuranceDocumentDataUrl,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          AppStrings.insuranceDocumentsTitle,
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
+        ),
+        const SizedBox(height: 10),
+        ...rows.map((row) {
+          final days = daysUntil(row.date);
+          final color = colorForDaysRemaining(days);
+          final displayColor = days != null && days > 30 ? const Color(0xFF7CE0C6) : color;
+          final hasDocument = row.documentDataUrl != null;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(row.label,
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(
+                        row.date == null ? AppStrings.notSetLabel : formatPrettyDateHe(row.date!),
+                        style: TextStyle(
+                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasDocument)
+                  IconButton(
+                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 20),
+                    tooltip: AppStrings.viewDocumentTooltip,
+                    onPressed: () => onView(context, row.documentDataUrl),
+                  ),
+                IconButton(
+                  icon: Icon(
+                    hasDocument ? Icons.sync : Icons.upload_file_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  tooltip: AppStrings.uploadDocumentTooltip,
+                  onPressed: () => onUploadTap(context, row.fieldKey),
+                ),
+                if (hasDocument)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 20),
+                    tooltip: AppStrings.deleteDocumentTooltip,
+                    onPressed: () => onDelete(context, row.fieldKey),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 }
@@ -463,8 +795,8 @@ class _VehicleIconLarge extends ConsumerWidget {
         clipBehavior: Clip.none,
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 68,
+            height: 68,
             decoration: BoxDecoration(
               gradient: photoBytes == null
                   ? const LinearGradient(
@@ -483,7 +815,7 @@ class _VehicleIconLarge extends ConsumerWidget {
                   : null,
             ),
             child: photoBytes == null
-                ? const Icon(Icons.directions_car_filled, color: Colors.white, size: 30)
+                ? const Icon(Icons.directions_car_filled, color: Colors.white, size: 36)
                 : null,
           ),
           Positioned(
@@ -492,7 +824,7 @@ class _VehicleIconLarge extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-              child: const Icon(Icons.camera_alt, color: Colors.white, size: 12),
+              child: const Icon(Icons.camera_alt, color: Colors.white, size: 13),
             ),
           ),
         ],
@@ -688,8 +1020,12 @@ class _MaintenanceSection extends ConsumerWidget {
               10000;
 
           final matching = records.where((r) => r.serviceType == key).toList();
+          // אם אין עדיין תיעוד טיפול אמיתי מהסוג הזה - מתחילים למנות
+          // מהקילומטראז' שהיה לרכב כשהוא נוסף לאפליקציה (initialMileage),
+          // לא מ-0, כדי שרכב שנוסף עם קילומטראז' גבוה לא ייראה מיד
+          // "באיחור ענק".
           final lastMileage = matching.isEmpty
-              ? 0
+              ? vehicle.initialMileage
               : matching.map((r) => r.mileageAtService).reduce((a, b) => a > b ? a : b);
           final nextDue = lastMileage + interval;
           final remaining = nextDue - vehicle.currentMileage;
