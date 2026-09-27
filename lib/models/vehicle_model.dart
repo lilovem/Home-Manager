@@ -172,7 +172,7 @@ const Map<String, int> kDefaultMaintenanceIntervals = {
 };
 
 const Map<String, String> kMaintenanceTemplateNames = {
-  'oilChange': 'טיפול קטן (שמן ומסנן)',
+  'oilChange': 'טיפול קטן',
   'majorService': 'טיפול גדול',
   'tires': 'החלפת צמיגים',
   'battery': 'החלפת מצבר',
