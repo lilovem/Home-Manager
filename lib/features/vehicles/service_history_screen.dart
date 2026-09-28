@@ -195,6 +195,10 @@ class _ServiceHistoryList extends ConsumerWidget {
           );
         }
 
+        // ללא כותרות קבוצה (שם הטיפול מופיע ממילא בכל שורה בנפרד, אז
+        // כותרת מעל הייתה כפילות מיותרת) וללא מרווח נוסף בין סוגי
+        // טיפולים שונים - כל הרשומות מוצגות ברשימה אחת רציפה, שורה
+        // אחת מעל השנייה (מסודרות לפי סוג טיפול, כמו קודם).
         final grouped = <String, List<VehicleServiceRecord>>{};
         for (final record in records) {
           grouped.putIfAbsent(record.serviceType, () => []).add(record);
@@ -205,51 +209,20 @@ class _ServiceHistoryList extends ConsumerWidget {
           ..sort();
         final orderedKeys = [...knownKeys, ...otherKeys];
 
+        final allRecords = <VehicleServiceRecord>[
+          for (final key in orderedKeys) ...grouped[key]!,
+        ];
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: orderedKeys.map((key) {
-            final groupRecords = grouped[key]!;
-            final groupName = kMaintenanceTemplateNames[key] ?? key;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Text(
-                          groupName,
-                          style: AppTextStyles.bodySecondary.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${groupRecords.length}',
-                            style: const TextStyle(
-                                color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...groupRecords.map((record) => _ServiceRecordTile(
-                        record: record,
-                        householdId: householdId,
-                        vehicleId: vehicleId,
-                        currentMileage: currentMileage,
-                      )),
-                ],
-              ),
-            );
-          }).toList(),
+          children: allRecords
+              .map((record) => _ServiceRecordTile(
+                    record: record,
+                    householdId: householdId,
+                    vehicleId: vehicleId,
+                    currentMileage: currentMileage,
+                  ))
+              .toList(),
         );
       },
     );

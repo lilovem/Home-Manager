@@ -1066,12 +1066,12 @@ class _InsurancePage extends StatelessWidget {
       ),
     ];
 
-    // אייקוני העלאה/צפייה/מחיקה קומפקטיים מאוד (28, במקום ברירת המחדל
-    // 48) - כדי שכל 4 השורות ייכנסו בבטחה בגובה הקבוע של הכרטיס (210)
-    // עם מרווחים אחידים וברורים, בלי לגלוש או להיחתך. הכרטיס מיושר
-    // מלמעלה (לא ממורכז) כדי שהמיקום יהיה עקבי וכל 4 השורות תמיד
-    // גלויות במלואן, גם אם יש מעט שטח פנוי בתחתית.
-    const iconConstraints = BoxConstraints(minWidth: 28, minHeight: 28);
+    // אייקוני העלאה/צפייה/מחיקה קומפקטיים מאוד (26, במקום ברירת המחדל
+    // 48) ותאריך+תווית באותה שורה (במקום שתי שורות) - כדי שכל 4
+    // השורות ייכנסו בבטחה, עם מרווח פנוי גדול, בגובה הקבוע של הכרטיס
+    // (210), עם מרווחים אחידים וסימטריים בין כל השורות, בלי לגלוש או
+    // להיחתך - כולל השורה האחרונה (רישיון נהיגה) והאייקון שלה.
+    const iconConstraints = BoxConstraints(minWidth: 26, minHeight: 26);
     const iconPadding = EdgeInsets.zero;
 
     return Column(
@@ -1081,9 +1081,9 @@ class _InsurancePage extends StatelessWidget {
         Text(
           AppStrings.insuranceDocumentsTitle,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 13),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 12),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         ...rows.map((row) {
           final days = daysUntil(row.date);
           final color = colorForDaysRemaining(days);
@@ -1091,27 +1091,34 @@ class _InsurancePage extends StatelessWidget {
           final hasDocument = row.documentDataUrl != null;
 
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
+            padding: const EdgeInsets.symmetric(vertical: 1),
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(row.label,
-                          style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                      Text(
-                        row.date == null ? AppStrings.notSetLabel : formatPrettyDateHe(row.date!),
-                        style: TextStyle(
-                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 11),
-                      ),
-                    ],
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: row.label,
+                          style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                        const TextSpan(text: '   '),
+                        TextSpan(
+                          text: row.date == null
+                              ? AppStrings.notSetLabel
+                              : formatPrettyDateHe(row.date!),
+                          style: TextStyle(
+                              color: displayColor, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (hasDocument)
                   IconButton(
-                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 15),
+                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 14),
                     tooltip: AppStrings.viewDocumentTooltip,
                     constraints: iconConstraints,
                     padding: iconPadding,
@@ -1121,7 +1128,7 @@ class _InsurancePage extends StatelessWidget {
                   icon: Icon(
                     hasDocument ? Icons.sync : Icons.upload_file_outlined,
                     color: Colors.white,
-                    size: 15,
+                    size: 14,
                   ),
                   tooltip: AppStrings.uploadDocumentTooltip,
                   constraints: iconConstraints,
@@ -1130,7 +1137,7 @@ class _InsurancePage extends StatelessWidget {
                 ),
                 if (hasDocument)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 15),
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 14),
                     tooltip: AppStrings.deleteDocumentTooltip,
                     constraints: iconConstraints,
                     padding: iconPadding,
