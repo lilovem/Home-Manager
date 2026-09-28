@@ -155,8 +155,9 @@ Future<String> buildServiceHistoryWordDataUrl(
 
   // נספח קבלות - כל קבלה על עמוד נפרד ונבדל משלה, ממוספר לפי מספר
   // הטיפול בטבלה למעלה. שובר העמוד לפני "נספחים" מבטיח שזה לא יופיע
-  // באותו עמוד עם הטבלה, ושובר נוסף לפני כל קבלה מבטיח שכל קבלה
-  // מקבלת עמוד משלה.
+  // באותו עמוד עם הטבלה. הקבלה הראשונה מופיעה באותו עמוד עם כותרת
+  // "נספחים" (כדי לא ליצור עמוד ריק עם כותרת בלבד), ומכל קבלה נוספת
+  // יש שובר עמוד נפרד כדי שכל אחת תקבל עמוד משלה.
   final appendixIndices = [
     for (var i = 0; i < sorted.length; i++)
       if (resolvedReceiptImages[i] != null) i,
@@ -165,11 +166,14 @@ Future<String> buildServiceHistoryWordDataUrl(
   if (appendixIndices.isNotEmpty) {
     buffer.writeln(pageBreak);
     buffer.writeln('<h1 style="text-align:center;">נספחים - קבלות מצורפות</h1>');
-    for (final i in appendixIndices) {
+    for (var idx = 0; idx < appendixIndices.length; idx++) {
+      final i = appendixIndices[idx];
       final record = sorted[i];
       final number = i + 1;
       final name = kMaintenanceTemplateNames[record.serviceType] ?? record.serviceType;
-      buffer.writeln(pageBreak);
+      if (idx > 0) {
+        buffer.writeln(pageBreak);
+      }
       buffer.writeln('<div style="text-align: center;">'
           '<h2>נספח $number - ${_escapeHtml(name)} - ${formatPrettyDateHe(record.performedAt)}</h2>'
           '<img src="${resolvedReceiptImages[i]}" style="max-width:100%; max-height:850px;" />'
