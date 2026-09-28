@@ -16,7 +16,7 @@ import 'vehicle_photo_picker.dart';
 /// שכל התיעוד לא יתפוס מקום קבוע במסך הרכב עצמו (שם אין גלילה).
 /// מקובץ לפי סוג טיפול, עם אפשרות מחיקה (Dismissible) בדיוק כמו
 /// שהיה קודם, ואפשרות הוספת טיפול חדש מכפתור בסרגל העליון, ואייקון
-/// ייצוא (אקסל/וורד) בצד השני של הסרגל העליון.
+/// ייצוא (אקסל/PDF) בצד השני של הסרגל העליון.
 class ServiceHistoryScreen extends StatelessWidget {
   final String householdId;
   final String vehicleId;
@@ -36,7 +36,7 @@ class ServiceHistoryScreen extends StatelessWidget {
     List<VehicleServiceRecord> records, {
     required bool asExcel,
   }) async {
-    // ייצוא לוורד כולל רינדור של קבלות PDF לתמונה (ראה vehicle_export.dart)
+    // ייצוא ל-PDF כולל רינדור של קבלות PDF לתמונה (ראה vehicle_export.dart)
     // שיכול לקחת כמה שניות אם יש כמה קבלות - לכן מציגים חלונית טעינה
     // כדי שיהיה ברור שהאפליקציה עובדת ולא "תקועה".
     showDialog<void>(
@@ -66,8 +66,8 @@ class ServiceHistoryScreen extends StatelessWidget {
     try {
       final dataUrl = asExcel
           ? buildServiceHistoryExcelDataUrl(vehicle, records)
-          : await buildServiceHistoryWordDataUrl(vehicle, records);
-      final extension = asExcel ? 'xlsx' : 'doc';
+          : await buildServiceHistoryPdfDataUrl(vehicle, records);
+      final extension = asExcel ? 'xlsx' : 'pdf';
       final fileName = 'היסטוריית_טיפולים_${vehicle.licensePlate}.$extension';
 
       final shared = await shareDataUrlFile(
@@ -98,8 +98,8 @@ class ServiceHistoryScreen extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.description_outlined, color: AppColors.primary),
-              title: const Text(AppStrings.exportAsWordAction),
+              leading: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.exportAsPdfAction),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _exportFile(context, records, asExcel: false);
