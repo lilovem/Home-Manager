@@ -9,7 +9,16 @@ import '../../providers/vehicles_provider.dart';
 import 'add_edit_vehicle_screen.dart';
 import 'vehicle_detail_screen.dart';
 import 'vehicle_photo_picker.dart';
-import 'vehicles_background_provider.dart';
+
+/// צבע רקע אחיד לכל מסכי מודול הרכבים - גוון לילך-לבן רך, נבחר כדי
+/// להשתלב עם הגרדיאנט הסגול הכהה של הכרטיסייה העליונה במסך פרטי
+/// רכב, במקום רקע לבן סתמי.
+const Color kVehiclesPageBackground = Color(0xFFF6F4FB);
+
+/// צבע כותרות/תגיות קטנות על הרקע הבהיר (כמו "עלות ביטוח שנתית",
+/// "המסע לחידוש") - גוון סגול כהה עמוק מאותה משפחת צבעים כמו
+/// הכרטיסייה העליונה, כדי שהמסכים ירגישו כמערכת אחת.
+const Color kVehiclesAccentText = Color(0xFF2E2A45);
 
 /// מסך "רכבים" - רשימת כל הרכבים של ה-household (יכול להיות אחד
 /// או כמה), עם כרטיס לכל רכב שמראה תמצית: מספר רישוי, ותוקף
@@ -23,92 +32,52 @@ class VehiclesListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vehiclesAsync = ref.watch(vehiclesListProvider(householdId));
-    final backgroundId = ref.watch(vehiclesBackgroundIdProvider(householdId)).value ?? 'none';
-    final background = backgroundOptionById(backgroundId);
-    final hasBackground = background.id != 'none';
 
     return Scaffold(
+      backgroundColor: kVehiclesPageBackground,
       appBar: AppBar(
         title: const Text(AppStrings.vehiclesTitle),
-        foregroundColor: hasBackground ? Colors.white : null,
-        backgroundColor: hasBackground ? Colors.transparent : null,
-        elevation: hasBackground ? 0 : null,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.palette_outlined),
-            tooltip: AppStrings.chooseBackgroundTooltip,
-            onPressed: () => _showBackgroundPicker(context, ref, backgroundId),
-          ),
-        ],
       ),
-      extendBodyBehindAppBar: hasBackground,
-      body: Container(
-        decoration: hasBackground
-            ? BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(background.imageAsset!),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.35),
-                    BlendMode.darken,
-                  ),
-                ),
-              )
-            : null,
-        child: SafeArea(
-          top: !hasBackground,
-          child: Padding(
-            padding: hasBackground ? const EdgeInsets.only(top: kToolbarHeight + 12) : EdgeInsets.zero,
-            child: vehiclesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
-              data: (vehicles) {
-                if (vehicles.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.directions_car_outlined,
-                              size: 64,
-                              color: hasBackground ? Colors.white70 : AppColors.textSecondary),
-                          const SizedBox(height: 16),
-                          Text(
-                            AppStrings.noVehiclesYet,
-                            textAlign: TextAlign.center,
-                            style: hasBackground
-                                ? const TextStyle(color: Colors.white)
-                                : null,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            AppStrings.tapPlusToAddVehicle,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: hasBackground ? Colors.white70 : AppColors.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
+      body: vehiclesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+        data: (vehicles) {
+          if (vehicles.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.directions_car_outlined,
+                        size: 64, color: AppColors.textSecondary),
+                    const SizedBox(height: 16),
+                    const Text(
+                      AppStrings.noVehiclesYet,
+                      textAlign: TextAlign.center,
                     ),
-                  );
-                }
+                    const SizedBox(height: 8),
+                    const Text(
+                      AppStrings.tapPlusToAddVehicle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: vehicles.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => _VehicleCard(
-                    vehicle: vehicles[index],
-                    householdId: householdId,
-                  ),
-                );
-              },
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: vehicles.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _VehicleCard(
+              vehicle: vehicles[index],
+              householdId: householdId,
             ),
-          ),
-        ),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddVehicle(context),
@@ -121,61 +90,6 @@ class VehiclesListScreen extends ConsumerWidget {
   void _openAddVehicle(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AddEditVehicleScreen(householdId: householdId)),
-    );
-  }
-
-  void _showBackgroundPicker(BuildContext context, WidgetRef ref, String currentId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text(AppStrings.chooseBackgroundTooltip, style: AppTextStyles.heading2),
-                ),
-                ...kVehiclesBackgrounds.map(
-                  (option) => ListTile(
-                    leading: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.divider),
-                        color: option.imageAsset == null ? Colors.white : null,
-                        image: option.imageAsset != null
-                            ? DecorationImage(
-                                image: AssetImage(option.imageAsset!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      child: option.imageAsset == null
-                          ? const Icon(Icons.block, size: 16, color: AppColors.textSecondary)
-                          : null,
-                    ),
-                    title: Text(option.label),
-                    trailing: option.id == currentId
-                        ? const Icon(Icons.check, color: AppColors.primary)
-                        : null,
-                    onTap: () {
-                      setVehiclesBackgroundId(householdId, option.id);
-                      Navigator.of(sheetContext).pop();
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

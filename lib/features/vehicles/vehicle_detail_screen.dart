@@ -11,8 +11,8 @@ import 'add_edit_vehicle_screen.dart';
 import 'add_service_record_screen.dart';
 import 'service_history_screen.dart';
 import 'vehicle_photo_picker.dart';
-import 'vehicles_background_provider.dart';
-import 'vehicles_list_screen.dart' show colorForDaysRemaining, daysUntil;
+import 'vehicles_list_screen.dart'
+    show colorForDaysRemaining, daysUntil, kVehiclesAccentText, kVehiclesPageBackground;
 
 /// אייקון קבוע לכל סוג טיפול - משותף בין הרשת (_MaintenanceSection),
 /// בורר סוגי הטיפול, ותצוגת התקציר בכרטיס העליון.
@@ -232,21 +232,18 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   Widget build(BuildContext context) {
     final vehicleAsync = ref
         .watch(vehicleDetailProvider((householdId: widget.householdId, vehicleId: widget.vehicleId)));
-    final backgroundId =
-        ref.watch(vehiclesBackgroundIdProvider(widget.householdId)).value ?? 'none';
-    final background = backgroundOptionById(backgroundId);
-    final hasBackground = background.id != 'none';
 
     // הסרגל העליון: רק בעמוד הראשון (קילומטראז') מוצגים כותרת "פרטי
     // רכב" ואייקוני עריכה/מחיקה - בעמודים 2-3 (טיפולים/ביטוחים) נשאר
-    // רק אייקון חזרה בודד (יציאה מהמסך), בלי רקע צבעוני.
+    // רק אייקון חזרה בודד (יציאה מהמסך).
     final isMainPage = _activePage == 0;
 
     return Scaffold(
+      backgroundColor: kVehiclesPageBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: hasBackground ? Colors.white : AppColors.primaryDark,
+        foregroundColor: AppColors.primaryDark,
         title: isMainPage ? const Text(AppStrings.vehicleDetailsTitle) : null,
         actions: !isMainPage
             ? const []
@@ -273,53 +270,39 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
                 orElse: () => const [],
               ),
       ),
-      body: Container(
-        decoration: hasBackground
-            ? BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(background.imageAsset!),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.28),
-                    BlendMode.darken,
-                  ),
-                ),
-              )
-            : null,
-        child: vehicleAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
-          data: (vehicle) {
-            if (vehicle == null) {
-              return const Center(child: Text('הרכב נמחק'));
-            }
+      body: vehicleAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('שגיאה בטעינה')),
+        data: (vehicle) {
+          if (vehicle == null) {
+            return const Center(child: Text('הרכב נמחק'));
+          }
 
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _DatesHeaderCard(
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _DatesHeaderCard(
+                    householdId: widget.householdId,
+                    vehicle: vehicle,
+                    onPageChanged: (i) => setState(() => _activePage = i),
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: _BottomContentArea(
+                      page: _activePage,
                       householdId: widget.householdId,
                       vehicle: vehicle,
-                      onPageChanged: (i) => setState(() => _activePage = i),
+                      onUpdateMileage: () => _updateMileage(context, ref, vehicle),
                     ),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: _BottomContentArea(
-                        page: _activePage,
-                        householdId: widget.householdId,
-                        vehicle: vehicle,
-                        onUpdateMileage: () => _updateMileage(context, ref, vehicle),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1579,7 +1562,7 @@ class _InsuranceBottom extends StatelessWidget {
         Text(
           AppStrings.insuranceAnnualCostTitle,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(fontSize: 12),
+          style: AppTextStyles.heading2.copyWith(fontSize: 12, color: kVehiclesAccentText),
         ),
         const SizedBox(height: 6),
         _InsuranceCostRow(householdId: householdId, vehicle: vehicle),
@@ -1587,7 +1570,7 @@ class _InsuranceBottom extends StatelessWidget {
         Text(
           AppStrings.renewalJourneyTitle,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(fontSize: 12),
+          style: AppTextStyles.heading2.copyWith(fontSize: 12, color: kVehiclesAccentText),
         ),
         const SizedBox(height: 8),
         _RenewalJourneyRow(
@@ -1752,10 +1735,10 @@ class _RenewalJourneyRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 17),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 4),
           SizedBox(
-            width: 46,
+            width: 40,
             child: Text(
               label,
               style: AppTextStyles.bodySecondary.copyWith(fontSize: 10),
@@ -1796,9 +1779,9 @@ class _RenewalJourneyRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 4),
           SizedBox(
-            width: 40,
+            width: 58,
             child: Text(
               isExpired
                   ? AppStrings.expiredLabel

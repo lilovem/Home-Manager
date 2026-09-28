@@ -4,7 +4,7 @@ import '../../app/config/app_strings.dart';
 import '../../app/config/app_text_styles.dart';
 import '../../models/vehicle_model.dart';
 import '../../providers/vehicles_provider.dart';
-import 'vehicles_background_provider.dart';
+import 'vehicles_list_screen.dart' show kVehiclesPageBackground;
 
 /// מסך הוספה/עריכה של רכב. אם `existing` מועבר - זו עריכה של רכב
 /// קיים; אחרת - הוספת רכב חדש. אותו מסך משרת את שני המקרים כדי
@@ -150,11 +150,6 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundId =
-        ref.watch(vehiclesBackgroundIdProvider(widget.householdId)).value ?? 'none';
-    final background = backgroundOptionById(backgroundId);
-    final hasBackground = background.id != 'none';
-
     final formContent = Form(
             key: _formKey,
             child: Column(
@@ -250,35 +245,17 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
           );
 
     return Scaffold(
+      backgroundColor: kVehiclesPageBackground,
       appBar: AppBar(
         title: Text(_isEditing ? AppStrings.editVehicleTitle : AppStrings.addVehicleTitle),
       ),
-      body: Container(
-        decoration: hasBackground
-            ? BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(background.imageAsset!),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.35),
-                    BlendMode.darken,
-                  ),
-                ),
-              )
-            : null,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: hasBackground
-                ? Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(padding: const EdgeInsets.all(16), child: formContent),
-                  )
-                : formContent,
-          ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: formContent,
         ),
       ),
     );
   }
 }
+
