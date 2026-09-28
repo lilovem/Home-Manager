@@ -8,40 +8,110 @@ import '../../models/vehicle_model.dart';
 import '../../models/vehicle_service_record_model.dart';
 import '../../providers/vehicles_provider.dart';
 import 'add_service_record_screen.dart';
+import 'vehicle_export.dart';
+import 'vehicle_photo_picker.dart';
 
 /// מסך מלא (לא חלונית) עם כל היסטוריית הטיפולים של הרכב - נפתח
 /// מכפתור "היסטוריית טיפולים" בעמוד הטיפולים במסך פרטי הרכב, כדי
 /// שכל התיעוד לא יתפוס מקום קבוע במסך הרכב עצמו (שם אין גלילה).
 /// מקובץ לפי סוג טיפול, עם אפשרות מחיקה (Dismissible) בדיוק כמו
-/// שהיה קודם, ואפשרות הוספת טיפול חדש מכפתור בסרגל העליון.
+/// שהיה קודם, ואפשרות הוספת טיפול חדש מכפתור בסרגל העליון, ואייקון
+/// ייצוא (אקסל/וורד) בצד השני של הסרגל העליון.
 class ServiceHistoryScreen extends StatelessWidget {
   final String householdId;
   final String vehicleId;
   final int currentMileage;
+  final Vehicle vehicle;
 
   const ServiceHistoryScreen({
     super.key,
     required this.householdId,
     required this.vehicleId,
     required this.currentMileage,
+    required this.vehicle,
   });
+
+  Future<void> _exportFile(
+    BuildContext context,
+    List<VehicleServiceRecord> records, {
+    required bool asExcel,
+  }) async {
+    final dataUrl = asExcel
+        ? buildServiceHistoryExcelDataUrl(vehicle, records)
+        : buildServiceHistoryWordDataUrl(vehicle, records);
+    final extension = asExcel ? 'xlsx' : 'doc';
+    final fileName = 'היסטוריית_טיפולים_${vehicle.licensePlate}.$extension';
+
+    final shared = await shareDataUrlFile(
+      dataUrl: dataUrl,
+      fileName: fileName,
+      title: AppStrings.serviceHistoryScreenTitle,
+    );
+    if (!shared) {
+      downloadDataUrlFile(dataUrl: dataUrl, fileName: fileName);
+    }
+  }
+
+  void _showExportSheet(BuildContext context, List<VehicleServiceRecord> records) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.grid_on_outlined, color: AppColors.itemPurchased),
+              title: const Text(AppStrings.exportAsExcelAction),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _exportFile(context, records, asExcel: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.description_outlined, color: AppColors.primary),
+              title: const Text(AppStrings.exportAsWordAction),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _exportFile(context, records, asExcel: false);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.serviceHistoryScreenTitle),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: _ServiceHistoryList(
-            householdId: householdId,
-            vehicleId: vehicleId,
-            currentMileage: currentMileage,
+    return Consumer(
+      builder: (context, ref, _) {
+        final recordsAsync = ref.watch(
+          vehicleServiceRecordsProvider((householdId: householdId, vehicleId: vehicleId)),
+        );
+        final records = recordsAsync.asData?.value ?? const <VehicleServiceRecord>[];
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text(AppStrings.serviceHistoryScreenTitle),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.ios_share_outlined),
+                tooltip: AppStrings.exportTooltip,
+                onPressed: records.isEmpty ? null : () => _showExportSheet(context, records),
+              ),
+            ],
           ),
-        ),
-      ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: _ServiceHistoryList(
+                householdId: householdId,
+                vehicleId: vehicleId,
+                currentMileage: currentMileage,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -166,9 +236,77 @@ class _ServiceRecordTile extends ConsumerWidget {
     required this.currentMileage,
   });
 
+  Future<void> _uploadReceiptPhoto(WidgetRef ref, {required bool useCamera}) async {
+    final dataUrl = await pickAndCompressPhoto(useCamera: useCamera);
+    if (dataUrl == null) return;
+    await ref.read(vehiclesRepositoryProvider).updateServiceRecordReceipt(
+          householdId: householdId,
+          vehicleId: vehicleId,
+          recordId: record.id,
+          receiptDataUrl: dataUrl,
+        );
+  }
+
+  Future<void> _uploadReceiptPdf(WidgetRef ref) async {
+    final dataUrl = await pickPdfDataUrl();
+    if (dataUrl == null) return;
+    await ref.read(vehiclesRepositoryProvider).updateServiceRecordReceipt(
+          householdId: householdId,
+          vehicleId: vehicleId,
+          recordId: record.id,
+          receiptDataUrl: dataUrl,
+        );
+  }
+
+  void _showUploadReceiptSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text(AppStrings.takePhotoOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _uploadReceiptPhoto(ref, useCamera: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text(AppStrings.choosePhotoOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _uploadReceiptPhoto(ref, useCamera: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: const Text(AppStrings.choosePdfOption),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _uploadReceiptPdf(ref);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteReceipt(WidgetRef ref) {
+    return ref.read(vehiclesRepositoryProvider).updateServiceRecordReceipt(
+          householdId: householdId,
+          vehicleId: vehicleId,
+          recordId: record.id,
+          receiptDataUrl: null,
+        );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final displayName = kMaintenanceTemplateNames[record.serviceType] ?? record.serviceType;
+    final hasReceipt = record.receiptDataUrl != null;
 
     return Dismissible(
       key: ValueKey(record.id),
@@ -197,7 +335,38 @@ class _ServiceRecordTile extends ConsumerWidget {
             '${DateFormatter.short(record.performedAt)} · ${record.mileageAtService} ${AppStrings.kmUnit}'
             '${record.notes != null ? ' · ${record.notes}' : ''}',
           ),
-          trailing: record.cost != null ? Text('₪${record.cost}') : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (record.cost != null) ...[
+                Text('₪${record.cost}'),
+                const SizedBox(width: 4),
+              ],
+              if (hasReceipt)
+                IconButton(
+                  icon: const Icon(Icons.visibility_outlined, size: 20),
+                  tooltip: AppStrings.viewDocumentTooltip,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => openDataUrlInNewTab(record.receiptDataUrl!),
+                ),
+              IconButton(
+                icon: Icon(hasReceipt ? Icons.sync : Icons.receipt_long_outlined, size: 20),
+                tooltip: AppStrings.uploadDocumentTooltip,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: () => _showUploadReceiptSheet(context, ref),
+              ),
+              if (hasReceipt)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                  tooltip: AppStrings.deleteDocumentTooltip,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => _deleteReceipt(ref),
+                ),
+            ],
+          ),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => AddServiceRecordScreen(

@@ -1058,7 +1058,19 @@ class _InsurancePage extends StatelessWidget {
         fieldKey: 'comprehensiveInsuranceDocumentDataUrl',
         documentDataUrl: vehicle.comprehensiveInsuranceDocumentDataUrl,
       ),
+      (
+        label: AppStrings.driverLicenseExpiryLabel,
+        date: vehicle.driverLicenseExpiryDate,
+        fieldKey: 'driverLicenseDocumentDataUrl',
+        documentDataUrl: vehicle.driverLicenseDocumentDataUrl,
+      ),
     ];
+
+    // אייקוני העלאה/צפייה/מחיקה קומפקטיים (32 במקום ברירת המחדל 48) -
+    // כדי שכל 4 השורות ייכנסו בבטחה בגובה הקבוע של הכרטיס (210), בלי
+    // לגלוש או להיחתך.
+    const iconConstraints = BoxConstraints(minWidth: 32, minHeight: 32);
+    const iconPadding = EdgeInsets.zero;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1067,9 +1079,9 @@ class _InsurancePage extends StatelessWidget {
         Text(
           AppStrings.insuranceDocumentsTitle,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 16),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         ...rows.map((row) {
           final days = daysUntil(row.date);
           final color = colorForDaysRemaining(days);
@@ -1077,42 +1089,49 @@ class _InsurancePage extends StatelessWidget {
           final hasDocument = row.documentDataUrl != null;
 
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(row.label,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          style: const TextStyle(color: Colors.white70, fontSize: 11)),
                       Text(
                         row.date == null ? AppStrings.notSetLabel : formatPrettyDateHe(row.date!),
                         style: TextStyle(
-                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 13),
+                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 if (hasDocument)
                   IconButton(
-                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 20),
+                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 17),
                     tooltip: AppStrings.viewDocumentTooltip,
+                    constraints: iconConstraints,
+                    padding: iconPadding,
                     onPressed: () => onView(context, row.documentDataUrl),
                   ),
                 IconButton(
                   icon: Icon(
                     hasDocument ? Icons.sync : Icons.upload_file_outlined,
                     color: Colors.white,
-                    size: 20,
+                    size: 17,
                   ),
                   tooltip: AppStrings.uploadDocumentTooltip,
+                  constraints: iconConstraints,
+                  padding: iconPadding,
                   onPressed: () => onUploadTap(context, row.fieldKey),
                 ),
                 if (hasDocument)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 20),
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 17),
                     tooltip: AppStrings.deleteDocumentTooltip,
+                    constraints: iconConstraints,
+                    padding: iconPadding,
                     onPressed: () => onDelete(context, row.fieldKey),
                   ),
               ],
@@ -1234,19 +1253,20 @@ class _NotesCard extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 28,
-                      height: 28,
+                      width: 34,
+                      height: 34,
                       decoration: const BoxDecoration(
                         color: AppColors.primaryLight,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.sticky_note_2_outlined,
-                          color: AppColors.primary, size: 15),
+                          color: AppColors.primary, size: 19),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
                       AppStrings.notesTitle,
-                      style: AppTextStyles.bodySecondary.copyWith(fontSize: 10),
+                      style: AppTextStyles.bodySecondary.copyWith(fontSize: 13),
+                      textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1487,6 +1507,7 @@ class _MaintenanceBottom extends StatelessWidget {
                   householdId: householdId,
                   vehicleId: vehicle.id,
                   currentMileage: vehicle.currentMileage,
+                  vehicle: vehicle,
                 ),
               ),
             ),
@@ -1630,15 +1651,15 @@ class _InsuranceBottom extends StatelessWidget {
           textAlign: TextAlign.center,
           style: AppTextStyles.heading2.copyWith(fontSize: 12, color: kVehiclesAccentText),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         _InsuranceCostRow(householdId: householdId, vehicle: vehicle),
-        const SizedBox(height: 18),
+        const SizedBox(height: 10),
         Text(
           AppStrings.renewalJourneyTitle,
           textAlign: TextAlign.center,
           style: AppTextStyles.heading2.copyWith(fontSize: 12, color: kVehiclesAccentText),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _RenewalJourneyRow(
           label: AppStrings.licenseExpiryLabel,
           icon: Icons.badge_outlined,
@@ -1656,6 +1677,12 @@ class _InsuranceBottom extends StatelessWidget {
           icon: Icons.security,
           expiryDate: vehicle.comprehensiveInsuranceExpiryDate,
           color: const Color(0xFF3FA97A),
+        ),
+        _RenewalJourneyRow(
+          label: AppStrings.driverLicenseExpiryLabel,
+          icon: Icons.assignment_ind_outlined,
+          expiryDate: vehicle.driverLicenseExpiryDate,
+          color: const Color(0xFF9B6BCE),
         ),
       ],
     );
@@ -1792,8 +1819,8 @@ class _RenewalJourneyRow extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
         borderRadius: BorderRadius.circular(16),
@@ -1804,17 +1831,19 @@ class _RenewalJourneyRow extends StatelessWidget {
           Icon(icon, color: color, size: 16),
           const SizedBox(width: 4),
           SizedBox(
-            width: 40,
+            width: 42,
             child: Text(
               label,
-              style: AppTextStyles.bodySecondary.copyWith(fontSize: 10),
-              maxLines: 1,
+              style: AppTextStyles.bodySecondary.copyWith(fontSize: 10, height: 1.1),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              softWrap: true,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
             child: SizedBox(
-              height: 32,
+              height: 28,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final trackWidth = (constraints.maxWidth - 24).clamp(0.0, double.infinity);

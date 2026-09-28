@@ -53,6 +53,7 @@ class VehiclesService {
     DateTime? licenseExpiryDate,
     DateTime? mandatoryInsuranceExpiryDate,
     DateTime? comprehensiveInsuranceExpiryDate,
+    DateTime? driverLicenseExpiryDate,
   }) async {
     final docRef = await _vehiclesCollection(householdId).add(
       Vehicle.toFirestoreForCreate(
@@ -64,6 +65,7 @@ class VehiclesService {
         licenseExpiryDate: licenseExpiryDate,
         mandatoryInsuranceExpiryDate: mandatoryInsuranceExpiryDate,
         comprehensiveInsuranceExpiryDate: comprehensiveInsuranceExpiryDate,
+        driverLicenseExpiryDate: driverLicenseExpiryDate,
       ),
     );
     final snapshot = await docRef.get();
@@ -80,6 +82,7 @@ class VehiclesService {
     DateTime? licenseExpiryDate,
     DateTime? mandatoryInsuranceExpiryDate,
     DateTime? comprehensiveInsuranceExpiryDate,
+    DateTime? driverLicenseExpiryDate,
   }) {
     final data = Vehicle(
       id: vehicleId,
@@ -98,6 +101,7 @@ class VehiclesService {
       licenseExpiryDate: licenseExpiryDate,
       mandatoryInsuranceExpiryDate: mandatoryInsuranceExpiryDate,
       comprehensiveInsuranceExpiryDate: comprehensiveInsuranceExpiryDate,
+      driverLicenseExpiryDate: driverLicenseExpiryDate,
     );
     return _vehiclesCollection(householdId).doc(vehicleId).update(data);
   }
@@ -257,6 +261,19 @@ class VehiclesService {
     required String recordId,
   }) {
     return _serviceRecordsCollection(householdId, vehicleId).doc(recordId).delete();
+  }
+
+  /// שומר/מנקה תמונה (Data URL) של קבלה מהמוסך לרשומת טיפול בודדת -
+  /// receiptDataUrl == null מוחק את הקבלה.
+  Future<void> updateServiceRecordReceipt({
+    required String householdId,
+    required String vehicleId,
+    required String recordId,
+    required String? receiptDataUrl,
+  }) {
+    return _serviceRecordsCollection(householdId, vehicleId).doc(recordId).update({
+      'receiptDataUrl': receiptDataUrl,
+    });
   }
 
   /// מעדכן רשומת טיפול קיימת. אם הק"מ שעודכן גבוה מהקילומטראז'

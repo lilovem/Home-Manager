@@ -15,6 +15,9 @@ class Vehicle {
   final DateTime? mandatoryInsuranceExpiryDate;
   final DateTime? comprehensiveInsuranceExpiryDate;
 
+  /// תוקף רישיון הנהיגה (של הנהג/ת) - בנפרד מרישיון הרכב עצמו.
+  final DateTime? driverLicenseExpiryDate;
+
   /// מרווחי הטיפולים (בק"מ) לרכב הזה - מתחיל מברירות מחדל גנריות
   /// (ראה kDefaultMaintenanceIntervals), אבל ניתן לעריכה פר-רכב אם
   /// למשתמש יש נתונים מדויקים יותר מספר הרכב שלו.
@@ -43,6 +46,7 @@ class Vehicle {
   final String? licenseDocumentDataUrl;
   final String? mandatoryInsuranceDocumentDataUrl;
   final String? comprehensiveInsuranceDocumentDataUrl;
+  final String? driverLicenseDocumentDataUrl;
 
   /// עלות שנתית (בש"ח) של כל אחד מהביטוחים - מוזנת ידנית ע"י המשתמש
   /// (אין דרך אוטומטית לדעת את זה), מוצגת בעמוד הביטוחים לצד "המסע
@@ -67,6 +71,7 @@ class Vehicle {
     this.licenseExpiryDate,
     this.mandatoryInsuranceExpiryDate,
     this.comprehensiveInsuranceExpiryDate,
+    this.driverLicenseExpiryDate,
     required this.maintenanceIntervals,
     this.maintenanceResetMileage = const {},
     required this.initialMileage,
@@ -74,6 +79,7 @@ class Vehicle {
     this.licenseDocumentDataUrl,
     this.mandatoryInsuranceDocumentDataUrl,
     this.comprehensiveInsuranceDocumentDataUrl,
+    this.driverLicenseDocumentDataUrl,
     this.mandatoryInsuranceAnnualCost,
     this.comprehensiveInsuranceAnnualCost,
     this.notes,
@@ -98,6 +104,7 @@ class Vehicle {
           (data['mandatoryInsuranceExpiryDate'] as Timestamp?)?.toDate(),
       comprehensiveInsuranceExpiryDate:
           (data['comprehensiveInsuranceExpiryDate'] as Timestamp?)?.toDate(),
+      driverLicenseExpiryDate: (data['driverLicenseExpiryDate'] as Timestamp?)?.toDate(),
       maintenanceIntervals: rawIntervals != null
           ? rawIntervals.map((key, value) => MapEntry(key, (value as num).toInt()))
           : Map<String, int>.from(kDefaultMaintenanceIntervals),
@@ -114,6 +121,7 @@ class Vehicle {
       mandatoryInsuranceDocumentDataUrl: data['mandatoryInsuranceDocumentDataUrl'] as String?,
       comprehensiveInsuranceDocumentDataUrl:
           data['comprehensiveInsuranceDocumentDataUrl'] as String?,
+      driverLicenseDocumentDataUrl: data['driverLicenseDocumentDataUrl'] as String?,
       mandatoryInsuranceAnnualCost: (data['mandatoryInsuranceAnnualCost'] as num?)?.toDouble(),
       comprehensiveInsuranceAnnualCost:
           (data['comprehensiveInsuranceAnnualCost'] as num?)?.toDouble(),
@@ -131,6 +139,7 @@ class Vehicle {
     DateTime? licenseExpiryDate,
     DateTime? mandatoryInsuranceExpiryDate,
     DateTime? comprehensiveInsuranceExpiryDate,
+    DateTime? driverLicenseExpiryDate,
   }) {
     return {
       'manufacturer': manufacturer,
@@ -147,6 +156,8 @@ class Vehicle {
       'comprehensiveInsuranceExpiryDate': comprehensiveInsuranceExpiryDate != null
           ? Timestamp.fromDate(comprehensiveInsuranceExpiryDate)
           : null,
+      'driverLicenseExpiryDate':
+          driverLicenseExpiryDate != null ? Timestamp.fromDate(driverLicenseExpiryDate) : null,
       'maintenanceIntervals': kDefaultMaintenanceIntervals,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -160,6 +171,7 @@ class Vehicle {
     DateTime? licenseExpiryDate,
     DateTime? mandatoryInsuranceExpiryDate,
     DateTime? comprehensiveInsuranceExpiryDate,
+    DateTime? driverLicenseExpiryDate,
   }) {
     return {
       if (manufacturer != null) 'manufacturer': manufacturer,
@@ -174,6 +186,8 @@ class Vehicle {
       'comprehensiveInsuranceExpiryDate': comprehensiveInsuranceExpiryDate != null
           ? Timestamp.fromDate(comprehensiveInsuranceExpiryDate)
           : null,
+      'driverLicenseExpiryDate':
+          driverLicenseExpiryDate != null ? Timestamp.fromDate(driverLicenseExpiryDate) : null,
     };
   }
 }

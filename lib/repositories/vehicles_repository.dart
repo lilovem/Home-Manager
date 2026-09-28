@@ -26,6 +26,7 @@ class VehiclesRepository {
     DateTime? licenseExpiryDate,
     DateTime? mandatoryInsuranceExpiryDate,
     DateTime? comprehensiveInsuranceExpiryDate,
+    DateTime? driverLicenseExpiryDate,
   }) {
     return _service.addVehicle(
       householdId: householdId,
@@ -37,6 +38,7 @@ class VehiclesRepository {
       licenseExpiryDate: licenseExpiryDate,
       mandatoryInsuranceExpiryDate: mandatoryInsuranceExpiryDate,
       comprehensiveInsuranceExpiryDate: comprehensiveInsuranceExpiryDate,
+      driverLicenseExpiryDate: driverLicenseExpiryDate,
     );
   }
 
@@ -50,6 +52,7 @@ class VehiclesRepository {
     DateTime? licenseExpiryDate,
     DateTime? mandatoryInsuranceExpiryDate,
     DateTime? comprehensiveInsuranceExpiryDate,
+    DateTime? driverLicenseExpiryDate,
   }) {
     return _service.updateVehicle(
       householdId: householdId,
@@ -61,6 +64,7 @@ class VehiclesRepository {
       licenseExpiryDate: licenseExpiryDate,
       mandatoryInsuranceExpiryDate: mandatoryInsuranceExpiryDate,
       comprehensiveInsuranceExpiryDate: comprehensiveInsuranceExpiryDate,
+      driverLicenseExpiryDate: driverLicenseExpiryDate,
     );
   }
 
@@ -199,6 +203,20 @@ class VehiclesRepository {
       householdId: householdId,
       vehicleId: vehicleId,
       recordId: recordId,
+    );
+  }
+
+  Future<void> updateServiceRecordReceipt({
+    required String householdId,
+    required String vehicleId,
+    required String recordId,
+    required String? receiptDataUrl,
+  }) {
+    return _service.updateServiceRecordReceipt(
+      householdId: householdId,
+      vehicleId: vehicleId,
+      recordId: recordId,
+      receiptDataUrl: receiptDataUrl,
     );
   }
 

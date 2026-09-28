@@ -34,6 +34,7 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
   DateTime? _licenseExpiry;
   DateTime? _mandatoryInsuranceExpiry;
   DateTime? _comprehensiveInsuranceExpiry;
+  DateTime? _driverLicenseExpiry;
   bool _isSaving = false;
 
   bool get _isEditing => widget.existing != null;
@@ -50,6 +51,7 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
     _licenseExpiry = v?.licenseExpiryDate;
     _mandatoryInsuranceExpiry = v?.mandatoryInsuranceExpiryDate;
     _comprehensiveInsuranceExpiry = v?.comprehensiveInsuranceExpiryDate;
+    _driverLicenseExpiry = v?.driverLicenseExpiryDate;
   }
 
   @override
@@ -98,6 +100,7 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
           licenseExpiryDate: _licenseExpiry,
           mandatoryInsuranceExpiryDate: _mandatoryInsuranceExpiry,
           comprehensiveInsuranceExpiryDate: _comprehensiveInsuranceExpiry,
+          driverLicenseExpiryDate: _driverLicenseExpiry,
         );
       } else {
         await repo.addVehicle(
@@ -110,6 +113,7 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
           licenseExpiryDate: _licenseExpiry,
           mandatoryInsuranceExpiryDate: _mandatoryInsuranceExpiry,
           comprehensiveInsuranceExpiryDate: _comprehensiveInsuranceExpiry,
+          driverLicenseExpiryDate: _driverLicenseExpiry,
         );
       }
       if (mounted) Navigator.of(context).pop();
@@ -228,6 +232,15 @@ class _AddEditVehicleScreenState extends ConsumerState<AddEditVehicleScreen> {
                     onPicked: (d) => setState(() => _comprehensiveInsuranceExpiry = d),
                   ),
                   onClear: () => setState(() => _comprehensiveInsuranceExpiry = null),
+                ),
+                _dateRow(
+                  label: AppStrings.driverLicenseExpiryLabel,
+                  value: _driverLicenseExpiry,
+                  onTap: () => _pickDate(
+                    current: _driverLicenseExpiry,
+                    onPicked: (d) => setState(() => _driverLicenseExpiry = d),
+                  ),
+                  onClear: () => setState(() => _driverLicenseExpiry = null),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

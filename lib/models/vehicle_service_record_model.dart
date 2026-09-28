@@ -14,6 +14,11 @@ class VehicleServiceRecord {
   final String? notes;
   final DateTime? createdAt;
 
+  /// תמונה/PDF (Data URL) של קבלה מהמוסך לטיפול הזה - אופציונלי,
+  /// מועלה מתוך היסטוריית הטיפולים. משמש גם לצפייה מהירה וגם
+  /// מוטמע בתוך קובץ הייצוא (Word) של היסטוריית הטיפולים.
+  final String? receiptDataUrl;
+
   const VehicleServiceRecord({
     required this.id,
     required this.serviceType,
@@ -22,6 +27,7 @@ class VehicleServiceRecord {
     this.cost,
     this.notes,
     required this.createdAt,
+    this.receiptDataUrl,
   });
 
   factory VehicleServiceRecord.fromFirestore(String id, Map<String, dynamic> data) {
@@ -33,6 +39,7 @@ class VehicleServiceRecord {
       cost: (data['cost'] as num?)?.toDouble(),
       notes: data['notes'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      receiptDataUrl: data['receiptDataUrl'] as String?,
     );
   }
 
@@ -72,3 +79,4 @@ class VehicleServiceRecord {
     };
   }
 }
+
