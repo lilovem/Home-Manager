@@ -54,11 +54,23 @@ class MaintenanceStatus {
   });
 }
 
+/// מחזיר את מפתחות סוגי הטיפול ה"מותאמים אישית" (טיפול שתועד בשם
+/// חופשי דרך "אחר") שכבר קיבלו מעקב טווח מוגדר - כלומר יש להם ערך
+/// ב-maintenanceIntervals אבל הם לא אחד מ-5 הסוגים הקבועים. משמש
+/// כדי להוסיף אותם לחישוב "כמה נשאר" לצד הסוגים הקבועים.
+List<String> customTrackedMaintenanceKeys(Vehicle vehicle) {
+  return vehicle.maintenanceIntervals.keys
+      .where((k) => !kMaintenanceTemplateNames.containsKey(k))
+      .toList();
+}
+
 List<MaintenanceStatus> computeMaintenanceStatuses(
   Vehicle vehicle,
-  List<VehicleServiceRecord> records,
-) {
-  return kTrackedMaintenanceKeys.map((key) {
+  List<VehicleServiceRecord> records, {
+  List<String> extraKeys = const [],
+}) {
+  final keys = [...kTrackedMaintenanceKeys, ...extraKeys];
+  return keys.map((key) {
     final name = kMaintenanceTemplateNames[key] ?? key;
     final interval =
         vehicle.maintenanceIntervals[key] ?? kDefaultMaintenanceIntervals[key] ?? 10000;
@@ -908,7 +920,7 @@ class _MaintenanceSettingsSheet extends ConsumerWidget {
                 AppStrings.editIntervalsSectionTitle,
                 style: AppTextStyles.bodySecondary.copyWith(fontWeight: FontWeight.bold),
               ),
-              ..._kAllMaintenanceKeys.map((key) {
+              ...[...kTrackedMaintenanceKeys, ...customTrackedMaintenanceKeys(vehicle)].map((key) {
                 final name = kMaintenanceTemplateNames[key] ?? key;
                 final interval =
                     vehicle.maintenanceIntervals[key] ?? kDefaultMaintenanceIntervals[key] ?? 10000;
@@ -921,6 +933,42 @@ class _MaintenanceSettingsSheet extends ConsumerWidget {
                       context, ref, householdId, vehicle.id, key, name, interval),
                 );
               }),
+              recordsAsync.when(
+                data: (records) {
+                  final untrackedTypes = records
+                      .map((r) => r.serviceType)
+                      .where((type) =>
+                          !kMaintenanceTemplateNames.containsKey(type) &&
+                          !vehicle.maintenanceIntervals.containsKey(type))
+                      .toSet()
+                      .toList();
+                  if (untrackedTypes.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(height: 28),
+                      Text(
+                        AppStrings.customMaintenanceSectionTitle,
+                        style: AppTextStyles.bodySecondary.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      ...untrackedTypes.map((type) {
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(type),
+                          subtitle: const Text(AppStrings.notYetTrackedHint),
+                          trailing: TextButton(
+                            onPressed: () => _editMaintenanceIntervalDialog(
+                                context, ref, householdId, vehicle.id, type, type, 10000),
+                            child: const Text(AppStrings.setTrackingAction),
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (e, st) => const SizedBox.shrink(),
+              ),
               const Divider(height: 28),
               Text(
                 AppStrings.resetOverdueSectionTitle,
@@ -928,7 +976,11 @@ class _MaintenanceSettingsSheet extends ConsumerWidget {
               ),
               recordsAsync.when(
                 data: (records) {
-                  final statuses = computeMaintenanceStatuses(vehicle, records);
+                  final statuses = computeMaintenanceStatuses(
+                    vehicle,
+                    records,
+                    extraKeys: customTrackedMaintenanceKeys(vehicle),
+                  );
                   return Column(
                     children: statuses.map((s) {
                       return ListTile(
@@ -1326,8 +1378,11 @@ class _NextServiceCard extends ConsumerWidget {
 
     return recordsAsync.when(
       data: (records) {
-        final statuses = computeMaintenanceStatuses(vehicle, records)
-          ..sort((a, b) => a.remaining.compareTo(b.remaining));
+        final statuses = computeMaintenanceStatuses(
+          vehicle,
+          records,
+          extraKeys: customTrackedMaintenanceKeys(vehicle),
+        )..sort((a, b) => a.remaining.compareTo(b.remaining));
         if (statuses.isEmpty) return const SizedBox.shrink();
         final next = statuses.first;
 

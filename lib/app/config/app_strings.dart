@@ -4,6 +4,9 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String setTrackingAction = "הגדר מעקב";
+  static const String notYetTrackedHint = "עדיין לא במעקב";
+  static const String customMaintenanceSectionTitle = "טיפולים מותאמים אישית";
   static const String noServiceRecordsMessage = "לא תועדו טיפולים לרכב";
   static const String resetMaintenanceDoneMessage = "התזכורת אופסה עבור";
   static const String resetMaintenanceNoteText = "איפוס ידני של התזכורת";
