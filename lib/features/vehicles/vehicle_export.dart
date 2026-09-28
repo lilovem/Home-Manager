@@ -90,10 +90,23 @@ Future<String> buildServiceHistoryWordDataUrl(
     }
   }
 
+  // "שובר עמוד" בטכניקה שוורד עצמו משתמש בה כשהוא שומר HTML עם מעבר
+  // עמוד ידני - הרבה יותר אמינה מ-page-break-before רגיל על div, כדי
+  // שהנספחים תמיד יתחילו בעמוד נפרד ולא "יידבקו" לעמוד הטבלה.
+  const pageBreak =
+      "<br clear=\"all\" style=\"mso-special-character:line-break; page-break-before:always;\">";
+
+  // שורת מיתוג קטנה בתחתית העמוד (צד שמאל) - "לוגו" טקסטואלי של
+  // האפליקציה, כדי שהדוח ייראה כמופק ממקור מסודר ומקצועי.
+  const brandFooter = '<div style="margin-top:20px; text-align:left; '
+      'font-size:10px; color:#9AA0A6;">🏠 הופק ע"י אפליקציית ניהול הבית '
+      '<b style="color:#2E3B55;">LeeHome</b></div>';
+
   final buffer = StringBuffer();
   buffer.writeln('<html dir="rtl" lang="he"><head><meta charset="utf-8"></head>');
   buffer.writeln('<body style="font-family: Arial, sans-serif; direction: rtl;">');
-  buffer.writeln('<h1 style="margin-bottom:4px;">דוח היסטוריית טיפולים ואחזקה</h1>');
+  buffer.writeln(
+      '<h1 style="text-align:center; margin-bottom:24px;">דוח היסטוריית טיפולים ואחזקה</h1>');
   buffer.writeln('<table style="border:none; margin-bottom:16px;">'
       '<tr><td style="padding:2px 0; font-weight:bold;">כלי רכב:</td>'
       '<td style="padding:2px 8px;">${_escapeHtml(vehicle.displayName)}${vehicle.year != null ? ' (${vehicle.year})' : ''}</td></tr>'
@@ -115,10 +128,11 @@ Future<String> buildServiceHistoryWordDataUrl(
     final costText = record.cost != null ? '₪${record.cost!.toStringAsFixed(0)}' : '-';
     final receiptImage = resolvedReceiptImages[i];
 
+    // בטבלה עצמה - רק טקסט "ראה נספח X", בלי תמונה (התמונה מופיעה
+    // רק בעמוד הנספח הייעודי שלה, בהמשך המסמך).
     var receiptCell = '-';
     if (receiptImage != null) {
-      receiptCell = '<img src="$receiptImage" style="max-width:100px; max-height:100px;" />'
-          '<br/><span style="font-size:11px;">ראה נספח $number</span>';
+      receiptCell = 'ראה נספח $number';
     } else if (record.receiptDataUrl != null) {
       // קבלת PDF שלא הצלחנו להמיר לתמונה (למשל קובץ פגום) - נשארת
       // כקישור, למרות שלא תמיד ייפתח בכל תוכנה.
@@ -137,26 +151,30 @@ Future<String> buildServiceHistoryWordDataUrl(
   }
 
   buffer.writeln('</table>');
+  buffer.writeln(brandFooter);
 
-  // נספח קבלות - כל קבלה על עמוד שלם משלה, ממוספר לפי מספר הטיפול
-  // בטבלה למעלה. page-break-before מתפרש היטב בוורד (טכניקה נפוצה
-  // ליצירת מעברי עמוד ממסמך HTML).
+  // נספח קבלות - כל קבלה על עמוד נפרד ונבדל משלה, ממוספר לפי מספר
+  // הטיפול בטבלה למעלה. שובר העמוד לפני "נספחים" מבטיח שזה לא יופיע
+  // באותו עמוד עם הטבלה, ושובר נוסף לפני כל קבלה מבטיח שכל קבלה
+  // מקבלת עמוד משלה.
   final appendixIndices = [
     for (var i = 0; i < sorted.length; i++)
       if (resolvedReceiptImages[i] != null) i,
   ];
 
   if (appendixIndices.isNotEmpty) {
-    buffer.writeln('<div style="page-break-before: always;">'
-        '<h1>נספחים - קבלות מצורפות</h1></div>');
+    buffer.writeln(pageBreak);
+    buffer.writeln('<h1 style="text-align:center;">נספחים - קבלות מצורפות</h1>');
     for (final i in appendixIndices) {
       final record = sorted[i];
       final number = i + 1;
       final name = kMaintenanceTemplateNames[record.serviceType] ?? record.serviceType;
-      buffer.writeln('<div style="page-break-before: always; text-align: center;">'
+      buffer.writeln(pageBreak);
+      buffer.writeln('<div style="text-align: center;">'
           '<h2>נספח $number - ${_escapeHtml(name)} - ${formatPrettyDateHe(record.performedAt)}</h2>'
-          '<img src="${resolvedReceiptImages[i]}" style="max-width:100%; max-height:900px;" />'
+          '<img src="${resolvedReceiptImages[i]}" style="max-width:100%; max-height:850px;" />'
           '</div>');
+      buffer.writeln(brandFooter);
     }
   }
 
