@@ -801,8 +801,8 @@ class _MaintenanceTopPreview extends ConsumerWidget {
         Row(
           children: [
             ..._kAllMaintenanceKeys.map((key) => _tile(context, ref, key)),
-            _settingsTile(context),
             _addTile(context),
+            _settingsTile(context),
           ],
         ),
       ],
@@ -1156,8 +1156,10 @@ class _BottomContentArea extends StatelessWidget {
   }
 }
 
-/// אזור תחתון לעמוד 1 - קילומטראז' (עם עריכה, בדיוק כמו שהיה) ומתחתיו
-/// "הטיפול הבא" (הכי דחוף מתוך כל סוגי הטיפול העוקבים).
+/// אזור תחתון לעמוד 1 - קילומטראז' (עם עריכה, בדיוק כמו שהיה) וכרטיס
+/// "תזכורות" הקטן והמרובע לצידו הימני (ממלא את השטח הריק שהיה שם),
+/// ומתחתיהם "הטיפול הבא" (הכי דחוף מתוך כל סוגי הטיפול העוקבים) -
+/// בגרסה מצומצמת בגובה, כי שני הכרטיסים היו ברובם ריקים.
 class _MainInfoBottom extends StatelessWidget {
   final String householdId;
   final Vehicle vehicle;
@@ -1174,18 +1176,31 @@ class _MainInfoBottom extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Center(child: _MileageCard(vehicle: vehicle, onUpdate: onUpdateMileage)),
+        Center(
+          child: IntrinsicHeight(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _NotesCard(householdId: householdId, vehicle: vehicle),
+                const SizedBox(width: 12),
+                _MileageCard(vehicle: vehicle, onUpdate: onUpdateMileage),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
         _NextServiceCard(householdId: householdId, vehicle: vehicle),
-        const SizedBox(height: 12),
-        _NotesCard(householdId: householdId, vehicle: vehicle),
       ],
     );
   }
 }
 
 /// הערה חופשית לרכב - טקסט קצר שאפשר להוסיף/לערוך/למחוק בכל רגע
-/// (למשל תזכורת "לבדוק לחץ אוויר"), נשמר ישירות במסמך הרכב.
+/// (למשל תזכורת "לבדוק לחץ אוויר"), נשמר ישירות במסמך הרכב. כרטיס
+/// מרובע וקומפקטי, באותו גובה כמו כרטיס הקילומטראז' שלידו - אייקון
+/// ותווית "תזכורות" בלבד (בלי תצוגה מקדימה של הטקסט - אין מקום בריבוע
+/// הקטן), עם נקודה צבעונית קטנה בפינה כשיש תזכורת שמורה.
 class _NotesCard extends ConsumerWidget {
   final String householdId;
   final Vehicle vehicle;
@@ -1203,45 +1218,54 @@ class _NotesCard extends ConsumerWidget {
         ),
       ),
       borderRadius: BorderRadius.circular(16),
-      child: Card(
-        elevation: 2,
-        color: Colors.white.withOpacity(0.8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Card(
+          elevation: 2,
+          color: Colors.white.withOpacity(0.8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryLight,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.sticky_note_2_outlined, color: AppColors.primary, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.all(6),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.sticky_note_2_outlined,
+                          color: AppColors.primary, size: 15),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       AppStrings.notesTitle,
-                      style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                      style: AppTextStyles.bodySecondary.copyWith(fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (hasNotes)
-                      Text(
-                        vehicle.notes!,
-                        style: AppTextStyles.heading2.copyWith(fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                   ],
                 ),
               ),
+              if (hasNotes)
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1394,46 +1418,33 @@ class _NextServiceCard extends ConsumerWidget {
             color: Colors.white.withOpacity(0.8),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 32,
+                    height: 32,
                     decoration:
                         BoxDecoration(color: next.color.withOpacity(0.15), shape: BoxShape.circle),
-                    child: Icon(next.icon, color: next.color, size: 22),
+                    child: Icon(next.icon, color: next.color, size: 18),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          AppStrings.nextServiceLabel,
-                          style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
-                        ),
-                        Text(next.name, style: AppTextStyles.heading2.copyWith(fontSize: 15)),
-                      ],
+                    child: Text(
+                      next.name,
+                      style: AppTextStyles.heading2.copyWith(fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Text.rich(
-                    TextSpan(
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      children: [
-                        TextSpan(
-                          text: next.remaining < 0
-                              ? '${AppStrings.overdueByLabel} '
-                              : '${AppStrings.nextServiceInLabel} ',
-                          style: const TextStyle(color: Colors.black87),
-                        ),
-                        TextSpan(
-                          text:
-                              '${next.remaining < 0 ? -next.remaining : next.remaining} ${AppStrings.kmUnit}',
-                          style: TextStyle(color: next.color),
-                        ),
-                      ],
+                  Text(
+                    next.remaining < 0
+                        ? '${AppStrings.overdueByLabel} ${-next.remaining} ${AppStrings.kmUnit}'
+                        : '${AppStrings.nextServiceInLabel} ${next.remaining} ${AppStrings.kmUnit}',
+                    style: TextStyle(
+                      color: next.color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
                     ),
                     textAlign: TextAlign.end,
                   ),
