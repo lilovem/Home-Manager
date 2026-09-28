@@ -93,10 +93,9 @@ class ServiceHistoryScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text(AppStrings.serviceHistoryScreenTitle),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.ios_share_outlined),
-                tooltip: AppStrings.exportTooltip,
-                onPressed: records.isEmpty ? null : () => _showExportSheet(context, records),
+              _ExportAction(
+                enabled: records.isNotEmpty,
+                onTap: () => _showExportSheet(context, records),
               ),
             ],
           ),
@@ -112,6 +111,40 @@ class ServiceHistoryScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// כפתור הייצוא בסרגל העליון - אייקון עם המילה "ייצוא" ממש מתחתיו
+/// (לא רק Tooltip), כדי שהפעולה תהיה ברורה בלי צורך ללחוץ ארוכות.
+class _ExportAction extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _ExportAction({required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled
+        ? (Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface)
+        : Theme.of(context).disabledColor;
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.ios_share_outlined, color: color, size: 22),
+            const SizedBox(height: 1),
+            Text(
+              AppStrings.exportTooltip,
+              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

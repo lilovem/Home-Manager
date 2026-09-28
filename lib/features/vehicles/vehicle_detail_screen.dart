@@ -1066,22 +1066,24 @@ class _InsurancePage extends StatelessWidget {
       ),
     ];
 
-    // אייקוני העלאה/צפייה/מחיקה קומפקטיים (32 במקום ברירת המחדל 48) -
-    // כדי שכל 4 השורות ייכנסו בבטחה בגובה הקבוע של הכרטיס (210), בלי
-    // לגלוש או להיחתך.
-    const iconConstraints = BoxConstraints(minWidth: 32, minHeight: 32);
+    // אייקוני העלאה/צפייה/מחיקה קומפקטיים מאוד (28, במקום ברירת המחדל
+    // 48) - כדי שכל 4 השורות ייכנסו בבטחה בגובה הקבוע של הכרטיס (210)
+    // עם מרווחים אחידים וברורים, בלי לגלוש או להיחתך. הכרטיס מיושר
+    // מלמעלה (לא ממורכז) כדי שהמיקום יהיה עקבי וכל 4 השורות תמיד
+    // גלויות במלואן, גם אם יש מעט שטח פנוי בתחתית.
+    const iconConstraints = BoxConstraints(minWidth: 28, minHeight: 28);
     const iconPadding = EdgeInsets.zero;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(
           AppStrings.insuranceDocumentsTitle,
           textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 15),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 13),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         ...rows.map((row) {
           final days = daysUntil(row.date);
           final color = colorForDaysRemaining(days);
@@ -1098,18 +1100,18 @@ class _InsurancePage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(row.label,
-                          style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                          style: const TextStyle(color: Colors.white70, fontSize: 10)),
                       Text(
                         row.date == null ? AppStrings.notSetLabel : formatPrettyDateHe(row.date!),
                         style: TextStyle(
-                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 12),
+                            color: displayColor, fontWeight: FontWeight.bold, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
                 if (hasDocument)
                   IconButton(
-                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 17),
+                    icon: const Icon(Icons.visibility_outlined, color: Colors.white, size: 15),
                     tooltip: AppStrings.viewDocumentTooltip,
                     constraints: iconConstraints,
                     padding: iconPadding,
@@ -1119,7 +1121,7 @@ class _InsurancePage extends StatelessWidget {
                   icon: Icon(
                     hasDocument ? Icons.sync : Icons.upload_file_outlined,
                     color: Colors.white,
-                    size: 17,
+                    size: 15,
                   ),
                   tooltip: AppStrings.uploadDocumentTooltip,
                   constraints: iconConstraints,
@@ -1128,7 +1130,7 @@ class _InsurancePage extends StatelessWidget {
                 ),
                 if (hasDocument)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 17),
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 15),
                     tooltip: AppStrings.deleteDocumentTooltip,
                     constraints: iconConstraints,
                     padding: iconPadding,
@@ -1819,8 +1821,8 @@ class _RenewalJourneyRow extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
         borderRadius: BorderRadius.circular(16),
@@ -1828,13 +1830,13 @@ class _RenewalJourneyRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 16),
+          Icon(icon, color: color, size: 18),
           const SizedBox(width: 4),
           SizedBox(
-            width: 42,
+            width: 44,
             child: Text(
               label,
-              style: AppTextStyles.bodySecondary.copyWith(fontSize: 10, height: 1.1),
+              style: AppTextStyles.bodySecondary.copyWith(fontSize: 11, height: 1.15),
               textAlign: TextAlign.center,
               maxLines: 2,
               softWrap: true,
@@ -1843,7 +1845,7 @@ class _RenewalJourneyRow extends StatelessWidget {
           ),
           Expanded(
             child: SizedBox(
-              height: 28,
+              height: 32,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final trackWidth = (constraints.maxWidth - 24).clamp(0.0, double.infinity);
@@ -1862,11 +1864,11 @@ class _RenewalJourneyRow extends StatelessWidget {
                       ),
                       Positioned(
                         left: carLeft,
-                        child: Icon(Icons.directions_car, color: color, size: 24),
+                        child: Icon(Icons.directions_car, color: color, size: 26),
                       ),
                       const Positioned(
                         right: 0,
-                        child: Icon(Icons.flag, color: Color(0xFFE53935), size: 20),
+                        child: Icon(Icons.flag, color: Color(0xFFE53935), size: 22),
                       ),
                     ],
                   );
@@ -1886,7 +1888,7 @@ class _RenewalJourneyRow extends StatelessWidget {
               style: TextStyle(
                 color: isExpired ? AppColors.error : urgencyColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 10,
+                fontSize: 11,
               ),
               textAlign: TextAlign.end,
               maxLines: 1,

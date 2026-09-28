@@ -82,8 +82,8 @@ String buildServiceHistoryWordDataUrl(
     if (receipt != null) {
       final mime = mimeTypeOfDataUrl(receipt);
       receiptCell = mime.startsWith('image/')
-          ? '<img src="$receipt" style="max-width:160px; max-height:160px;" />'
-          : 'קובץ PDF מצורף (זמין לצפייה באפליקציה)';
+          ? '<a href="$receipt" target="_blank"><img src="$receipt" style="max-width:160px; max-height:160px;" /></a>'
+          : '<a href="$receipt" target="_blank">📄 פתח קובץ PDF</a>';
     }
     buffer.writeln('<tr>'
         '<td>${_escapeHtml(name)}</td>'
