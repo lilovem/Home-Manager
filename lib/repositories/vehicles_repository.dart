@@ -142,6 +142,20 @@ class VehiclesRepository {
     );
   }
 
+  Future<void> resetMaintenanceBaseline({
+    required String householdId,
+    required String vehicleId,
+    required String templateKey,
+    required int mileage,
+  }) {
+    return _service.resetMaintenanceBaseline(
+      householdId: householdId,
+      vehicleId: vehicleId,
+      templateKey: templateKey,
+      mileage: mileage,
+    );
+  }
+
   Future<void> deleteVehicle({
     required String householdId,
     required String vehicleId,

@@ -20,6 +20,12 @@ class Vehicle {
   /// למשתמש יש נתונים מדויקים יותר מספר הרכב שלו.
   final Map<String, int> maintenanceIntervals;
 
+  /// "איפוס" ידני של תזכורת טיפול שעברה - קילומטראז' שממנו מתחילים
+  /// למנות מחדש לכל סוג טיפול (key), בלי להוסיף רשומת טיפול מזויפת
+  /// להיסטוריה. ריק כברירת מחדל - נלקח בחשבון רק אם הוא גבוה מהערך
+  /// שמחושב מתיעוד טיפולים אמיתי (ראה computeMaintenanceStatuses).
+  final Map<String, int> maintenanceResetMileage;
+
   /// קילומטראז' הרכב בזמן שהוא *נוסף* לאפליקציה (קבוע, לא משתנה
   /// לעולם אחרי היצירה). משמש כ"נקודת פתיחה" לחישוב הטיפול הבא
   /// כשעדיין אין אף תיעוד טיפול אמיתי לסוג טיפול מסוים - כדי שרכב
@@ -62,6 +68,7 @@ class Vehicle {
     this.mandatoryInsuranceExpiryDate,
     this.comprehensiveInsuranceExpiryDate,
     required this.maintenanceIntervals,
+    this.maintenanceResetMileage = const {},
     required this.initialMileage,
     this.photoDataUrl,
     this.licenseDocumentDataUrl,
@@ -77,6 +84,7 @@ class Vehicle {
 
   factory Vehicle.fromFirestore(String id, Map<String, dynamic> data) {
     final rawIntervals = data['maintenanceIntervals'] as Map<String, dynamic>?;
+    final rawResetMileage = data['maintenanceResetMileage'] as Map<String, dynamic>?;
     final currentMileage = (data['currentMileage'] as num?)?.toInt() ?? 0;
     return Vehicle(
       id: id,
@@ -93,6 +101,9 @@ class Vehicle {
       maintenanceIntervals: rawIntervals != null
           ? rawIntervals.map((key, value) => MapEntry(key, (value as num).toInt()))
           : Map<String, int>.from(kDefaultMaintenanceIntervals),
+      maintenanceResetMileage: rawResetMileage != null
+          ? rawResetMileage.map((key, value) => MapEntry(key, (value as num).toInt()))
+          : const {},
       // אם השדה עוד לא קיים (רכב ישן, או ברגע הראשון של רכב חדש
       // לפני שהכתיבה חוזרת) - נופלים זמנית על הקילומטראז' הנוכחי,
       // כך שהתצוגה מיד נכונה (לא "באיחור") גם לפני שהתיקון האוטומטי

@@ -64,13 +64,17 @@ List<MaintenanceStatus> computeMaintenanceStatuses(
         vehicle.maintenanceIntervals[key] ?? kDefaultMaintenanceIntervals[key] ?? 10000;
 
     final matching = records.where((r) => r.serviceType == key).toList();
-    // אם אין עדיין תיעוד טיפול אמיתי מהסוג הזה - מתחילים למנות
-    // מהקילומטראז' שהיה לרכב כשהוא נוסף לאפליקציה (initialMileage),
-    // לא מ-0, כדי שרכב שנוסף עם קילומטראז' גבוה לא ייראה מיד
-    // "באיחור ענק".
-    final lastMileage = matching.isEmpty
+    // נקודת ההתחלה לספירה: הגבוה מבין (א) תיעוד טיפול אמיתי אחרון
+    // מהסוג הזה, או אם אין - הקילומטראז' שהיה לרכב כשנוסף לאפליקציה
+    // (initialMileage, כדי שלא ייראה מיד "באיחור ענק"), ו-(ב) איפוס
+    // ידני של התזכורת (maintenanceResetMileage) - בלי צורך ברשומת
+    // טיפול מזויפת בהיסטוריה.
+    final realMileage = matching.isEmpty
         ? vehicle.initialMileage
         : matching.map((r) => r.mileageAtService).reduce((a, b) => a > b ? a : b);
+    final resetMileage = vehicle.maintenanceResetMileage[key];
+    final lastMileage =
+        resetMileage != null && resetMileage > realMileage ? resetMileage : realMileage;
     final nextDue = lastMileage + interval;
     final remaining = nextDue - vehicle.currentMileage;
 
@@ -611,9 +615,16 @@ class _MainInfoPage extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Row(
           children: [
+            Expanded(
+              child: _DateChip(
+                label: AppStrings.licenseExpiryLabel,
+                date: vehicle.licenseExpiryDate,
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: _DateChip(
                 label: AppStrings.mandatoryInsuranceLabel,
@@ -852,8 +863,9 @@ Future<void> _editMaintenanceIntervalDialog(
 
 /// חלונית "הגדרות טיפולים" - נפתחת מהאייקון החדש בכרטיסיית הטיפולים.
 /// שני חלקים: עריכת מרווחי טיפול קטן/גדול (בק"מ), ואיפוס התראות
-/// שעברו - מוסיף בפועל "תיעוד טיפול" בקילומטראז' הנוכחי, כדי שהמונה
-/// יתחיל להימנות מחדש מרגע האיפוס (רואים את זה גם בהיסטוריית טיפולים).
+/// שעברו - שומר "נקודת איפוס" בקילומטראז' הנוכחי (maintenanceResetMileage),
+/// בלי להוסיף רשומת טיפול מזויפת להיסטוריה, כדי שהמונה יתחיל
+/// להימנות מחדש מרגע האיפוס.
 class _MaintenanceSettingsSheet extends ConsumerWidget {
   final String householdId;
   final Vehicle vehicle;
@@ -879,13 +891,11 @@ class _MaintenanceSettingsSheet extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      await ref.read(vehiclesRepositoryProvider).addServiceRecord(
+      await ref.read(vehiclesRepositoryProvider).resetMaintenanceBaseline(
             householdId: householdId,
             vehicleId: vehicle.id,
-            serviceType: status.key,
-            performedAt: DateTime.now(),
-            mileageAtService: vehicle.currentMileage,
-            notes: AppStrings.resetMaintenanceNoteText,
+            templateKey: status.key,
+            mileage: vehicle.currentMileage,
           );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

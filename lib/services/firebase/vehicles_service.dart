@@ -174,6 +174,20 @@ class VehiclesService {
     });
   }
 
+  /// "איפוס" תזכורת טיפול שעברה - שומר קילומטראז' התחלה חדש לסוג
+  /// הטיפול הזה (maintenanceResetMileage), בלי להוסיף רשומת טיפול
+  /// מזויפת להיסטוריה - ראה computeMaintenanceStatuses.
+  Future<void> resetMaintenanceBaseline({
+    required String householdId,
+    required String vehicleId,
+    required String templateKey,
+    required int mileage,
+  }) {
+    return _vehiclesCollection(householdId).doc(vehicleId).update({
+      'maintenanceResetMileage.$templateKey': mileage,
+    });
+  }
+
   /// מוחק רכב לגמרי, כולל כל תיעודי הטיפולים שלו (מחיקה רקורסיבית,
   /// כמו שכבר עשינו ל-household ולרשימות קניות).
   Future<void> deleteVehicle({
