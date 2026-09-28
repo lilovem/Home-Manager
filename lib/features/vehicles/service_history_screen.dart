@@ -36,19 +36,50 @@ class ServiceHistoryScreen extends StatelessWidget {
     List<VehicleServiceRecord> records, {
     required bool asExcel,
   }) async {
-    final dataUrl = asExcel
-        ? buildServiceHistoryExcelDataUrl(vehicle, records)
-        : buildServiceHistoryWordDataUrl(vehicle, records);
-    final extension = asExcel ? 'xlsx' : 'doc';
-    final fileName = 'היסטוריית_טיפולים_${vehicle.licensePlate}.$extension';
-
-    final shared = await shareDataUrlFile(
-      dataUrl: dataUrl,
-      fileName: fileName,
-      title: AppStrings.serviceHistoryScreenTitle,
+    // ייצוא לוורד כולל רינדור של קבלות PDF לתמונה (ראה vehicle_export.dart)
+    // שיכול לקחת כמה שניות אם יש כמה קבלות - לכן מציגים חלונית טעינה
+    // כדי שיהיה ברור שהאפליקציה עובדת ולא "תקועה".
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 16),
+                const Text(AppStrings.preparingExportMessage),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-    if (!shared) {
-      downloadDataUrlFile(dataUrl: dataUrl, fileName: fileName);
+
+    try {
+      final dataUrl = asExcel
+          ? buildServiceHistoryExcelDataUrl(vehicle, records)
+          : await buildServiceHistoryWordDataUrl(vehicle, records);
+      final extension = asExcel ? 'xlsx' : 'doc';
+      final fileName = 'היסטוריית_טיפולים_${vehicle.licensePlate}.$extension';
+
+      final shared = await shareDataUrlFile(
+        dataUrl: dataUrl,
+        fileName: fileName,
+        title: AppStrings.serviceHistoryScreenTitle,
+      );
+      if (!shared) {
+        downloadDataUrlFile(dataUrl: dataUrl, fileName: fileName);
+      }
+    } finally {
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
     }
   }
 

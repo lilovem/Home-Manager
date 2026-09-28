@@ -4,6 +4,7 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String preparingExportMessage = "מכינים את הקובץ...";
   static const String exportAsWordAction = "ייצוא לוורד";
   static const String exportAsExcelAction = "ייצוא לאקסל";
   static const String exportTooltip = "ייצוא";

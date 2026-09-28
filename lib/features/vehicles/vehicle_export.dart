@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:excel/excel.dart' as xls;
 import '../../models/vehicle_model.dart';
 import '../../models/vehicle_service_record_model.dart';
-import 'vehicle_photo_picker.dart' show mimeTypeOfDataUrl;
+import 'vehicle_photo_picker.dart' show mimeTypeOfDataUrl, renderPdfFirstPageAsImageDataUrl;
 
 /// בונה קובץ Excel (.xlsx אמיתי) עם טבלת היסטוריית הטיפולים של הרכב -
 /// שורה אחת לכל טיפול, מהחדש לישן. אין הטמעת תמונות קבלה כאן (רק
@@ -21,9 +21,10 @@ String buildServiceHistoryExcelDataUrl(
   }
   final sheet = excel[sheetName];
 
-  sheet.appendRow([
-    xls.TextCellValue('${vehicle.displayName} - ${vehicle.licensePlate}'),
-  ]);
+  sheet.appendRow([xls.TextCellValue('דוח היסטוריית טיפולים ואחזקה')]);
+  sheet.appendRow([xls.TextCellValue('כלי רכב: ${vehicle.displayName}')]);
+  sheet.appendRow([xls.TextCellValue('מספר רישוי: ${vehicle.licensePlate}')]);
+  sheet.appendRow([xls.TextCellValue('תאריך הפקת הדוח: ${formatPrettyDateHe(DateTime.now())}')]);
   sheet.appendRow([xls.TextCellValue('')]);
   sheet.appendRow([
     xls.TextCellValue('סוג טיפול'),
@@ -53,24 +54,34 @@ String buildServiceHistoryExcelDataUrl(
 }
 
 /// בונה מסמך Word - בפועל קובץ HTML עם סיומת .doc (טכניקה נפוצה
-/// ותומכת-Word בפועל, בלי צורך בספריית OOXML מלאה) - עם טבלה מסודרת
-/// של היסטוריית הטיפולים, ותמונת הקבלה מוטמעת ממש בתוך הטבלה כשיש
-/// כזו (קובץ PDF מצורף מסומן בטקסט בלבד, כי אי אפשר להטמיע PDF
-/// כתמונה). נפתח בוורד/גוגל דוקס בלי בעיה, וניתן לשיתוף כרגיל.
-String buildServiceHistoryWordDataUrl(
+/// ותומכת-Word בפועל, בלי צורך בספריית OOXML מלאה) - עם כותרת רשמית
+/// (שם הרכב, מספר רישוי, תאריך הפקה) וטבלה מסודרת של היסטוריית
+/// הטיפולים. קבלה מצורפת מוטמעת כתמונה ממש בתוך הטבלה תמיד - גם אם
+/// הועלתה כקובץ PDF, העמוד הראשון שלו מרונדר לתמונה (ראה
+/// renderPdfFirstPageAsImageDataUrl) כדי שהיא תוצג בבירור בלי צורך
+/// בשום לחיצה על קישור - מתאים גם להצגה רשמית לקונה פוטנציאלי של
+/// הרכב. נפתח בוורד/גוגל דוקס בלי בעיה, וניתן לשיתוף כרגיל.
+Future<String> buildServiceHistoryWordDataUrl(
   Vehicle vehicle,
   List<VehicleServiceRecord> records,
-) {
+) async {
   final sorted = [...records]..sort((a, b) => b.performedAt.compareTo(a.performedAt));
 
   final buffer = StringBuffer();
   buffer.writeln('<html dir="rtl" lang="he"><head><meta charset="utf-8"></head>');
   buffer.writeln('<body style="font-family: Arial, sans-serif; direction: rtl;">');
-  buffer.writeln(
-      '<h2>היסטוריית טיפולים - ${_escapeHtml(vehicle.displayName)} (${_escapeHtml(vehicle.licensePlate)})</h2>');
+  buffer.writeln('<h1 style="margin-bottom:4px;">דוח היסטוריית טיפולים ואחזקה</h1>');
+  buffer.writeln('<table style="border:none; margin-bottom:16px;">'
+      '<tr><td style="padding:2px 0; font-weight:bold;">כלי רכב:</td>'
+      '<td style="padding:2px 8px;">${_escapeHtml(vehicle.displayName)}${vehicle.year != null ? ' (${vehicle.year})' : ''}</td></tr>'
+      '<tr><td style="padding:2px 0; font-weight:bold;">מספר רישוי:</td>'
+      '<td style="padding:2px 8px;">${_escapeHtml(vehicle.licensePlate)}</td></tr>'
+      '<tr><td style="padding:2px 0; font-weight:bold;">תאריך הפקת הדוח:</td>'
+      '<td style="padding:2px 8px;">${formatPrettyDateHe(DateTime.now())}</td></tr>'
+      '</table>');
   buffer.writeln(
       '<table border="1" cellspacing="0" cellpadding="6" style="border-collapse: collapse; width:100%; text-align: right;">');
-  buffer.writeln('<tr style="background:#eeeeee;">'
+  buffer.writeln('<tr style="background:#2E3B55; color:#ffffff;">'
       '<th>סוג טיפול</th><th>תאריך</th><th>ק"מ</th><th>עלות</th><th>הערות</th><th>קבלה</th>'
       '</tr>');
 
@@ -81,9 +92,14 @@ String buildServiceHistoryWordDataUrl(
     final receipt = record.receiptDataUrl;
     if (receipt != null) {
       final mime = mimeTypeOfDataUrl(receipt);
-      receiptCell = mime.startsWith('image/')
-          ? '<a href="$receipt" target="_blank"><img src="$receipt" style="max-width:160px; max-height:160px;" /></a>'
-          : '<a href="$receipt" target="_blank">📄 פתח קובץ PDF</a>';
+      if (mime.startsWith('image/')) {
+        receiptCell = '<img src="$receipt" style="max-width:160px; max-height:200px;" />';
+      } else {
+        final renderedImage = await renderPdfFirstPageAsImageDataUrl(receipt);
+        receiptCell = renderedImage != null
+            ? '<img src="$renderedImage" style="max-width:160px; max-height:220px;" />'
+            : '<a href="$receipt" target="_blank">📄 פתח קובץ PDF</a>';
+      }
     }
     buffer.writeln('<tr>'
         '<td>${_escapeHtml(name)}</td>'

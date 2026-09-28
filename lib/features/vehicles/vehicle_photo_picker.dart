@@ -137,6 +137,51 @@ void downloadDataUrlFile({required String dataUrl, required String fileName}) {
   anchor.remove();
 }
 
+/// מרנדר את העמוד הראשון של קובץ PDF (Data URL) לתמונה (PNG, כ-Data
+/// URL) בעזרת ספריית pdf.js שנטענת בדף עצמו (ראה web/index.html) -
+/// כך שאפשר להטמיע קבלת PDF כתמונה אמיתית בתוך קובץ הוורד המיוצא
+/// (במקום קישור לחיצה שלא תמיד עובד בכל תוכנה). מחזיר null אם
+/// הספרייה לא נטענה, או אם הרינדור נכשל מכל סיבה (למשל קובץ פגום) -
+/// במקרה כזה יש ליפול חזרה לקישור רגיל.
+Future<String?> renderPdfFirstPageAsImageDataUrl(String pdfDataUrl, {double scale = 2}) async {
+  try {
+    if (!js_util.hasProperty(html.window, 'pdfjsLib')) return null;
+    final pdfjsLib = js_util.getProperty(html.window, 'pdfjsLib');
+
+    final commaIndex = pdfDataUrl.indexOf(',');
+    if (commaIndex == -1) return null;
+    final bytes = Uint8List.fromList(base64Decode(pdfDataUrl.substring(commaIndex + 1)));
+
+    final source = js_util.newObject();
+    js_util.setProperty(source, 'data', bytes);
+    final loadingTask = js_util.callMethod(pdfjsLib, 'getDocument', [source]);
+    final pdfDoc = await js_util.promiseToFuture(js_util.getProperty(loadingTask, 'promise'));
+
+    final page = await js_util.promiseToFuture(js_util.callMethod(pdfDoc, 'getPage', [1]));
+
+    final viewportOptions = js_util.newObject();
+    js_util.setProperty(viewportOptions, 'scale', scale);
+    final viewport = js_util.callMethod(page, 'getViewport', [viewportOptions]);
+
+    final width = (js_util.getProperty(viewport, 'width') as num).round().clamp(1, 3000);
+    final height = (js_util.getProperty(viewport, 'height') as num).round().clamp(1, 3000);
+
+    final canvas = html.CanvasElement(width: width, height: height);
+    final ctx = canvas.context2D;
+
+    final renderContext = js_util.newObject();
+    js_util.setProperty(renderContext, 'canvasContext', ctx);
+    js_util.setProperty(renderContext, 'viewport', viewport);
+
+    final renderTask = js_util.callMethod(page, 'render', [renderContext]);
+    await js_util.promiseToFuture(js_util.getProperty(renderTask, 'promise'));
+
+    return canvas.toDataUrl('image/png');
+  } catch (_) {
+    return null;
+  }
+}
+
 /// משתף קובץ (Data URL) דרך תפריט השיתוף המובנה של המכשיר
 /// (Web Share API) - זה אותו תפריט שנפתח בכל אפליקציה כשלוחצים
 /// "שתף", וממנו אפשר לבחור וואטסאפ, מייל, או כל אפליקציה אחרת
@@ -180,3 +225,4 @@ Future<bool> shareDataUrlFile({
     return false;
   }
 }
+
