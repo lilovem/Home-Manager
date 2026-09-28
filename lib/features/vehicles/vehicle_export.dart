@@ -65,12 +65,16 @@ String buildServiceHistoryExcelDataUrl(
 /// הטיפול בטבלה, כדי שיהיה ברור לקונה פוטנציאלי איזו קבלה שייכת
 /// לאיזה טיפול. קבלת PDF מומרת קודם לתמונה (ראה
 /// renderPdfFirstPageAsImageDataUrl) כדי שתוצג תמיד כתמונה, גם
-/// בטבלה וגם בנספח, בלי צורך בשום לחיצה על קישור. תחתית עמוד קבועה
-/// ("הופק ע"י LeeHome") מוגדרת כ"כותרת תחתונה" אמיתית של וורד
-/// (mso-element:footer) - טכניקה שוורד עצמו משתמש בה - כך שהיא
-/// מופיעה אוטומטית בתחתית *כל* עמוד, כולל כל עמודי הנספחים, בלי
-/// צורך להוסיף אותה ידנית בכל מקום. נפתח בוורד/גוגל דוקס בלי בעיה,
-/// וניתן לשיתוף כרגיל.
+/// בטבלה וגם בנספח, בלי צורך בשום לחיצה על קישור.
+///
+/// חשוב: "כותרת תחתונה" אמיתית שמופיעה אוטומטית בכל עמוד (mso-footer)
+/// היא תכונה שרק וורד האמיתי (על מחשב) יודע לפרש - גוגל דוקס, תצוגה
+/// בדפדפן ורוב האפליקציות האחרות פשוט מתעלמות ממנה. לכן שורת המיתוג
+/// כאן מוכנסת ידנית בסוף כל "עמוד" שאנחנו עצמנו יוצרים (סוף עמוד
+/// הטבלה, וסוף כל עמוד נספח) - כך שהיא תופיע נכון כמעט בכל תוכנה
+/// שפותחת את הקובץ, לא רק בוורד. מאותה סיבה, גם גובה תמונת הנספח
+/// מוגבל בזהירות (לא "עמוד מלא" ממש) - כדי שהכותרת שלה, התמונה,
+/// והחתימה תמיד ייכנסו יחד באותו עמוד ולא "יתפצלו" לעמוד הבא.
 Future<String> buildServiceHistoryWordDataUrl(
   Vehicle vehicle,
   List<VehicleServiceRecord> records,
@@ -94,31 +98,27 @@ Future<String> buildServiceHistoryWordDataUrl(
     }
   }
 
-  // "שובר עמוד" בטכניקה שוורד עצמו משתמש בה כשהוא שומר HTML עם מעבר
-  // עמוד ידני - הרבה יותר אמינה מ-page-break-before רגיל על div, כדי
-  // שכל נספח תמיד יתחיל בעמוד נפרד ולא "יידבק" לעמוד הקודם.
-  const pageBreak =
-      "<br clear=\"all\" style=\"mso-special-character:line-break; page-break-before:always;\">";
+  // קו הפרדה ברור בין קטע לקטע - יעבוד בכל תוכנה/אפליקציה שפותחת את
+  // הקובץ, גם אפליקציות פשוטות שלא ממש "מדפדפות" מסמכי וורד לעמודים
+  // (כמו תצוגה מקדימה של קובץ בתוך אפליקציה חיצונית). page-break-before
+  // על ה-div עצמו מתווסף בנוסף - כשפותחים את הקובץ בוורד האמיתי (על
+  // מחשב או טלפון) הוא כן יוצר מעבר עמוד אמיתי; באפליקציות אחרות
+  // שמתעלמות ממנו, קו ההפרדה עדיין מבטיח שרואים בבירור שזה קטע חדש.
+  const sectionDivider =
+      '<hr style="margin:28px 0; border:none; border-top:1px solid #cccccc;">';
+
+  // שורת מיתוג קטנה בתחתית העמוד (צד שמאל) - מוכנסת ידנית בסוף כל
+  // קטע (ראה הסבר למעלה למה לא "כותרת תחתונה" אוטומטית).
+  const brandFooter = '<div style="margin-top:24px; text-align:left; '
+      'font-size:10px; color:#9AA0A6;">🏠 הופק ע"י אפליקציית ניהול הבית '
+      '<b style="color:#2E3B55;">LeeHome</b></div>';
 
   final buffer = StringBuffer();
-  buffer.writeln('<html xmlns:o="urn:schemas-microsoft-com:office:office" '
-      'xmlns:w="urn:schemas-microsoft-com:office:word" '
-      'xmlns="http://www.w3.org/TR/REC-html40" dir="rtl" lang="he">');
-  buffer.writeln('<head><meta charset="utf-8">'
-      '<style>@page Section1 { mso-footer: f1; } div.Section1 { page: Section1; }</style>'
-      '</head>');
+  buffer.writeln('<html dir="rtl" lang="he"><head><meta charset="utf-8"></head>');
   buffer.writeln('<body style="font-family: Arial, sans-serif; direction: rtl;">');
-
-  // תחתית עמוד קבועה - מוגדרת פעם אחת, ומופיעה אוטומטית בתחתית שמאל
-  // של כל עמוד בקובץ (ראה @page/mso-footer למעלה).
-  buffer.writeln('<div style="mso-element:footer" id="f1">'
-      '<p dir="rtl" style="margin:0; text-align:left; font-size:10px; color:#9AA0A6;">'
-      '🏠 הופק ע"י אפליקציית ניהול הבית <b style="color:#2E3B55;">LeeHome</b></p></div>');
-
-  buffer.writeln('<div class="Section1">');
   buffer.writeln(
-      '<h1 style="text-align:center; margin-bottom:24px;">דוח היסטוריית טיפולים ואחזקה</h1>');
-  buffer.writeln('<table style="border:none; margin-bottom:32px;">'
+      '<h1 style="text-align:center; margin-bottom:8px;">דוח היסטוריית טיפולים ואחזקה</h1>');
+  buffer.writeln('<table style="border:none;">'
       '<tr><td style="padding:2px 0; font-weight:bold;">כלי רכב:</td>'
       '<td style="padding:2px 8px;">${_escapeHtml(vehicle.displayName)}${vehicle.year != null ? ' (${vehicle.year})' : ''}</td></tr>'
       '<tr><td style="padding:2px 0; font-weight:bold;">מספר רישוי:</td>'
@@ -126,6 +126,11 @@ Future<String> buildServiceHistoryWordDataUrl(
       '<tr><td style="padding:2px 0; font-weight:bold;">תאריך הפקת הדוח:</td>'
       '<td style="padding:2px 8px;">${formatPrettyDateHe(DateTime.now())}</td></tr>'
       '</table>');
+  // רווח לפני הטבלה הראשית - div עם גובה קבוע, ולא margin על טבלה
+  // (מרווח שמוגדר כ-margin על table מתעלמים ממנו הרבה מאוד תוכנות
+  // עריכת מסמכים, כולל חלק מהמרות HTML לוורד - div עם גובה קבוע
+  // עובד בכל מקום).
+  buffer.writeln('<div style="height:28px;"></div>');
   buffer.writeln(
       '<table border="1" cellspacing="0" cellpadding="6" style="border-collapse: collapse; width:100%; text-align: right;">');
   buffer.writeln('<tr style="background:#2E3B55; color:#ffffff;">'
@@ -162,11 +167,12 @@ Future<String> buildServiceHistoryWordDataUrl(
   }
 
   buffer.writeln('</table>');
+  buffer.writeln(brandFooter);
 
-  // נספח קבלות - כל קבלה מתחילה ישר בעמוד חדש משלה (בלי עמוד כותרת
-  // "נספחים" נפרד בפני עצמו, ובלי עמודים ריקים ביניהם): שם הנספח
-  // ומתחתיו, באותו עמוד, הצילום. התחתית הקבועה (הופק ע"י LeeHome)
-  // מופיעה אוטומטית בתחתית כל עמוד כזה בזכות ה-footer שהוגדר למעלה.
+  // נספח קבלות - כל קבלה בקטע נפרד ומובדל בבירור משלה (קו הפרדה +
+  // מעבר עמוד אמיתי כשנפתח בוורד עצמו): שם הנספח, מתחתיו באותו קטע
+  // הצילום, ומתחתיו החתימה - גובה התמונה מוגבל (500px) כדי שהשלושה
+  // תמיד יכנסו יחד ולא יתפצלו כשיש מעבר עמוד אמיתי.
   final appendixIndices = [
     for (var i = 0; i < sorted.length; i++)
       if (resolvedReceiptImages[i] != null) i,
@@ -176,14 +182,14 @@ Future<String> buildServiceHistoryWordDataUrl(
     final record = sorted[i];
     final number = i + 1;
     final name = kMaintenanceTemplateNames[record.serviceType] ?? record.serviceType;
-    buffer.writeln(pageBreak);
-    buffer.writeln('<div style="text-align: center;">'
-        '<h1>נספח $number - ${_escapeHtml(name)} - ${formatPrettyDateHe(record.performedAt)}</h1>'
-        '<img src="${resolvedReceiptImages[i]}" style="max-width:100%; max-height:850px;" />'
+    buffer.writeln(sectionDivider);
+    buffer.writeln('<div style="text-align: center; page-break-before: always;">'
+        '<h2>נספח $number - ${_escapeHtml(name)} - ${formatPrettyDateHe(record.performedAt)}</h2>'
+        '<img src="${resolvedReceiptImages[i]}" style="max-width:100%; max-height:500px;" />'
         '</div>');
+    buffer.writeln(brandFooter);
   }
 
-  buffer.writeln('</div>');
   buffer.writeln('</body></html>');
 
   final base64Str = base64Encode(utf8.encode(buffer.toString()));
