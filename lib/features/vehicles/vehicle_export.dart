@@ -108,6 +108,7 @@ Future<String> buildServiceHistoryPdfDataUrl(
 
   final regularFont = pw.Font.ttf(base64Decode(kRubikRegularFontBase64).buffer.asByteData());
   final boldFont = pw.Font.ttf(base64Decode(kRubikBoldFontBase64).buffer.asByteData());
+  final logoImage = pw.MemoryImage(base64Decode(kLeeHomeLogoPngBase64));
 
   final brandColor = PdfColor.fromHex('2E3B55');
   final footerColor = PdfColor.fromHex('9AA0A6');
@@ -179,9 +180,21 @@ Future<String> buildServiceHistoryPdfDataUrl(
       footer: (context) => pw.Container(
         margin: const pw.EdgeInsets.only(top: 8),
         alignment: pw.Alignment.bottomLeft,
-        child: pw.Text(
-          'הופק ע"י אפליקציית ניהול הבית LeeHome',
-          style: pw.TextStyle(font: regularFont, fontSize: 8, color: footerColor),
+        // סדר הצגה: קודם הטקסט "הופק ע"י אפליקציית..." ומיד אחריו (משמאל
+        // לו, בהמשך כיוון הקריאה מימין-לשמאל) אייקון האפליקציה עצמו -
+        // כך שהחתימה כולה (טקסט+לוגו) יושבת יחד בפינה השמאלית-תחתונה
+        // של כל עמוד.
+        child: pw.Row(
+          mainAxisSize: pw.MainAxisSize.min,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              'הופק ע"י אפליקציית ניהול הבית LeeHome',
+              style: pw.TextStyle(font: regularFont, fontSize: 8, color: footerColor),
+            ),
+            pw.SizedBox(width: 5),
+            pw.Image(logoImage, width: 14, height: 14),
+          ],
         ),
       ),
       build: (context) => [
