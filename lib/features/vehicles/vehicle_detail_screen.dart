@@ -237,42 +237,41 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
     final background = backgroundOptionById(backgroundId);
     final hasBackground = background.id != 'none';
 
+    // הסרגל העליון: רק בעמוד הראשון (קילומטראז') מוצגים כותרת "פרטי
+    // רכב" ואייקוני עריכה/מחיקה - בעמודים 2-3 (טיפולים/ביטוחים) נשאר
+    // רק אייקון חזרה בודד (יציאה מהמסך), בלי רקע צבעוני.
+    final isMainPage = _activePage == 0;
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: AppColors.primaryDark,
-        foregroundColor: Colors.white,
-        title: const Text(AppStrings.vehicleDetailsTitle),
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.primaryDark, AppColors.primary],
-            ),
-          ),
-        ),
-        actions: vehicleAsync.maybeWhen(
-          data: (vehicle) => vehicle == null
-              ? const []
-              : [
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AddEditVehicleScreen(
-                          householdId: widget.householdId,
-                          existing: vehicle,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: hasBackground ? Colors.white : AppColors.primaryDark,
+        title: isMainPage ? const Text(AppStrings.vehicleDetailsTitle) : null,
+        actions: !isMainPage
+            ? const []
+            : vehicleAsync.maybeWhen(
+                data: (vehicle) => vehicle == null
+                    ? const []
+                    : [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => AddEditVehicleScreen(
+                                householdId: widget.householdId,
+                                existing: vehicle,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => _confirmDelete(context, ref, vehicle),
-                  ),
-                ],
-          orElse: () => const [],
-        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _confirmDelete(context, ref, vehicle),
+                        ),
+                      ],
+                orElse: () => const [],
+              ),
       ),
       body: Container(
         decoration: hasBackground
