@@ -586,18 +586,30 @@ class _MainInfoPage extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
-        const SizedBox(height: 10),
-        Text(
-          vehicle.displayName,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 16),
-        ),
-        Text(
-          vehicle.licensePlate,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w600),
-          textDirection: TextDirection.ltr,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _VehicleIconLarge(householdId: householdId, vehicle: vehicle),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    vehicle.displayName,
+                    style: AppTextStyles.heading2.copyWith(color: Colors.white, fontSize: 16),
+                  ),
+                  Text(
+                    vehicle.licensePlate,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w600),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Row(
@@ -633,48 +645,6 @@ class _MaintenanceTopPreview extends ConsumerWidget {
 
   static const Color _greenIcon = Color(0xFF6FE0A0);
 
-  Future<void> _editIntervalDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String key,
-    String name,
-    int currentInterval,
-  ) async {
-    final controller = TextEditingController(text: currentInterval.toString());
-    final result = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('${AppStrings.editIntervalTitlePrefix} $name'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          textDirection: TextDirection.ltr,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: AppStrings.intervalKmLabel),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(AppStrings.cancel),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(int.tryParse(controller.text.trim())),
-            child: const Text(AppStrings.saveButton),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result > 0) {
-      await ref.read(vehiclesRepositoryProvider).updateMaintenanceInterval(
-            householdId: householdId,
-            vehicleId: vehicle.id,
-            templateKey: key,
-            intervalKm: result,
-          );
-    }
-  }
-
   static const Map<String, String> _shortNames = {
     'oilChange': 'קטן',
     'majorService': 'גדול',
@@ -684,16 +654,22 @@ class _MaintenanceTopPreview extends ConsumerWidget {
   };
 
   Widget _tile(BuildContext context, WidgetRef ref, String key) {
-    final name = kMaintenanceTemplateNames[key] ?? key;
-    final shortName = _shortNames[key] ?? name;
-    final interval =
-        vehicle.maintenanceIntervals[key] ?? kDefaultMaintenanceIntervals[key] ?? 10000;
+    final shortName = _shortNames[key] ?? kMaintenanceTemplateNames[key] ?? key;
     final icon = _kMaintenanceIcons[key] ?? Icons.build_outlined;
 
     return Expanded(
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => _editIntervalDialog(context, ref, key, name, interval),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AddServiceRecordScreen(
+              householdId: householdId,
+              vehicleId: vehicle.id,
+              currentMileage: vehicle.currentMileage,
+              initialTemplateKey: key,
+            ),
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           child: Column(
@@ -768,6 +744,45 @@ class _MaintenanceTopPreview extends ConsumerWidget {
     );
   }
 
+  Widget _settingsTile(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => _MaintenanceSettingsSheet(householdId: householdId, vehicle: vehicle),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.settings_outlined, color: Colors.white70, size: 22),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                AppStrings.maintenanceSettingsTooltip,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
@@ -781,10 +796,183 @@ class _MaintenanceTopPreview extends ConsumerWidget {
         Row(
           children: [
             ..._kAllMaintenanceKeys.map((key) => _tile(context, ref, key)),
+            _settingsTile(context),
             _addTile(context),
           ],
         ),
       ],
+    );
+  }
+}
+
+/// עריכת מרווח טיפול (בק"מ) - פונקציה משותפת בשימוש מתוך חלונית
+/// ההגדרות בלבד (לחיצה על אריח הטיפול עצמו עברה להוספת תיעוד טיפול).
+Future<void> _editMaintenanceIntervalDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String householdId,
+  String vehicleId,
+  String key,
+  String name,
+  int currentInterval,
+) async {
+  final controller = TextEditingController(text: currentInterval.toString());
+  final result = await showDialog<int>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('${AppStrings.editIntervalTitlePrefix} $name'),
+      content: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        textDirection: TextDirection.ltr,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: AppStrings.intervalKmLabel),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text(AppStrings.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(int.tryParse(controller.text.trim())),
+          child: const Text(AppStrings.saveButton),
+        ),
+      ],
+    ),
+  );
+  if (result != null && result > 0) {
+    await ref.read(vehiclesRepositoryProvider).updateMaintenanceInterval(
+          householdId: householdId,
+          vehicleId: vehicleId,
+          templateKey: key,
+          intervalKm: result,
+        );
+  }
+}
+
+/// חלונית "הגדרות טיפולים" - נפתחת מהאייקון החדש בכרטיסיית הטיפולים.
+/// שני חלקים: עריכת מרווחי טיפול קטן/גדול (בק"מ), ואיפוס התראות
+/// שעברו - מוסיף בפועל "תיעוד טיפול" בקילומטראז' הנוכחי, כדי שהמונה
+/// יתחיל להימנות מחדש מרגע האיפוס (רואים את זה גם בהיסטוריית טיפולים).
+class _MaintenanceSettingsSheet extends ConsumerWidget {
+  final String householdId;
+  final Vehicle vehicle;
+
+  const _MaintenanceSettingsSheet({required this.householdId, required this.vehicle});
+
+  Future<void> _confirmReset(BuildContext context, WidgetRef ref, MaintenanceStatus status) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${AppStrings.resetMaintenanceConfirmTitle} ${status.name}'),
+        content: const Text(AppStrings.resetMaintenanceConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.resetAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(vehiclesRepositoryProvider).addServiceRecord(
+            householdId: householdId,
+            vehicleId: vehicle.id,
+            serviceType: status.key,
+            performedAt: DateTime.now(),
+            mileageAtService: vehicle.currentMileage,
+            notes: AppStrings.resetMaintenanceNoteText,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${AppStrings.resetMaintenanceDoneMessage} ${status.name}')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recordsAsync = ref.watch(
+      vehicleServiceRecordsProvider((householdId: householdId, vehicleId: vehicle.id)),
+    );
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(AppStrings.maintenanceSettingsTitle, style: AppTextStyles.heading2),
+              const SizedBox(height: 16),
+              Text(
+                AppStrings.editIntervalsSectionTitle,
+                style: AppTextStyles.bodySecondary.copyWith(fontWeight: FontWeight.bold),
+              ),
+              ..._kAllMaintenanceKeys.map((key) {
+                final name = kMaintenanceTemplateNames[key] ?? key;
+                final interval =
+                    vehicle.maintenanceIntervals[key] ?? kDefaultMaintenanceIntervals[key] ?? 10000;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(name),
+                  subtitle: Text('$interval ${AppStrings.kmUnit}'),
+                  trailing: const Icon(Icons.edit_outlined, size: 20),
+                  onTap: () => _editMaintenanceIntervalDialog(
+                      context, ref, householdId, vehicle.id, key, name, interval),
+                );
+              }),
+              const Divider(height: 28),
+              Text(
+                AppStrings.resetOverdueSectionTitle,
+                style: AppTextStyles.bodySecondary.copyWith(fontWeight: FontWeight.bold),
+              ),
+              recordsAsync.when(
+                data: (records) {
+                  final statuses = computeMaintenanceStatuses(vehicle, records);
+                  return Column(
+                    children: statuses.map((s) {
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration:
+                              BoxDecoration(color: s.color.withOpacity(0.15), shape: BoxShape.circle),
+                          child: Icon(s.icon, color: s.color, size: 18),
+                        ),
+                        title: Text(s.name),
+                        subtitle: Text(
+                          s.remaining < 0
+                              ? '${AppStrings.overdueByLabel} ${-s.remaining} ${AppStrings.kmUnit}'
+                              : '${AppStrings.nextServiceInLabel} ${s.remaining} ${AppStrings.kmUnit}',
+                          style: TextStyle(color: s.color, fontWeight: FontWeight.bold),
+                        ),
+                        trailing: TextButton(
+                          onPressed: () => _confirmReset(context, ref, s),
+                          child: const Text(AppStrings.resetAction),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, st) => const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -960,50 +1148,16 @@ class _NotesCard extends ConsumerWidget {
 
   const _NotesCard({required this.householdId, required this.vehicle});
 
-  Future<void> _editNotes(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController(text: vehicle.notes ?? '');
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(AppStrings.notesTitle),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: AppStrings.notesHint),
-        ),
-        actions: [
-          if (vehicle.notes != null && vehicle.notes!.isNotEmpty)
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(''),
-              child: const Text(AppStrings.deleteAction, style: TextStyle(color: AppColors.error)),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(AppStrings.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: const Text(AppStrings.saveButton),
-          ),
-        ],
-      ),
-    );
-    if (result != null) {
-      await ref.read(vehiclesRepositoryProvider).updateNotes(
-            householdId: householdId,
-            vehicleId: vehicle.id,
-            notes: result,
-          );
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasNotes = vehicle.notes != null && vehicle.notes!.isNotEmpty;
 
     return InkWell(
-      onTap: () => _editNotes(context, ref),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => _NotesEditScreen(householdId: householdId, vehicle: vehicle),
+        ),
+      ),
       borderRadius: BorderRadius.circular(16),
       child: Card(
         elevation: 2,
@@ -1045,6 +1199,118 @@ class _NotesCard extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// מסך מלא (לא חלונית קטנה) לעריכת ההערה/תזכורת של הרכב - כדי שיהיה
+/// מקום נוח לכתוב הערה ארוכה יותר (למשל "לא לשכוח לקנות שמן לרכב").
+class _NotesEditScreen extends ConsumerStatefulWidget {
+  final String householdId;
+  final Vehicle vehicle;
+
+  const _NotesEditScreen({required this.householdId, required this.vehicle});
+
+  @override
+  ConsumerState<_NotesEditScreen> createState() => _NotesEditScreenState();
+}
+
+class _NotesEditScreenState extends ConsumerState<_NotesEditScreen> {
+  late final TextEditingController _controller;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.vehicle.notes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    await ref.read(vehiclesRepositoryProvider).updateNotes(
+          householdId: widget.householdId,
+          vehicleId: widget.vehicle.id,
+          notes: _controller.text,
+        );
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.deleteDocumentConfirmTitle),
+        content: const Text(AppStrings.deleteDocumentConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.deleteAction, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(vehiclesRepositoryProvider).updateNotes(
+            householdId: widget.householdId,
+            vehicleId: widget.vehicle.id,
+            notes: null,
+          );
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasNotes = widget.vehicle.notes != null && widget.vehicle.notes!.isNotEmpty;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(AppStrings.notesTitle),
+        actions: [
+          if (hasNotes)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: AppStrings.deleteDocumentTooltip,
+              onPressed: _isSaving ? null : _delete,
+            ),
+          IconButton(
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check),
+            tooltip: AppStrings.saveButton,
+            onPressed: _isSaving ? null : _save,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          style: AppTextStyles.heading2.copyWith(fontSize: 16, fontWeight: FontWeight.normal),
+          decoration: const InputDecoration(
+            hintText: AppStrings.notesHint,
+            border: InputBorder.none,
           ),
         ),
       ),
@@ -1503,7 +1769,7 @@ class _RenewalJourneyRow extends StatelessWidget {
                         height: 4,
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.divider,
+                          color: Colors.black38,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),

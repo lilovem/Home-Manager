@@ -243,9 +243,40 @@ class _VehicleCard extends StatelessWidget {
 
   const _VehicleCard({required this.vehicle, required this.householdId});
 
+  Widget _miniChip(IconData icon, int? days) {
+    final color = colorForDaysRemaining(days);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(
+              days == null
+                  ? AppStrings.notSetLabel
+                  : days < 0
+                      ? AppStrings.expiredLabel
+                      : '$days',
+              style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final licenseDays = daysUntil(vehicle.licenseExpiryDate);
+    final mandatoryDays = daysUntil(vehicle.mandatoryInsuranceExpiryDate);
+    final comprehensiveDays = daysUntil(vehicle.comprehensiveInsuranceExpiryDate);
 
     return Card(
       child: InkWell(
@@ -275,26 +306,16 @@ class _VehicleCard extends StatelessWidget {
                       style: AppTextStyles.bodySecondary,
                       textDirection: TextDirection.ltr,
                     ),
-                    if (licenseDays != null) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.badge_outlined,
-                              size: 16, color: colorForDaysRemaining(licenseDays)),
-                          const SizedBox(width: 4),
-                          Text(
-                            licenseDays < 0
-                                ? AppStrings.licenseExpiredLabel
-                                : '${AppStrings.daysUntilLicenseLabel} $licenseDays',
-                            style: TextStyle(
-                              color: colorForDaysRemaining(licenseDays),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _miniChip(Icons.badge_outlined, licenseDays),
+                        const SizedBox(width: 6),
+                        _miniChip(Icons.shield_outlined, mandatoryDays),
+                        const SizedBox(width: 6),
+                        _miniChip(Icons.security, comprehensiveDays),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -306,3 +327,4 @@ class _VehicleCard extends StatelessWidget {
     );
   }
 }
+

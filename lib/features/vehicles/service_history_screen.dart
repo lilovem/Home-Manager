@@ -8,7 +8,6 @@ import '../../models/vehicle_model.dart';
 import '../../models/vehicle_service_record_model.dart';
 import '../../providers/vehicles_provider.dart';
 import 'add_service_record_screen.dart';
-import 'vehicles_background_provider.dart';
 
 /// מסך מלא (לא חלונית) עם כל היסטוריית הטיפולים של הרכב - נפתח
 /// מכפתור "היסטוריית טיפולים" בעמוד הטיפולים במסך פרטי הרכב, כדי
@@ -33,38 +32,15 @@ class ServiceHistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(AppStrings.serviceHistoryScreenTitle),
       ),
-      body: Consumer(
-        builder: (context, ref, _) {
-          final backgroundId =
-              ref.watch(vehiclesBackgroundIdProvider(householdId)).value ?? 'none';
-          final background = backgroundOptionById(backgroundId);
-          final hasBackground = background.id != 'none';
-
-          return Container(
-            decoration: hasBackground
-                ? BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage(background.imageAsset!),
-                      fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(
-                        Colors.black.withOpacity(0.35),
-                        BlendMode.darken,
-                      ),
-                    ),
-                  )
-                : null,
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: _ServiceHistoryList(
-                  householdId: householdId,
-                  vehicleId: vehicleId,
-                  currentMileage: currentMileage,
-                ),
-              ),
-            ),
-          );
-        },
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: _ServiceHistoryList(
+            householdId: householdId,
+            vehicleId: vehicleId,
+            currentMileage: currentMileage,
+          ),
+        ),
       ),
     );
   }
@@ -98,8 +74,21 @@ class _ServiceHistoryList extends ConsumerWidget {
       data: (records) {
         if (records.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(AppStrings.noServiceRecordsYet, style: AppTextStyles.bodySecondary),
+            padding: const EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.build_outlined, size: 48, color: AppColors.textSecondary),
+                  const SizedBox(height: 12),
+                  Text(
+                    AppStrings.noServiceRecordsMessage,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodySecondary,
+                  ),
+                ],
+              ),
+            ),
           );
         }
 

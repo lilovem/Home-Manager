@@ -4,6 +4,15 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String noServiceRecordsMessage = "לא תועדו טיפולים לרכב";
+  static const String resetMaintenanceDoneMessage = "התזכורת אופסה עבור";
+  static const String resetMaintenanceNoteText = "איפוס ידני של התזכורת";
+  static const String resetAction = "אפס";
+  static const String resetMaintenanceConfirmMessage = "הפעולה תסמן שהטיפול בוצע כעת בקילומטראז' הנוכחי, כדי שהתזכורת תתחיל להימנות מחדש. ניתן לראות זאת בהיסטוריית הטיפולים.";
+  static const String resetMaintenanceConfirmTitle = "איפוס תזכורת -";
+  static const String resetOverdueSectionTitle = "איפוס התראות שעברו";
+  static const String editIntervalsSectionTitle = "עריכת טווחים";
+  static const String maintenanceSettingsTooltip = "הגדרות";
   static const String notesHint = "הקש להוספת תזכורת";
   static const String notesTitle = "תזכורות";
   static const String insuranceAnnualCostTitle = "עלות ביטוח שנתית";
