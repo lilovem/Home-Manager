@@ -4,22 +4,26 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String importVoiceHintCloseButton = "הבנתי";
+  static const String importVoiceHintMessage = "כדי שכל מוצר ייכנס בשורה נפרדת, אפשר לומר פסיק בין מוצר למוצר תוך כדי ההכתבה, או פשוט להשאיר הפסקה קצרה.";
+  static const String importVoiceHintTooltip = "טיפ להכתבה קולית";
+  static const String importInstructionsTitle = "איך זה עובד?";
   static const String importNoteLabel = "הערה";
   static const String importQuantityLabel = "כמות";
-  static const String importVoiceError = "לא הצלחנו להפעיל הכתבה קולית - נסה/נסי שוב";
+  static const String importVoiceError = "לא הצלחנו להפעיל הכתבה קולית - נסו שוב";
   static const String importVoiceListening = "מקשיבה... אפשר לדבר את רשימת הקניות";
   static const String importVoiceTooltip = "הכתבה קולית";
   static const String importPendingCheckLabel = "לבדיקה בשמירה";
   static const String importSuggestionDialogTitle = "מוצר לא מזוהה";
-  static const String importKeepOriginalPrefix = "השאר/השאירי ";
+  static const String importKeepOriginalPrefix = "השארת ";
   static const String importSuggestionPrompt = "האם התכוונת ל:";
   static const String importConfirmButton = "הוספה לרשימה";
   static const String importOriginalTextPrefix = "במקור: ";
   static const String importNoItemsDetected = "לא הצלחנו לזהות אף פריט בטקסט שהודבק";
   static const String importBackToPaste = "חזרה לטקסט";
   static const String importPreviewTitle = "בדיקת הרשימה שזוהתה";
-  static const String importParseButton = "פרק/פרקי לרשימה";
-  static const String importInstructions = "הדבק/הדביקי כאן רשימת קניות (למשל מוואטסאפ) - כל מוצר בשורה נפרדת";
+  static const String importParseButton = "פירוק לרשימה";
+  static const String importInstructions = "ניתן להדביק טקסט (למשל מוואטסאפ) או להקליט בקול - כל מוצר בשורה נפרדת. אפשר גם לציין כמות או יחידת מידה, למשל 2 ק״ג.";
   static const String importScreenTitle = "ייבוא רשימת קניות";
   static const String importNewListTooltip = "ייבוא רשימה חדשה מטקסט";
   static const String importFromTextAction = "ייבוא רשימה מהדבקה";

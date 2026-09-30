@@ -293,6 +293,26 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
         : quantity.toString();
   }
 
+  /// דיאלוג טיפ קצר להכתבה קולית - איך לגרום לכמה מוצרים שהוכתבו
+  /// ברצף אחד להיכנס כל אחד בשורה נפרדת (אמירת המילה "פסיק").
+  void _showVoiceHint() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(AppStrings.importVoiceHintTooltip),
+          content: const Text(AppStrings.importVoiceHintMessage, style: AppTextStyles.body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(AppStrings.importVoiceHintCloseButton),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildPasteStep() {
     final showVoiceButton = WebSpeechRecognition.isSupported;
 
@@ -301,28 +321,51 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(AppStrings.importInstructions, style: AppTextStyles.bodySecondary),
-              ),
-              if (showVoiceButton) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    _speech.isListening ? Icons.mic : Icons.mic_none,
-                    color: _speech.isListening ? Colors.red : AppColors.primary,
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.lightbulb_outline, color: AppColors.primary, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppStrings.importInstructionsTitle,
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(AppStrings.importInstructions, style: AppTextStyles.bodySecondary),
+                    ],
                   ),
-                  tooltip: AppStrings.importVoiceTooltip,
-                  onPressed: _toggleVoiceInput,
                 ),
+                if (showVoiceButton) ...[
+                  IconButton(
+                    icon: Icon(
+                      _speech.isListening ? Icons.mic : Icons.mic_none,
+                      color: _speech.isListening ? Colors.red : AppColors.primary,
+                    ),
+                    tooltip: AppStrings.importVoiceTooltip,
+                    onPressed: _toggleVoiceInput,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.info_outline, color: AppColors.textSecondary, size: 20),
+                    tooltip: AppStrings.importVoiceHintTooltip,
+                    onPressed: _showVoiceHint,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           if (showVoiceButton && _speech.isListening)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(top: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -332,7 +375,7 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Expanded(
             child: TextField(
               controller: _pasteController,

@@ -55,13 +55,26 @@ class ShoppingTypoCorrector {
     return 2;
   }
 
+  /// בודקת אם מילה כבר "מוכרת" בלי להצריך התאמה מדויקת - בדיוק כמו
+  /// שProductCategorizer.categorize() בעצמו מזהה מוצר (לפי הכלה,
+  /// לא שוויון מדויק). כך "עגבניות" (רבים) מזוהה כמוכר כי הוא מכיל
+  /// את מילת המפתח "עגבני" (היחיד/גזע המילה), בלי שנצטרך לרשום כל
+  /// צורת רבים/יחיד בנפרד - ובלי לדגול בטעות במילה תקינה רק בגלל
+  /// שצורת הרבים/היחיד שלה לא רשומה מילה במילה.
+  static bool _isKnownWord(String word, List<String> knownWords) {
+    for (final keyword in knownWords) {
+      if (word.contains(keyword) || keyword.contains(word)) return true;
+    }
+    return false;
+  }
+
   /// מחזיר עד [maxSuggestions] מילות מפתח קרובות למילה נתונה (ממוינות
-  /// מהקרובה לרחוקה) - רשימה ריקה אם המילה כבר מילת מפתח ידועה
-  /// בדיוק, או שאין אף מועמד קרוב מספיק (המילה כנראה תקינה, פשוט
-  /// לא מוכרת - למשל שם מוצר ייחודי או מותג, ולא שגיאת כתיב).
+  /// מהקרובה לרחוקה) - רשימה ריקה אם המילה כבר מוכרת (ראה
+  /// _isKnownWord), או שאין אף מועמד קרוב מספיק (המילה כנראה תקינה,
+  /// פשוט לא מוכרת - למשל שם מוצר ייחודי או מותג, ולא שגיאת כתיב).
   static List<String> suggestionsFor(String word, {int maxSuggestions = 3}) {
     final knownWords = ProductCategorizer.allKnownWords;
-    if (word.isEmpty || knownWords.contains(word)) return const [];
+    if (word.isEmpty || _isKnownWord(word, knownWords)) return const [];
 
     final maxDistance = _maxDistanceFor(word.length);
     if (maxDistance == 0) return const [];
