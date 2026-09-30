@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../app/config/app_colors.dart';
 import '../../app/config/app_strings.dart';
 import '../../app/config/app_text_styles.dart';
@@ -31,7 +32,12 @@ import 'shopping_summary_screen.dart';
 /// הוספת מוצרים אפשרית בשתי דרכים: הוספה ידנית (מוצר אחד בכל
 /// פעם, טופס מלא) או ייבוא רשימה שלמה מטקסט מודבק (למשל מוואטסאפ) -
 /// שתיהן נפתחות מאותו כפתור הוספה (FAB), דרך חלונית בחירה קטנה.
-class ShoppingListScreen extends ConsumerWidget {
+///
+/// כל קטגוריה שכל הפריטים בה כבר טופלו (נקנו או סומנו כלא נמצאו)
+/// מקבלת וי ירוק ומתכווצת אוטומטית לשורת כותרת בלבד - אפשר ללחוץ
+/// עליה כדי לפתוח מחדש ולהציץ. זה מצב תצוגה בלבד (לא נשמר ב-
+/// Firestore), ולכן ConsumerStatefulWidget ולא ConsumerWidget.
+class ShoppingListScreen extends ConsumerStatefulWidget {
   final String householdId;
   final String listId;
 
@@ -40,6 +46,16 @@ class ShoppingListScreen extends ConsumerWidget {
     required this.householdId,
     required this.listId,
   });
+
+  @override
+  ConsumerState<ShoppingListScreen> createState() => _ShoppingListScreenState();
+}
+
+class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
+  /// קטגוריות "שלמות" (וי ירוק) שהמשתמש/ת בחרו לפתוח מחדש כדי
+  /// להציץ. בלי זה, קטגוריה שלמה תמיד מכווצת אוטומטית. קטגוריה
+  /// שעדיין לא שלמה (יש בה פריט ממתין) תמיד מוצגת פתוחה.
+  final Set<ProductCategory> _expandedOverride = {};
 
   Future<void> _confirmDeleteList(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
@@ -64,8 +80,8 @@ class ShoppingListScreen extends ConsumerWidget {
 
     try {
       await ref.read(shoppingRepositoryProvider).deleteList(
-            householdId: householdId,
-            listId: listId,
+            householdId: widget.householdId,
+            listId: widget.listId,
           );
       if (context.mounted) Navigator.of(context).pop();
     } on Failure catch (e) {
@@ -90,8 +106,8 @@ class ShoppingListScreen extends ConsumerWidget {
 
     try {
       await ref.read(shoppingRepositoryProvider).addItem(
-            householdId: householdId,
-            listId: listId,
+            householdId: widget.householdId,
+            listId: widget.listId,
             name: result.name,
             quantity: result.quantity,
             unit: result.unit,
@@ -121,8 +137,8 @@ class ShoppingListScreen extends ConsumerWidget {
             if (user == null) return;
 
             await ref.read(shoppingRepositoryProvider).addItemsBatch(
-                  householdId: householdId,
-                  listId: listId,
+                  householdId: widget.householdId,
+                  listId: widget.listId,
                   items: drafts,
                   addedBy: user.uid,
                   addedByName: user.email ?? '',
@@ -180,8 +196,8 @@ class ShoppingListScreen extends ConsumerWidget {
 
     try {
       await ref.read(shoppingRepositoryProvider).updateItem(
-            householdId: householdId,
-            listId: listId,
+            householdId: widget.householdId,
+            listId: widget.listId,
             itemId: item.id,
             name: result.name,
             quantity: result.quantity,
@@ -221,8 +237,8 @@ class ShoppingListScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     await ref.read(shoppingRepositoryProvider).deleteItem(
-          householdId: householdId,
-          listId: listId,
+          householdId: widget.householdId,
+          listId: widget.listId,
           itemId: item.id,
         );
   }
@@ -233,8 +249,8 @@ class ShoppingListScreen extends ConsumerWidget {
     ItemStatus status,
   ) {
     return ref.read(shoppingRepositoryProvider).updateStatus(
-          householdId: householdId,
-          listId: listId,
+          householdId: widget.householdId,
+          listId: widget.listId,
           itemId: item.id,
           status: status,
         );
@@ -246,8 +262,8 @@ class ShoppingListScreen extends ConsumerWidget {
 
     try {
       await ref.read(shoppingRepositoryProvider).startShoppingSession(
-            householdId: householdId,
-            listId: listId,
+            householdId: widget.householdId,
+            listId: widget.listId,
             startedBy: user.uid,
             startedByName: user.email ?? '',
           );
@@ -276,8 +292,8 @@ class ShoppingListScreen extends ConsumerWidget {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ShoppingSummaryScreen(
-          householdId: householdId,
-          listId: listId,
+          householdId: widget.householdId,
+          listId: widget.listId,
           purchasedItems: purchasedItems,
           notFoundItems: notFoundItems,
           totalItemsCount: items.length,
@@ -288,12 +304,13 @@ class ShoppingListScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsync = ref.watch(shoppingItemsProvider((householdId: householdId, listId: listId)));
+  Widget build(BuildContext context) {
+    final itemsAsync =
+        ref.watch(shoppingItemsProvider((householdId: widget.householdId, listId: widget.listId)));
     final currentItems = itemsAsync.value;
 
-    final listMetaAsync =
-        ref.watch(shoppingListMetaProvider((householdId: householdId, listId: listId)));
+    final listMetaAsync = ref
+        .watch(shoppingListMetaProvider((householdId: widget.householdId, listId: widget.listId)));
     final activeSessionId = listMetaAsync.value?.activeSessionId;
     final isSessionActive = activeSessionId != null;
 
@@ -306,7 +323,7 @@ class ShoppingListScreen extends ConsumerWidget {
             tooltip: AppStrings.shoppingHistory,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => ShoppingHistoryScreen(householdId: householdId),
+                builder: (_) => ShoppingHistoryScreen(householdId: widget.householdId),
               ),
             ),
           ),
@@ -376,40 +393,67 @@ class ShoppingListScreen extends ConsumerWidget {
                     .where((category) => itemsByCategory.containsKey(category))
                     .toList();
 
+                // מנקים "פתיחות מחדש" של קטגוריות שכבר לא שלמות (נוסף
+                // להן מוצר חדש שממתין, למשל מייבוא) - כך שבפעם הבאה
+                // שהן יושלמו הן יתכווצו מחדש אוטומטית, בלי להישאר
+                // פתוחות בטעות בגלל מצב ישן.
+                _expandedOverride.removeWhere((category) {
+                  final categoryItems = itemsByCategory[category];
+                  return categoryItems == null ||
+                      categoryItems.any((item) => item.status == ItemStatus.pending);
+                });
+
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: categoriesToShow.length,
                   itemBuilder: (context, categoryIndex) {
                     final category = categoriesToShow[categoryIndex];
                     final categoryItems = itemsByCategory[category]!;
+                    final isComplete =
+                        categoryItems.every((item) => item.status != ItemStatus.pending);
+                    final isCollapsed = isComplete && !_expandedOverride.contains(category);
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _CategoryHeader(category: category),
-                        ...categoryItems.map(
-                          (item) => Column(
-                            children: [
-                              _ShoppingItemTile(
-                                item: item,
-                                onTogglePurchased: () => _setStatus(
-                                  ref,
-                                  item,
-                                  item.status == ItemStatus.purchased
-                                      ? ItemStatus.pending
-                                      : ItemStatus.purchased,
-                                ),
-                                onMarkNotFound: () =>
-                                    _setStatus(ref, item, ItemStatus.notFound),
-                                onBackToPending: () =>
-                                    _setStatus(ref, item, ItemStatus.pending),
-                                onEdit: () => _openEditProduct(context, ref, item),
-                                onDelete: () => _confirmDelete(context, ref, item),
-                              ),
-                              const Divider(height: 1),
-                            ],
-                          ),
+                        _CategoryHeader(
+                          category: category,
+                          isComplete: isComplete,
+                          isCollapsed: isCollapsed,
+                          onTap: isComplete
+                              ? () => setState(() {
+                                    if (_expandedOverride.contains(category)) {
+                                      _expandedOverride.remove(category);
+                                    } else {
+                                      _expandedOverride.add(category);
+                                    }
+                                  })
+                              : null,
                         ),
+                        if (!isCollapsed)
+                          ...categoryItems.map(
+                            (item) => Column(
+                              children: [
+                                _ShoppingItemTile(
+                                  item: item,
+                                  onTogglePurchased: () => _setStatus(
+                                    ref,
+                                    item,
+                                    item.status == ItemStatus.purchased
+                                        ? ItemStatus.pending
+                                        : ItemStatus.purchased,
+                                  ),
+                                  onMarkNotFound: () =>
+                                      _setStatus(ref, item, ItemStatus.notFound),
+                                  onBackToPending: () =>
+                                      _setStatus(ref, item, ItemStatus.pending),
+                                  onEdit: () => _openEditProduct(context, ref, item),
+                                  onDelete: () => _confirmDelete(context, ref, item),
+                                ),
+                                const Divider(height: 1),
+                              ],
+                            ),
+                          ),
                       ],
                     );
                   },
@@ -430,18 +474,44 @@ class ShoppingListScreen extends ConsumerWidget {
 
 class _CategoryHeader extends StatelessWidget {
   final ProductCategory category;
+  final bool isComplete;
+  final bool isCollapsed;
+  final VoidCallback? onTap;
 
-  const _CategoryHeader({required this.category});
+  const _CategoryHeader({
+    required this.category,
+    required this.isComplete,
+    required this.isCollapsed,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        ProductCategorizer.categoryNames[category] ?? '',
-        style: AppTextStyles.heading2.copyWith(fontSize: 14, color: AppColors.primary),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        color: AppColors.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                ProductCategorizer.categoryNames[category] ?? '',
+                style: AppTextStyles.heading2.copyWith(fontSize: 14, color: AppColors.primary),
+              ),
+            ),
+            if (isComplete) ...[
+              const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
+              const SizedBox(width: 4),
+              Icon(
+                isCollapsed ? Icons.expand_more : Icons.expand_less,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -482,107 +552,127 @@ class _ShoppingItemTile extends StatelessWidget {
         : item.quantity.toString();
     final unitText = item.unit != null ? ' ${item.unit}' : '';
 
-    return ListTile(
-      leading: Checkbox(
-        value: item.status == ItemStatus.purchased,
-        activeColor: AppColors.itemPurchased,
-        onChanged: (_) => onTogglePurchased(),
-      ),
-      title: Row(
+    // פעולת "לא נמצא"/"החזר לממתין" מתחלפת לפי הסטטוס הנוכחי - רק
+    // אחת מהן רלוונטית בכל רגע נתון (בדיוק כמו בתפריט הישן).
+    final statusAction = item.status == ItemStatus.pending
+        ? SlidableAction(
+            onPressed: (_) => onMarkNotFound(),
+            backgroundColor: AppColors.itemNotFound,
+            foregroundColor: Colors.white,
+            icon: Icons.search_off,
+            label: AppStrings.markNotFound,
+          )
+        : SlidableAction(
+            onPressed: (_) => onBackToPending(),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            icon: Icons.undo,
+            label: AppStrings.backToPending,
+          );
+
+    return Slidable(
+      key: ValueKey(item.id),
+      // "end" מתאים אוטומטית לכיוון RTL - בעברית זה נחשף מצד שמאל.
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.75,
         children: [
-          Builder(builder: (context) {
-            final emoji = ProductCategorizer.productEmoji(item.name);
-            if (emoji != null) {
-              return Text(emoji, style: const TextStyle(fontSize: 20));
-            }
-            return Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: ProductCategorizer.categoryColors[item.category],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                ProductCategorizer.categoryIcons[item.category],
-                size: 15,
-                color: Colors.white,
-              ),
-            );
-          }),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              item.name,
-              style: AppTextStyles.body.copyWith(
-                color: _statusColor,
-                decoration:
-                    item.status == ItemStatus.purchased ? TextDecoration.lineThrough : null,
-              ),
-            ),
+          statusAction,
+          SlidableAction(
+            onPressed: (_) => onEdit(),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            icon: Icons.edit,
+            label: AppStrings.edit,
           ),
-          if (item.addedDuringShopping && item.status == ItemStatus.pending) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.itemNewBadge,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                AppStrings.newBadge,
-                style: AppTextStyles.bodySecondary.copyWith(
+          SlidableAction(
+            onPressed: (_) => onDelete(),
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            icon: Icons.delete,
+            label: AppStrings.delete,
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Checkbox(
+          value: item.status == ItemStatus.purchased,
+          activeColor: AppColors.itemPurchased,
+          onChanged: (_) => onTogglePurchased(),
+        ),
+        title: Row(
+          children: [
+            Builder(builder: (context) {
+              final emoji = ProductCategorizer.productEmoji(item.name);
+              if (emoji != null) {
+                return Text(emoji, style: const TextStyle(fontSize: 20));
+              }
+              return Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: ProductCategorizer.categoryColors[item.category],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  ProductCategorizer.categoryIcons[item.category],
+                  size: 15,
                   color: Colors.white,
-                  fontSize: 10,
+                ),
+              );
+            }),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                item.name,
+                style: AppTextStyles.body.copyWith(
+                  color: _statusColor,
+                  decoration:
+                      item.status == ItemStatus.purchased ? TextDecoration.lineThrough : null,
                 ),
               ),
             ),
-          ],
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$quantityText$unitText · ${AppStrings.addedByLabel} ${item.addedByName} · '
-            '${DateFormatter.short(item.addedAt)}'
-            '${item.status == ItemStatus.notFound ? ' · ${AppStrings.statusNotFound}' : ''}',
-            style: AppTextStyles.bodySecondary,
-          ),
-          if (item.note != null && item.note!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                item.note!,
-                style: AppTextStyles.bodySecondary.copyWith(fontStyle: FontStyle.italic),
+            if (item.addedDuringShopping && item.status == ItemStatus.pending) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.itemNewBadge,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  AppStrings.newBadge,
+                  style: AppTextStyles.bodySecondary.copyWith(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                ),
               ),
+            ],
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$quantityText$unitText · ${AppStrings.addedByLabel} ${item.addedByName} · '
+              '${DateFormatter.short(item.addedAt)}'
+              '${item.status == ItemStatus.notFound ? ' · ${AppStrings.statusNotFound}' : ''}',
+              style: AppTextStyles.bodySecondary,
             ),
-        ],
-      ),
-      trailing: PopupMenuButton<String>(
-        onSelected: (value) {
-          switch (value) {
-            case 'notFound':
-              onMarkNotFound();
-              break;
-            case 'backToPending':
-              onBackToPending();
-              break;
-            case 'edit':
-              onEdit();
-              break;
-            case 'delete':
-              onDelete();
-              break;
-          }
-        },
-        itemBuilder: (context) => [
-          if (item.status != ItemStatus.notFound)
-            const PopupMenuItem(value: 'notFound', child: Text(AppStrings.markNotFound)),
-          if (item.status != ItemStatus.pending)
-            const PopupMenuItem(value: 'backToPending', child: Text(AppStrings.backToPending)),
-          const PopupMenuItem(value: 'edit', child: Text(AppStrings.edit)),
-          const PopupMenuItem(value: 'delete', child: Text(AppStrings.delete)),
-        ],
+            if (item.note != null && item.note!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  item.note!,
+                  style: AppTextStyles.bodySecondary.copyWith(fontStyle: FontStyle.italic),
+                ),
+              ),
+          ],
+        ),
+        // רמז קטן שאפשר להחליק - הפעולות (לא נמצא/עריכה/מחיקה) נחשפות
+        // בהחלקה, ולא דרך תפריט כמו קודם.
+        trailing: const Icon(Icons.chevron_left, size: 20, color: AppColors.textSecondary),
       ),
     );
   }
