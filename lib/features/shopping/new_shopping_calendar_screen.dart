@@ -8,8 +8,10 @@ import '../../core/utils/date_formatter.dart';
 import '../../providers/shopping_provider.dart';
 import 'shopping_list_screen.dart';
 
-/// מסך "קנייה חדשה" - לוח שנה אמיתי של החודש הנוכחי, בחירת תאריך
-/// ואישור יוצרים רשימת קניות חדשה לתאריך שנבחר.
+/// מסך "קנייה חדשה" - לוח שנה אמיתי, בחירת תאריך ואישור יוצרים
+/// רשימת קניות חדשה לתאריך שנבחר. אפשר לדפדף בין חודשים קדימה
+/// ואחורה בלי הגבלה (לא רק החודש הנוכחי) בעזרת שני החצים משני
+/// צידי שם החודש.
 class NewShoppingCalendarScreen extends ConsumerStatefulWidget {
   final String householdId;
 
@@ -21,7 +23,7 @@ class NewShoppingCalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarScreen> {
-  late final DateTime _month;
+  late DateTime _month;
   DateTime? _selectedDate;
   bool _isLoading = false;
 
@@ -32,6 +34,20 @@ class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarS
     super.initState();
     final now = DateTime.now();
     _month = DateTime(now.year, now.month, 1);
+  }
+
+  void _goToPreviousMonth() {
+    setState(() {
+      _month = DateTime(_month.year, _month.month - 1, 1);
+      _selectedDate = null;
+    });
+  }
+
+  void _goToNextMonth() {
+    setState(() {
+      _month = DateTime(_month.year, _month.month + 1, 1);
+      _selectedDate = null;
+    });
   }
 
   Future<void> _confirm() async {
@@ -89,7 +105,30 @@ class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarS
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              Text(monthLabel, style: AppTextStyles.heading2),
+              // דפדוף בין חודשים - בלי הגבלה לחודש הנוכחי בלבד.
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    tooltip: AppStrings.previousMonth,
+                    onPressed: _goToPreviousMonth,
+                  ),
+                  SizedBox(
+                    width: 110,
+                    child: Text(
+                      monthLabel,
+                      style: AppTextStyles.heading2,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    tooltip: AppStrings.nextMonth,
+                    onPressed: _goToNextMonth,
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Row(
                 children: _weekdayLabels
@@ -166,4 +205,3 @@ class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarS
     );
   }
 }
-

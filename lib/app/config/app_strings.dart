@@ -4,6 +4,10 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String nextMonth = "חודש הבא";
+  static const String previousMonth = "חודש קודם";
+  static const String importNewListOption = "עגלה חדשה";
+  static const String importChooseListTitle = "לאיזו עגלה להוסיף את המוצרים?";
   static const String importVoiceHintCloseButton = "הבנתי";
   static const String importVoiceHintMessage = "כדי שכל מוצר ייכנס בשורה נפרדת, אפשר לומר פסיק בין מוצר למוצר תוך כדי ההכתבה, או פשוט להשאיר הפסקה קצרה.";
   static const String importVoiceHintTooltip = "טיפ להכתבה קולית";

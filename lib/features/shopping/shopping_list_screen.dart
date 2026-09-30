@@ -487,32 +487,44 @@ class _CategoryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        color: AppColors.surface,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                ProductCategorizer.categoryNames[category] ?? '',
-                style: AppTextStyles.heading2.copyWith(fontSize: 14, color: AppColors.primary),
-              ),
+    // פס צבעוני (בצבע הקטגוריה עצמה, אותו צבע כמו העיגול הקטן ליד
+    // כל מוצר) מעל כל כותרת קטגוריה - הפרדה ברורה בין קטגוריה
+    // לקטגוריה בזמן גלילה.
+    final categoryColor = ProductCategorizer.categoryColors[category] ?? AppColors.primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(height: 5, color: categoryColor),
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            color: AppColors.surface,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    ProductCategorizer.categoryNames[category] ?? '',
+                    style:
+                        AppTextStyles.heading2.copyWith(fontSize: 14, color: AppColors.primary),
+                  ),
+                ),
+                if (isComplete) ...[
+                  const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
+                  const SizedBox(width: 4),
+                  Icon(
+                    isCollapsed ? Icons.expand_more : Icons.expand_less,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                ],
+              ],
             ),
-            if (isComplete) ...[
-              const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
-              const SizedBox(width: 4),
-              Icon(
-                isCollapsed ? Icons.expand_more : Icons.expand_less,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ],
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -553,19 +565,21 @@ class _ShoppingItemTile extends StatelessWidget {
     final unitText = item.unit != null ? ' ${item.unit}' : '';
 
     // פעולת "לא נמצא"/"החזר לממתין" מתחלפת לפי הסטטוס הנוכחי - רק
-    // אחת מהן רלוונטית בכל רגע נתון (בדיוק כמו בתפריט הישן).
+    // אחת מהן רלוונטית בכל רגע נתון (בדיוק כמו בתפריט הישן). flex
+    // גבוה יותר כי הטקסט שלה ("לא נמצא" / "החזר לממתין") ארוך יותר
+    // מ"עריכה"/"מחיקה".
     final statusAction = item.status == ItemStatus.pending
-        ? SlidableAction(
-            onPressed: (_) => onMarkNotFound(),
+        ? _SwipeAction(
+            flex: 2,
+            onPressed: onMarkNotFound,
             backgroundColor: AppColors.itemNotFound,
-            foregroundColor: Colors.white,
             icon: Icons.search_off,
             label: AppStrings.markNotFound,
           )
-        : SlidableAction(
-            onPressed: (_) => onBackToPending(),
+        : _SwipeAction(
+            flex: 2,
+            onPressed: onBackToPending,
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
             icon: Icons.undo,
             label: AppStrings.backToPending,
           );
@@ -575,20 +589,18 @@ class _ShoppingItemTile extends StatelessWidget {
       // "end" מתאים אוטומטית לכיוון RTL - בעברית זה נחשף מצד שמאל.
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: 0.75,
+        extentRatio: 0.85,
         children: [
           statusAction,
-          SlidableAction(
-            onPressed: (_) => onEdit(),
+          _SwipeAction(
+            onPressed: onEdit,
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
             icon: Icons.edit,
             label: AppStrings.edit,
           ),
-          SlidableAction(
-            onPressed: (_) => onDelete(),
+          _SwipeAction(
+            onPressed: onDelete,
             backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
             icon: Icons.delete,
             label: AppStrings.delete,
           ),
@@ -678,3 +690,46 @@ class _ShoppingItemTile extends StatelessWidget {
   }
 }
 
+/// כפתור פעולת החלקה בודד - בנוי ידנית (CustomSlidableAction) ולא
+/// עם SlidableAction הרגיל, כדי שהטקסט המלא ("לא נמצא", "החזר
+/// לממתין" וכו') תמיד יוצג במלואו ולא ייחתך - אם אין מספיק רוחב,
+/// הטקסט עובר לשורה שנייה במקום להיקטע.
+class _SwipeAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color backgroundColor;
+  final VoidCallback onPressed;
+  final int flex;
+
+  const _SwipeAction({
+    required this.icon,
+    required this.label,
+    required this.backgroundColor,
+    required this.onPressed,
+    this.flex = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomSlidableAction(
+      flex: flex,
+      backgroundColor: backgroundColor,
+      foregroundColor: Colors.white,
+      onPressed: (_) => onPressed(),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20, color: Colors.white),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, color: Colors.white, height: 1.1),
+          ),
+        ],
+      ),
+    );
+  }
+}

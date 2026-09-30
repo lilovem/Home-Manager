@@ -78,6 +78,23 @@ final shoppingItemsProvider =
       .watchItems(args.householdId, args.listId);
 });
 
+/// רשימות קניות **שיש בהן בפועל לפחות מוצר אחד** - מקור אמת יחיד
+/// לכל מסך שצריך לדעת "האם יש קנייה נוכחית" (מסך הבחירה, מסך
+/// רשימת הקניות הקיימות וכו'). לפני זה כל מסך חישב את זה בנפרד עם
+/// אותה לוגיקה בדיוק - מה שפתח פתח לחוסר עקביות בין מסכים (אחד
+/// מראה "יש קנייה נוכחית" והשני מראה "אין רשימות").
+final nonEmptyShoppingListsProvider =
+    Provider.family<List<ShoppingList>, String>((ref, householdId) {
+  final lists = ref.watch(shoppingListsProvider(householdId)).value ?? const [];
+  return lists.where((list) {
+    final items = ref
+            .watch(shoppingItemsProvider((householdId: householdId, listId: list.id)))
+            .value ??
+        const [];
+    return items.isNotEmpty;
+  }).toList();
+});
+
 /// היסטוריית קניות של household מסוים.
 final shoppingHistoryProvider =
     StreamProvider.family<List<ShoppingHistoryEntry>, String>((ref, householdId) {
@@ -92,4 +109,3 @@ final shoppingListMetaProvider =
       .watch(shoppingRepositoryProvider)
       .watchListMeta(args.householdId, args.listId);
 });
-

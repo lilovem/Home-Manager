@@ -4,6 +4,7 @@ import '../../app/config/app_colors.dart';
 import '../../app/config/app_strings.dart';
 import '../../app/config/app_text_styles.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../models/shopping_list_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shopping_provider.dart';
 import 'existing_shopping_lists_screen.dart';
@@ -17,30 +18,84 @@ import 'shopping_list_screen.dart';
 /// רשימה אחת עם מוצרים - אם אין שום קנייה נוכחית, לא מציגים בכלל
 /// את האפשרות הזו (כדי לא להוביל למסך ריק ומבלבל). "קנייה חדשה"
 /// (בחירת תאריך מלוח שנה) מוצג תמיד. בנוסף, כפתור בסרגל העליון
-/// מאפשר ליצור רשימה חדשה ישירות מטקסט מודבק (למשל מוואטסאפ),
-/// בלי לעבור דרך לוח השנה.
+/// מאפשר ליצור/לבחור רשימה ישירות מטקסט מודבק או הכתבה קולית,
+/// בלי לעבור דרך לוח השנה - אם יש כבר יותר מעגלה אחת (רשימה אחת),
+/// שואל קודם לאיזו עגלה להוסיף, כדי לא ליצור בטעות עגלה כפולה.
 class ShoppingChoiceScreen extends ConsumerWidget {
   final String householdId;
 
   const ShoppingChoiceScreen({super.key, required this.householdId});
 
-  Future<void> _openImportNewList(BuildContext context, WidgetRef ref) async {
+  /// אם יש כבר עגלה אחת או יותר, שואל קודם לאיזו מהן להוסיף (או
+  /// לעגלה חדשה) - כדי לא ליצור בטעות עגלה כפולה כשכבר יש עגלה
+  /// מתאימה. אם אין אף עגלה קיימת, פשוט ממשיך ישר ליצירת עגלה
+  /// חדשה בלי לשאול (אין באמת מה לבחור).
+  Future<void> _openImportNewList(
+    BuildContext context,
+    WidgetRef ref,
+    List<ShoppingList> lists,
+  ) async {
+    String? targetListId;
+    String? targetListName;
+
+    if (lists.isNotEmpty) {
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Text(AppStrings.importChooseListTitle, style: AppTextStyles.heading2),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                title: const Text(AppStrings.importNewListOption),
+                onTap: () => Navigator.of(sheetContext).pop('__new__'),
+              ),
+              const Divider(height: 1),
+              ...lists.map(
+                (list) => ListTile(
+                  leading: const Icon(Icons.shopping_cart_outlined, color: AppColors.primary),
+                  title: Text(list.name),
+                  onTap: () => Navigator.of(sheetContext).pop(list.id),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (choice == null) return; // בוטל - לא נבחר כלום
+      if (choice != '__new__') {
+        targetListId = choice;
+        targetListName = lists.firstWhere((l) => l.id == choice).name;
+      }
+    }
+
+    if (!context.mounted) return;
+
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ImportShoppingListScreen(
-          title: AppStrings.importScreenTitle,
+          title: targetListName != null
+              ? '${AppStrings.importScreenTitle} - $targetListName'
+              : AppStrings.importScreenTitle,
           onConfirm: (importContext, drafts) async {
             final user = ref.read(authStateChangesProvider).value;
             if (user == null) return;
 
-            final newList = await ref.read(shoppingRepositoryProvider).createList(
-                  householdId: householdId,
-                  name: DateFormatter.dateOnly(DateTime.now()),
-                );
+            final listId = targetListId ??
+                (await ref.read(shoppingRepositoryProvider).createList(
+                      householdId: householdId,
+                      name: DateFormatter.dateOnly(DateTime.now()),
+                    ))
+                    .id;
 
             await ref.read(shoppingRepositoryProvider).addItemsBatch(
                   householdId: householdId,
-                  listId: newList.id,
+                  listId: listId,
                   items: drafts,
                   addedBy: user.uid,
                   addedByName: user.email ?? '',
@@ -51,7 +106,7 @@ class ShoppingChoiceScreen extends ConsumerWidget {
                 MaterialPageRoute(
                   builder: (_) => ShoppingListScreen(
                     householdId: householdId,
-                    listId: newList.id,
+                    listId: listId,
                   ),
                 ),
               );
@@ -65,16 +120,11 @@ class ShoppingChoiceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lists = ref.watch(shoppingListsProvider(householdId)).value ?? const [];
-    // "יש קנייה נוכחית" - לפחות רשימה אחת עם בפועל לפחות מוצר אחד
-    // (אותו תנאי בדיוק כמו הסינון במסך ExistingShoppingListsScreen,
-    // כדי ששתי הבדיקות תמיד יתאימו זו לזו).
-    final hasNonEmptyList = lists.any((list) {
-      final items = ref
-              .watch(shoppingItemsProvider((householdId: householdId, listId: list.id)))
-              .value ??
-          const [];
-      return items.isNotEmpty;
-    });
+    // "יש קנייה נוכחית" - משתמשים במקור אמת יחיד (nonEmptyShoppingListsProvider)
+    // שגם מסך ExistingShoppingListsScreen משתמש בו, כדי ששני המסכים
+    // תמיד יראו בדיוק אותו הדבר ולא יסתרו זה את זה.
+    final hasNonEmptyList =
+        ref.watch(nonEmptyShoppingListsProvider(householdId)).isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -83,7 +133,7 @@ class ShoppingChoiceScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.content_paste_go),
             tooltip: AppStrings.importNewListTooltip,
-            onPressed: () => _openImportNewList(context, ref),
+            onPressed: () => _openImportNewList(context, ref, lists),
           ),
         ],
       ),
@@ -180,4 +230,3 @@ class _ChoiceCard extends StatelessWidget {
     );
   }
 }
-
