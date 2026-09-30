@@ -172,9 +172,11 @@ class ShoppingService {
         ShoppingItem.toFirestoreForCreate(
           name: draft.name,
           quantity: draft.quantity,
+          unit: draft.unit,
           addedBy: addedBy,
           addedByName: addedByName,
           addedDuringShopping: addedDuringShopping,
+          note: draft.note,
         ),
       );
     }

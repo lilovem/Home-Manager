@@ -18,6 +18,8 @@ class _EditableParsedItem {
   final String originalText;
   String name;
   double quantity;
+  final String? unit;
+  final String? note;
   bool included;
   late final TextEditingController controller;
   late List<WordSuggestion> suggestions;
@@ -26,6 +28,8 @@ class _EditableParsedItem {
     required this.originalText,
     required this.name,
     required this.quantity,
+    this.unit,
+    this.note,
     this.included = true,
   }) {
     controller = TextEditingController(text: name);
@@ -152,6 +156,8 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
                 originalText: line.name,
                 name: line.name,
                 quantity: line.quantity,
+                unit: line.unit,
+                note: line.note,
               ))
           .toList();
     });
@@ -244,7 +250,12 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
     if (included.isEmpty) return;
 
     final drafts = included
-        .map((item) => ShoppingItemDraft(name: item.name.trim(), quantity: item.quantity))
+        .map((item) => ShoppingItemDraft(
+              name: item.name.trim(),
+              quantity: item.quantity,
+              unit: item.unit,
+              note: item.note,
+            ))
         .where((draft) => draft.name.isNotEmpty)
         .toList();
     if (drafts.isEmpty) return;
@@ -272,6 +283,14 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
         child: items == null ? _buildPasteStep() : _buildPreviewStep(items),
       ),
     );
+  }
+
+  /// מציג כמות שלמה בלי ".0" מיותר (למשל "2" ולא "2.0"), אבל שומר
+  /// על נקודה עשרונית כשהכמות באמת חלקית (למשל "1.5").
+  String _formatQuantity(double quantity) {
+    return quantity == quantity.roundToDouble()
+        ? quantity.toInt().toString()
+        : quantity.toString();
   }
 
   Widget _buildPasteStep() {
@@ -323,7 +342,7 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
               textDirection: TextDirection.rtl,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: '1. חלב\n2. ביצים\nלחם\nעגבניות',
+                hintText: 'חלב\nביצים\nלחם\nעגבניות',
               ),
             ),
           ),
@@ -401,6 +420,23 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
                             ),
                             onChanged: (value) => setState(() => item.updateName(value)),
                           ),
+                          // שורת מידע קטנה - כמות/יחידה/הערה שזוהו
+                          // אוטומטית מהטקסט, כדי שאפשר לוודא שהזיהוי
+                          // נכון לפני השמירה (לא ניתנת לעריכה כאן -
+                          // אם משהו לא נכון, עורכים את השם עצמו).
+                          if (item.quantity != 1 || item.unit != null || item.note != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                [
+                                  '${AppStrings.importQuantityLabel}: ${_formatQuantity(item.quantity)}'
+                                      '${item.unit != null ? ' ${item.unit}' : ''}',
+                                  if (item.note != null)
+                                    '${AppStrings.importNoteLabel}: ${item.note}',
+                                ].join('  ·  '),
+                                style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                              ),
+                            ),
                           // לא מציגים כאן כפתורי בחירה - רק סימון קטן
                           // שהמילה תיבדק בלחיצה על "הוספה לרשימה", כדי
                           // לא להעמיס על התצוגה של כל פריט בנפרד.

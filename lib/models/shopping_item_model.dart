@@ -145,7 +145,14 @@ class ShoppingItem {
 class ShoppingItemDraft {
   final String name;
   final double quantity;
+  final String? unit;
+  final String? note;
 
-  const ShoppingItemDraft({required this.name, this.quantity = 1});
+  const ShoppingItemDraft({
+    required this.name,
+    this.quantity = 1,
+    this.unit,
+    this.note,
+  });
 }
 
