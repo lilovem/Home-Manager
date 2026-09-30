@@ -110,7 +110,7 @@ class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarS
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.chevron_right),
+                    icon: const Icon(Icons.chevron_left),
                     tooltip: AppStrings.previousMonth,
                     onPressed: _goToPreviousMonth,
                   ),
@@ -123,7 +123,7 @@ class _NewShoppingCalendarScreenState extends ConsumerState<NewShoppingCalendarS
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_left),
+                    icon: const Icon(Icons.chevron_right),
                     tooltip: AppStrings.nextMonth,
                     onPressed: _goToNextMonth,
                   ),

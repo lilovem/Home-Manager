@@ -337,7 +337,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                   onEnable: _requestPermission,
                 ),
               ),
-            if (!isCalendarTab) ...[
+            if (_selectedTab == 0) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                 child: Text('${AppStrings.greetingPrefix} ${household.name}!',
