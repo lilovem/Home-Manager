@@ -150,6 +150,38 @@ class ShoppingService {
     );
   }
 
+  /// מוסיף כמה פריטים בבת אחת, בפעולה אטומית אחת (WriteBatch) -
+  /// משמש לייבוא רשימה שלמה מטקסט מודבק, כדי שלא נשלח בקשה נפרדת
+  /// לכל שורה (מהיר יותר, ואם משהו נכשל - שום דבר לא נכתב בכלל).
+  Future<void> addItemsBatch({
+    required String householdId,
+    required String listId,
+    required List<ShoppingItemDraft> items,
+    required String addedBy,
+    required String addedByName,
+    bool addedDuringShopping = false,
+  }) async {
+    if (items.isEmpty) return;
+
+    final batch = _firestore.batch();
+    final itemsRef = _itemsCollection(householdId, listId);
+
+    for (final draft in items) {
+      batch.set(
+        itemsRef.doc(),
+        ShoppingItem.toFirestoreForCreate(
+          name: draft.name,
+          quantity: draft.quantity,
+          addedBy: addedBy,
+          addedByName: addedByName,
+          addedDuringShopping: addedDuringShopping,
+        ),
+      );
+    }
+
+    await batch.commit();
+  }
+
   Future<void> updateItem({
     required String householdId,
     required String listId,

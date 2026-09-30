@@ -93,6 +93,29 @@ class ShoppingRepository {
     }
   }
 
+  /// מוסיף כמה פריטים בבת אחת - משמש לייבוא רשימה מטקסט מודבק.
+  Future<void> addItemsBatch({
+    required String householdId,
+    required String listId,
+    required List<ShoppingItemDraft> items,
+    required String addedBy,
+    required String addedByName,
+    bool addedDuringShopping = false,
+  }) async {
+    try {
+      await _service.addItemsBatch(
+        householdId: householdId,
+        listId: listId,
+        items: items,
+        addedBy: addedBy,
+        addedByName: addedByName,
+        addedDuringShopping: addedDuringShopping,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בהוספת המוצרים');
+    }
+  }
+
   Future<void> updateItem({
     required String householdId,
     required String listId,

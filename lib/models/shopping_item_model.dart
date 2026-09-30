@@ -138,3 +138,14 @@ class ShoppingItem {
   }
 }
 
+/// "טיוטת" פריט להוספה מרוכזת (Batch) - למשל מייבוא רשימה מטקסט
+/// מודבק, שבו כמה פריטים נוספים יחד בפעולה אחת. שם וכמות בלבד -
+/// שדות שיווצרו אוטומטית (סטטוס, addedAt וכו') מטופלים כמו בהוספה
+/// רגילה, דרך ShoppingItem.toFirestoreForCreate.
+class ShoppingItemDraft {
+  final String name;
+  final double quantity;
+
+  const ShoppingItemDraft({required this.name, this.quantity = 1});
+}
+

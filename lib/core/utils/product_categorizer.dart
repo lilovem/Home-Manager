@@ -216,6 +216,13 @@ class ProductCategorizer {
     ],
   };
 
+  /// כל מילות המפתח הידועות (משוטחות מכל הקטגוריות, ללא כפילויות) -
+  /// משמש את ShoppingTypoCorrector כדי לתקן שגיאות כתיב קלות מול
+  /// אותה רשימה בדיוק שממנה מחושבת הקטגוריה, כך שתיקון שם תמיד
+  /// "מתלכד" גם עם סיווג נכון.
+  static List<String> get allKnownWords =>
+      _keywords.values.expand((words) => words).toSet().toList();
+
   /// מזהה את הקטגוריה המתאימה ביותר לשם מוצר נתון.
   /// אם אין התאמה לאף מילת מפתח, מוחזרת הקטגוריה "שונות".
   static ProductCategory categorize(String productName) {

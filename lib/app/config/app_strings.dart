@@ -4,6 +4,17 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String importConfirmButton = "הוספה לרשימה";
+  static const String importOriginalTextPrefix = "במקור: ";
+  static const String importNoItemsDetected = "לא הצלחנו לזהות אף פריט בטקסט שהודבק";
+  static const String importBackToPaste = "חזרה לטקסט";
+  static const String importPreviewTitle = "בדיקת הרשימה שזוהתה";
+  static const String importParseButton = "פרק לרשימה";
+  static const String importInstructions = "הדביקי כאן רשימת קניות (למשל מוואטסאפ) - כל מוצר בשורה נפרדת";
+  static const String importScreenTitle = "ייבוא רשימת קניות";
+  static const String importNewListTooltip = "ייבוא רשימה חדשה מטקסט";
+  static const String importFromTextAction = "ייבוא רשימה מהדבקה";
+  static const String addManuallyAction = "הוספה ידנית";
   static const String exportAsPdfAction = "ייצוא ל-PDF";
   static const String preparingExportMessage = "מכינים את הקובץ...";
   static const String exportAsWordAction = "ייצוא לוורד";

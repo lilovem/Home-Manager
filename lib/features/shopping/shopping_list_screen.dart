@@ -13,6 +13,7 @@ import '../../models/shopping_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shopping_provider.dart';
 import 'add_edit_product_screen.dart';
+import 'import_shopping_list_screen.dart';
 import 'shopping_history_screen.dart';
 import 'shopping_summary_screen.dart';
 
@@ -26,6 +27,10 @@ import 'shopping_summary_screen.dart';
 /// כולל גם מצב "קנייה פעילה": כשמישהו לוחץ "התחל קנייה", מוצג
 /// באנר לכל חברי ה-household, וכל מוצר שנוסף בזמן הזה מסומן
 /// "חדש" (addedDuringShopping). "סיום קנייה" סוגר את ה-session.
+///
+/// הוספת מוצרים אפשרית בשתי דרכים: הוספה ידנית (מוצר אחד בכל
+/// פעם, טופס מלא) או ייבוא רשימה שלמה מטקסט מודבק (למשל מוואטסאפ) -
+/// שתיהן נפתחות מאותו כפתור הוספה (FAB), דרך חלונית בחירה קטנה.
 class ShoppingListScreen extends ConsumerWidget {
   final String householdId;
   final String listId;
@@ -100,6 +105,67 @@ class ShoppingListScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
+  }
+
+  Future<void> _openImportList(
+    BuildContext context,
+    WidgetRef ref,
+    bool isSessionActive,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ImportShoppingListScreen(
+          title: AppStrings.importScreenTitle,
+          onConfirm: (importContext, drafts) async {
+            final user = ref.read(authStateChangesProvider).value;
+            if (user == null) return;
+
+            await ref.read(shoppingRepositoryProvider).addItemsBatch(
+                  householdId: householdId,
+                  listId: listId,
+                  items: drafts,
+                  addedBy: user.uid,
+                  addedByName: user.email ?? '',
+                  addedDuringShopping: isSessionActive,
+                );
+
+            if (importContext.mounted) Navigator.of(importContext).pop();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showAddOptionsSheet(
+    BuildContext context,
+    WidgetRef ref,
+    bool isSessionActive,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.add, color: AppColors.primary),
+              title: const Text(AppStrings.addManuallyAction),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _openAddProduct(context, ref, isSessionActive);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_paste_go, color: AppColors.primary),
+              title: const Text(AppStrings.importFromTextAction),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _openImportList(context, ref, isSessionActive);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _openEditProduct(
@@ -354,7 +420,7 @@ class ShoppingListScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddProduct(context, ref, isSessionActive),
+        onPressed: () => _showAddOptionsSheet(context, ref, isSessionActive),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),

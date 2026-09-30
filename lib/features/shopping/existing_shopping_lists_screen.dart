@@ -7,23 +7,74 @@ import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_indicator.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/shopping_provider.dart';
+import 'import_shopping_list_screen.dart';
 import 'shopping_list_screen.dart';
 
 /// מסך "קנייה נוכחית" - רשימת כל הקניות הקיימות של ה-household,
-/// לבחירה. יצירת קנייה חדשה נעשית דרך המסך השני (NewShoppingCalendarScreen),
-/// לא כאן.
+/// לבחירה. יצירת קנייה חדשה "ריקה" נעשית דרך המסך השני
+/// (NewShoppingCalendarScreen), ויצירת רשימה חדשה **מייבוא טקסט
+/// מודבק** (למשל מוואטסאפ) אפשרית ישירות מכאן, דרך כפתור בסרגל
+/// העליון.
 class ExistingShoppingListsScreen extends ConsumerWidget {
   final String householdId;
 
   const ExistingShoppingListsScreen({super.key, required this.householdId});
+
+  Future<void> _openImportNewList(BuildContext context, WidgetRef ref) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ImportShoppingListScreen(
+          title: AppStrings.importScreenTitle,
+          onConfirm: (importContext, drafts) async {
+            final user = ref.read(authStateChangesProvider).value;
+            if (user == null) return;
+
+            final newList = await ref.read(shoppingRepositoryProvider).createList(
+                  householdId: householdId,
+                  name: DateFormatter.dateOnly(DateTime.now()),
+                );
+
+            await ref.read(shoppingRepositoryProvider).addItemsBatch(
+                  householdId: householdId,
+                  listId: newList.id,
+                  items: drafts,
+                  addedBy: user.uid,
+                  addedByName: user.email ?? '',
+                );
+
+            if (importContext.mounted) {
+              Navigator.of(importContext).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => ShoppingListScreen(
+                    householdId: householdId,
+                    listId: newList.id,
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listsAsync = ref.watch(shoppingListsProvider(householdId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.currentShoppingOption)),
+      appBar: AppBar(
+        title: const Text(AppStrings.currentShoppingOption),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.content_paste_go),
+            tooltip: AppStrings.importNewListTooltip,
+            onPressed: () => _openImportNewList(context, ref),
+          ),
+        ],
+      ),
       body: listsAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, st) => const ErrorView(),
