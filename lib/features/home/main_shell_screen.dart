@@ -42,6 +42,67 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   void initState() {
     super.initState();
     _permissionStatus = ref.read(browserNotificationServiceProvider).permissionStatus;
+    // בודקים (אחרי הפריים הראשון, כדי שיהיה context תקין) אם למשתמש
+    // המחובר יש שם שמור - אם לא (למשל משתמש ותיק שנרשם לפני שהתווספה
+    // האפשרות הזו), מבקשים ממנו להכניס שם, חד פעמית.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkDisplayName());
+  }
+
+  Future<void> _checkDisplayName() async {
+    final user = ref.read(authStateChangesProvider).value;
+    if (user == null) return;
+    final name = user.displayName;
+    if (name != null && name.trim().isNotEmpty) return;
+    if (!mounted) return;
+    await _showEnterNameDialog();
+  }
+
+  Future<void> _showEnterNameDialog() async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text(AppStrings.enterNameTitle),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: AppStrings.fullNameLabel),
+              validator: (value) =>
+                  (value == null || value.trim().isEmpty) ? AppStrings.nameRequiredError : null,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      setDialogState(() => isSaving = true);
+                      await ref
+                          .read(authRepositoryProvider)
+                          .updateDisplayName(controller.text.trim());
+                      ref.invalidate(authStateChangesProvider);
+                      if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(AppStrings.saveNameButton),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _requestPermission() async {

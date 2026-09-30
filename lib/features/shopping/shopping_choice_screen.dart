@@ -98,7 +98,7 @@ class ShoppingChoiceScreen extends ConsumerWidget {
                   listId: listId,
                   items: drafts,
                   addedBy: user.uid,
-                  addedByName: user.email ?? '',
+                  addedByName: user.displayName ?? user.email ?? '',
                 );
 
             if (importContext.mounted) {

@@ -4,6 +4,12 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String saveNameButton = "שמירה";
+  static const String enterNameTitle = "איך קוראים לך?";
+  static const String nameRequiredError = "יש להזין שם";
+  static const String fullNameLabel = "שם מלא";
+  static const String orDivider = "או";
+  static const String signInWithGoogleButton = "כניסה עם Google";
   static const String nextMonth = "חודש הבא";
   static const String previousMonth = "חודש קודם";
   static const String importNewListOption = "עגלה חדשה";

@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
 
   @override
@@ -50,6 +51,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _errorMessage = AppStrings.errorGeneric);
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// כניסה עם Google - יוצר משתמש אוטומטית אם זו הפעם הראשונה
+  /// (אין הבדל בין "הרשמה" ל"התחברות" עם Google, זה אותו כפתור).
+  Future<void> _submitGoogle() async {
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+    } on Failure catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (_) {
+      setState(() => _errorMessage = AppStrings.errorGeneric);
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -172,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _submit,
+                    onPressed: _isLoading || _isGoogleLoading ? null : _submit,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -194,6 +214,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () => context.push('/register'),
                     child: const Text(AppStrings.dontHaveAccount),
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(AppStrings.orDivider, style: AppTextStyles.bodySecondary),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: _isLoading || _isGoogleLoading ? null : _submitGoogle,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _isGoogleLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(AppStrings.signInWithGoogleButton),
+                  ),
                 ],
               ),
             ),
@@ -203,4 +248,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
-

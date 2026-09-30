@@ -112,7 +112,7 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
             quantity: result.quantity,
             unit: result.unit,
             addedBy: user.uid,
-            addedByName: user.email ?? '',
+            addedByName: user.displayName ?? user.email ?? '',
             addedDuringShopping: isSessionActive,
             note: result.note,
           );
@@ -141,7 +141,7 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                   listId: widget.listId,
                   items: drafts,
                   addedBy: user.uid,
-                  addedByName: user.email ?? '',
+                  addedByName: user.displayName ?? user.email ?? '',
                   addedDuringShopping: isSessionActive,
                 );
 
@@ -265,7 +265,7 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
             householdId: widget.householdId,
             listId: widget.listId,
             startedBy: user.uid,
-            startedByName: user.email ?? '',
+            startedByName: user.displayName ?? user.email ?? '',
           );
     } on Failure catch (e) {
       if (context.mounted) {
@@ -412,49 +412,63 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                     final isComplete =
                         categoryItems.every((item) => item.status != ItemStatus.pending);
                     final isCollapsed = isComplete && !_expandedOverride.contains(category);
+                    final categoryColor =
+                        ProductCategorizer.categoryColors[category] ?? AppColors.primary;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _CategoryHeader(
-                          category: category,
-                          isComplete: isComplete,
-                          isCollapsed: isCollapsed,
-                          onTap: isComplete
-                              ? () => setState(() {
-                                    if (_expandedOverride.contains(category)) {
-                                      _expandedOverride.remove(category);
-                                    } else {
-                                      _expandedOverride.add(category);
-                                    }
-                                  })
-                              : null,
+                    // מסגרת צבעונית (בצבע הקטגוריה) שעוטפת את כל הקטגוריה -
+                    // הכותרת וכל המוצרים שלה - כדי שההפרדה בין קטגוריה
+                    // לקטגוריה תהיה ברורה וממשית, לא רק קו דק בין שתיים.
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: categoryColor, width: 6),
                         ),
-                        if (!isCollapsed)
-                          ...categoryItems.map(
-                            (item) => Column(
-                              children: [
-                                _ShoppingItemTile(
-                                  item: item,
-                                  onTogglePurchased: () => _setStatus(
-                                    ref,
-                                    item,
-                                    item.status == ItemStatus.purchased
-                                        ? ItemStatus.pending
-                                        : ItemStatus.purchased,
-                                  ),
-                                  onMarkNotFound: () =>
-                                      _setStatus(ref, item, ItemStatus.notFound),
-                                  onBackToPending: () =>
-                                      _setStatus(ref, item, ItemStatus.pending),
-                                  onEdit: () => _openEditProduct(context, ref, item),
-                                  onDelete: () => _confirmDelete(context, ref, item),
-                                ),
-                                const Divider(height: 1),
-                              ],
-                            ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _CategoryHeader(
+                            category: category,
+                            categoryColor: categoryColor,
+                            isComplete: isComplete,
+                            isCollapsed: isCollapsed,
+                            onTap: isComplete
+                                ? () => setState(() {
+                                      if (_expandedOverride.contains(category)) {
+                                        _expandedOverride.remove(category);
+                                      } else {
+                                        _expandedOverride.add(category);
+                                      }
+                                    })
+                                : null,
                           ),
-                      ],
+                          if (!isCollapsed)
+                            ...categoryItems.map(
+                              (item) => Column(
+                                children: [
+                                  _ShoppingItemTile(
+                                    item: item,
+                                    onTogglePurchased: () => _setStatus(
+                                      ref,
+                                      item,
+                                      item.status == ItemStatus.purchased
+                                          ? ItemStatus.pending
+                                          : ItemStatus.purchased,
+                                    ),
+                                    onMarkNotFound: () =>
+                                        _setStatus(ref, item, ItemStatus.notFound),
+                                    onBackToPending: () =>
+                                        _setStatus(ref, item, ItemStatus.pending),
+                                    onEdit: () => _openEditProduct(context, ref, item),
+                                    onDelete: () => _confirmDelete(context, ref, item),
+                                  ),
+                                  const Divider(height: 1),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     );
                   },
                 );
@@ -474,12 +488,14 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
 
 class _CategoryHeader extends StatelessWidget {
   final ProductCategory category;
+  final Color categoryColor;
   final bool isComplete;
   final bool isCollapsed;
   final VoidCallback? onTap;
 
   const _CategoryHeader({
     required this.category,
+    required this.categoryColor,
     required this.isComplete,
     required this.isCollapsed,
     this.onTap,
@@ -487,15 +503,13 @@ class _CategoryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // פס צבעוני (בצבע הקטגוריה עצמה, אותו צבע כמו העיגול הקטן ליד
-    // כל מוצר) מעל כל כותרת קטגוריה - הפרדה ברורה בין קטגוריה
-    // לקטגוריה בזמן גלילה.
-    final categoryColor = ProductCategorizer.categoryColors[category] ?? AppColors.primary;
-
+    // פס צבעוני עבה (בצבע הקטגוריה עצמה, אותו צבע כמו העיגול הקטן
+    // ליד כל מוצר) ממש מעל כותרת הקטגוריה, בנוסף למסגרת הצבעונית
+    // שעוטפת את כל הקטגוריה - כדי שההפרדה תהיה ברורה וממשית.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(height: 5, color: categoryColor),
+        Container(height: 8, color: categoryColor),
         InkWell(
           onTap: onTap,
           child: Container(

@@ -24,10 +24,44 @@ class AuthRepository {
     }
   }
 
-  Future<void> signUp({required String email, required String password}) async {
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
     try {
       await _service.signUp(email: email, password: password);
+      // שומרים את השם מיד אחרי יצירת החשבון - כך שמהרגע הראשון
+      // הוא כבר מוצג בכל מקום (למשל "מי הוסיף" ברשימת קניות)
+      // במקום האימייל.
+      await _service.updateDisplayName(name);
     } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_mapErrorMessage(e.code));
+    }
+  }
+
+  /// מעדכן את השם המוצג של המשתמש המחובר - משמש גם למשתמשים
+  /// ותיקים שנרשמו לפני שהתווספה האפשרות לשם, וגם לכל מי שירצה
+  /// לשנות את השם שלו מאוחר יותר.
+  Future<void> updateDisplayName(String name) async {
+    try {
+      await _service.updateDisplayName(name);
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_mapErrorMessage(e.code));
+    }
+  }
+
+  /// כניסה עם Google. אם המשתמש סוגר את חלון הבחירה בעצמו
+  /// (התחרט) - זו לא "שגיאה" אמיתית, פשוט לא עושים כלום ולא
+  /// מציגים הודעת שגיאה מבהילה (בדיוק כמו שלחיצה על "ביטול" לא
+  /// אמורה להראות כשל).
+  Future<void> signInWithGoogle() async {
+    try {
+      await _service.signInWithGoogle();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') {
+        return;
+      }
       throw AuthFailure(_mapErrorMessage(e.code));
     }
   }
@@ -57,9 +91,14 @@ class AuthRepository {
         return 'הסיסמה חלשה מדי - נדרשים לפחות 6 תווים';
       case 'too-many-requests':
         return 'יותר מדי ניסיונות. נסו שוב מאוחר יותר';
+      case 'account-exists-with-different-credential':
+        return 'כבר קיים חשבון עם אימייל זה, שנוצר בדרך אחרת (למשל אימייל+סיסמה). נסו להתחבר בדרך שבה נרשמתם במקור';
+      case 'popup-blocked':
+        return 'הדפדפן חסם את חלון ההתחברות של גוגל. אפשרו חלונות קופצים לאתר ונסו שוב';
+      case 'unauthorized-domain':
+        return 'הכתובת הזו לא מורשית להתחברות עם Google (צריך להוסיף אותה בהגדרות Firebase)';
       default:
         return 'שגיאה בהתחברות, נסו שוב';
     }
   }
 }
-
