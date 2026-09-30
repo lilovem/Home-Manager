@@ -4,6 +4,13 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String importVoiceError = "לא הצלחנו להפעיל הכתבה קולית - נסי שוב";
+  static const String importVoiceListening = "מקשיבה... אפשר לדבר את רשימת הקניות";
+  static const String importVoiceTooltip = "הכתבה קולית";
+  static const String importPendingCheckLabel = "לבדיקה בשמירה";
+  static const String importSuggestionDialogTitle = "מוצר לא מזוהה";
+  static const String importKeepOriginalPrefix = "השאר ";
+  static const String importSuggestionPrompt = "האם התכוונת ל:";
   static const String importConfirmButton = "הוספה לרשימה";
   static const String importOriginalTextPrefix = "במקור: ";
   static const String importNoItemsDetected = "לא הצלחנו לזהות אף פריט בטקסט שהודבק";

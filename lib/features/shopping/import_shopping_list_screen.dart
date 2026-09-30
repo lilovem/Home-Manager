@@ -6,19 +6,21 @@ import '../../core/errors/failures.dart';
 import '../../core/utils/product_categorizer.dart';
 import '../../core/utils/shopping_text_parser.dart';
 import '../../core/utils/shopping_typo_corrector.dart';
+import '../../core/utils/web_speech_recognition.dart';
 import '../../models/shopping_item_model.dart';
 
-/// פריט מפוענח מטקסט מודבק, לפני שנשמר בפועל - שם (ניתן לעריכה,
-/// כבר אחרי ניסיון תיקון שגיאת כתיב אוטומטי), כמות, וסימון האם
-/// לכלול אותו בהוספה הסופית. originalText משמש רק כדי להראות
-/// למשתמשת "במקור: ..." כשהתיקון האוטומטי שינה את השם, כדי שתוכל
-/// לתקן בעצמה אם הניחוש שגוי.
+/// פריט מפוענח מטקסט מודבק, לפני שנשמר בפועל - שם (ניתן לעריכה),
+/// כמות, וסימון האם לכלול אותו בהוספה הסופית. suggestions מכיל
+/// הצעות תיקון שגיאת כתיב למילים שלא זוהו בוודאות - לא מוחל
+/// אוטומטית על השם; המשתמשת מתבקשת לבחור מפורשות בלחיצה על "הוספה
+/// לרשימה", דרך דיאלוג ייעודי (ולא באמצעות כפתורים בתוך הרשימה עצמה).
 class _EditableParsedItem {
   final String originalText;
   String name;
   double quantity;
   bool included;
   late final TextEditingController controller;
+  late List<WordSuggestion> suggestions;
 
   _EditableParsedItem({
     required this.originalText,
@@ -27,29 +29,56 @@ class _EditableParsedItem {
     this.included = true,
   }) {
     controller = TextEditingController(text: name);
+    suggestions = ShoppingTypoCorrector.analyze(name);
   }
 
   ProductCategory get category => ProductCategorizer.categorize(name);
-  bool get wasCorrected => name != originalText;
+
+  /// מחליף במפורש רק את המילה הספציפית הזו בתוך השם (לא את כל
+  /// השם) - כדי לא לפגוע בשאר מילות השם כשיש כמה מילים. מחשב
+  /// מחדש את ההצעות לפי השם המעודכן.
+  void applySuggestion(String originalWord, String candidate) {
+    name = name.replaceFirst(RegExp(RegExp.escape(originalWord)), candidate);
+    controller.text = name;
+    suggestions = ShoppingTypoCorrector.analyze(name);
+  }
+
+  /// "השאר כך" - מבטלת את ההצעה הספציפית הזו בלי לשנות את השם.
+  void dismissSuggestion(String originalWord) {
+    suggestions = suggestions.where((s) => s.originalWord != originalWord).toList();
+  }
+
+  /// עריכה ידנית של השם על ידי המשתמשת - מחשב מחדש את ההצעות, כדי
+  /// שאם היא כבר תיקנה את המילה בעצמה לא נשאל עליה שוב, ואם היא
+  /// הכניסה מילה חדשה שנראית כשגויה נזהה זאת.
+  void updateName(String value) {
+    name = value;
+    suggestions = ShoppingTypoCorrector.analyze(value);
+  }
 
   void dispose() => controller.dispose();
 }
 
-/// מסך ייבוא רשימת קניות מטקסט מודבק (למשל מוואטסאפ).
+/// מסך ייבוא רשימת קניות מטקסט מודבק (למשל מוואטסאפ) או מהכתבה
+/// קולית.
 ///
-/// שני "שלבים" (הדבקת טקסט, ואז בדיקה/עריכה של מה שזוהה) - אבל
+/// שני "שלבים" (הדבקה/הכתבה, ואז בדיקה/עריכה של מה שזוהה) - אבל
 /// באותו מסך אחד (מצב פנימי), לא שני מסכים נפרדים שנדחפים זה על
 /// זה. זה מכוון: כך ש-onConfirm יכול לבצע בעצמו בדיוק את הניווט
 /// המתאים לסיום (pop חזרה לרשימה קיימת, או pushReplacement למסך
 /// רשימה חדשה שרק נוצרה) בלי סיבוכים של כמה מסכים בערימת הניווט.
+///
+/// בדיקת שגיאות כתיב לא מוצגת כרשימת כפתורים בתוך התצוגה המקדימה -
+/// אלא בלחיצה על "הוספה לרשימה" קופץ דיאלוג לכל מילה חשודה, אחת
+/// אחרי השנייה, ורק אחרי שכולן נענו (או נדחו) הרשימה נשמרת בפועל.
 class ImportShoppingListScreen extends StatefulWidget {
   final String title;
 
   /// מופעל עם רשימת הטיוטות הסופית שהמשתמשת אישרה (רק הפריטים
-  /// המסומנים). אחראי גם על השמירה בפועל (הוספה לרשימה קיימת, או
-  /// קודם יצירת רשימה חדשה) וגם על הניווט המתאים בסיום, דרך ה-
-  /// context שמועבר אליו (context של המסך הזה עצמו, עדיין תקף
-  /// בזמן הקריאה).
+  /// המסומנים), אחרי שכל שגיאות הכתיב האפשריות כבר נענו. אחראי גם
+  /// על השמירה בפועל (הוספה לרשימה קיימת, או קודם יצירת רשימה
+  /// חדשה) וגם על הניווט המתאים בסיום, דרך ה-context שמועבר אליו
+  /// (context של המסך הזה עצמו, עדיין תקף בזמן הקריאה).
   final Future<void> Function(BuildContext context, List<ShoppingItemDraft> items) onConfirm;
 
   const ImportShoppingListScreen({
@@ -64,16 +93,49 @@ class ImportShoppingListScreen extends StatefulWidget {
 
 class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
   final _pasteController = TextEditingController();
+  final _speech = WebSpeechRecognition();
   List<_EditableParsedItem>? _parsedItems;
   bool _isSaving = false;
 
   @override
   void dispose() {
+    _speech.stop();
     _pasteController.dispose();
     for (final item in _parsedItems ?? const <_EditableParsedItem>[]) {
       item.dispose();
     }
     super.dispose();
+  }
+
+  void _toggleVoiceInput() {
+    if (_speech.isListening) {
+      _speech.stop();
+      return;
+    }
+
+    setState(() {});
+    _speech.start(
+      onResult: (chunk) {
+        setState(() {
+          final current = _pasteController.text;
+          final needsNewline = current.isNotEmpty && !current.endsWith('\n');
+          final updated = needsNewline ? '$current\n$chunk' : '$current$chunk';
+          _pasteController.value = TextEditingValue(
+            text: updated,
+            selection: TextSelection.collapsed(offset: updated.length),
+          );
+        });
+      },
+      onEnd: () {
+        if (mounted) setState(() {});
+      },
+      onError: (error) {
+        if (!mounted) return;
+        setState(() {});
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text(AppStrings.importVoiceError)));
+      },
+    );
   }
 
   void _parse() {
@@ -88,7 +150,7 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
       _parsedItems = lines
           .map((line) => _EditableParsedItem(
                 originalText: line.name,
-                name: ShoppingTypoCorrector.correct(line.name),
+                name: line.name,
                 quantity: line.quantity,
               ))
           .toList();
@@ -102,6 +164,78 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
       }
       _parsedItems = null;
     });
+  }
+
+  /// מוצג בלחיצה על "הוספה לרשימה" - עוברת פריט-פריט, ומילה-מילה,
+  /// ומציגה דיאלוג לכל מילה עם הצעות תיקון שעדיין לא נענתה. רק
+  /// אחרי שכל השאלות נענו (או נדחו) קוראת בפועל ל-_confirm ושומרת.
+  Future<void> _resolvePendingSuggestionsThenConfirm() async {
+    final items = _parsedItems ?? const <_EditableParsedItem>[];
+    for (final item in items) {
+      if (!item.included || item.suggestions.isEmpty) continue;
+
+      final suggestion = item.suggestions.first;
+      final chosen = await _showSuggestionDialog(suggestion);
+      if (!mounted) return;
+
+      setState(() {
+        if (chosen != null) {
+          item.applySuggestion(suggestion.originalWord, chosen);
+        } else {
+          item.dismissSuggestion(suggestion.originalWord);
+        }
+      });
+
+      // אחרי טיפול בשאלה אחת, בודקים שוב מההתחלה (יכולות להיות עוד
+      // מילים חשודות באותו פריט או בפריטים הבאים).
+      return _resolvePendingSuggestionsThenConfirm();
+    }
+
+    await _confirm();
+  }
+
+  /// דיאלוג "האם התכוונת ל..." למילה בודדת - חוזר עם המילה שנבחרה,
+  /// או null אם המשתמשת בחרה להשאיר את המילה המקורית. לא ניתן
+  /// לסגור בלי לבחור (barrierDismissible: false) כדי שהתהליך יתקדם
+  /// באופן ודאי לפריט הבא.
+  Future<String?> _showSuggestionDialog(WordSuggestion suggestion) {
+    return showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(AppStrings.importSuggestionDialogTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '"${suggestion.originalWord}" - ${AppStrings.importSuggestionPrompt}',
+                style: AppTextStyles.body,
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final candidate in suggestion.candidates)
+                    ActionChip(
+                      label: Text(candidate),
+                      onPressed: () => Navigator.of(dialogContext).pop(candidate),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('${AppStrings.importKeepOriginalPrefix}"${suggestion.originalWord}"'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _confirm() async {
@@ -141,13 +275,45 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
   }
 
   Widget _buildPasteStep() {
+    final showVoiceButton = WebSpeechRecognition.isSupported;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(AppStrings.importInstructions, style: AppTextStyles.bodySecondary),
-          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(AppStrings.importInstructions, style: AppTextStyles.bodySecondary),
+              ),
+              if (showVoiceButton) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    _speech.isListening ? Icons.mic : Icons.mic_none,
+                    color: _speech.isListening ? Colors.red : AppColors.primary,
+                  ),
+                  tooltip: AppStrings.importVoiceTooltip,
+                  onPressed: _toggleVoiceInput,
+                ),
+              ],
+            ],
+          ),
+          if (showVoiceButton && _speech.isListening)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.fiber_manual_record, color: Colors.red, size: 12),
+                  const SizedBox(width: 6),
+                  Text(AppStrings.importVoiceListening, style: AppTextStyles.bodySecondary),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
           Expanded(
             child: TextField(
               controller: _pasteController,
@@ -233,14 +399,29 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
                               isDense: true,
                               border: InputBorder.none,
                             ),
-                            onChanged: (value) => setState(() => item.name = value),
+                            onChanged: (value) => setState(() => item.updateName(value)),
                           ),
-                          if (item.wasCorrected)
+                          // לא מציגים כאן כפתורי בחירה - רק סימון קטן
+                          // שהמילה תיבדק בלחיצה על "הוספה לרשימה", כדי
+                          // לא להעמיס על התצוגה של כל פריט בנפרד.
+                          if (item.suggestions.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                '${AppStrings.importOriginalTextPrefix}${item.originalText}',
-                                style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.help_outline,
+                                    size: 13,
+                                    color: AppColors.itemNotFound,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    AppStrings.importPendingCheckLabel,
+                                    style: AppTextStyles.bodySecondary
+                                        .copyWith(fontSize: 11, color: AppColors.itemNotFound),
+                                  ),
+                                ],
                               ),
                             ),
                         ],
@@ -255,7 +436,8 @@ class _ImportShoppingListScreenState extends State<ImportShoppingListScreen> {
         Padding(
           padding: const EdgeInsets.all(16),
           child: ElevatedButton(
-            onPressed: includedCount == 0 || _isSaving ? null : _confirm,
+            onPressed:
+                includedCount == 0 || _isSaving ? null : _resolvePendingSuggestionsThenConfirm,
             child: _isSaving
                 ? const SizedBox(
                     height: 20,
