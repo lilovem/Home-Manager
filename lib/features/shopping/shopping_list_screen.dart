@@ -403,7 +403,12 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                       categoryItems.any((item) => item.status == ItemStatus.pending);
                 });
 
-                return ListView.builder(
+                // SlidableAutoCloseBehavior דואג שכשמחליקים פריט אחד ונפתחות
+                // הפעולות שלו (מחיקה/עריכה/סימון כלא נמצא), כל פריט אחר
+                // שהיה פתוח נסגר אוטומטית - אף פעם לא שני פריטים פתוחים
+                // בו-זמנית.
+                return SlidableAutoCloseBehavior(
+                  child: ListView.builder(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: categoriesToShow.length,
                   itemBuilder: (context, categoryIndex) {
@@ -415,17 +420,7 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                     final categoryColor =
                         ProductCategorizer.categoryColors[category] ?? AppColors.primary;
 
-                    // מסגרת צבעונית (בצבע הקטגוריה) שעוטפת את כל הקטגוריה -
-                    // הכותרת וכל המוצרים שלה - כדי שההפרדה בין קטגוריה
-                    // לקטגוריה תהיה ברורה וממשית, לא רק קו דק בין שתיים.
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: categoryColor, width: 6),
-                        ),
-                      ),
-                      child: Column(
+                    return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _CategoryHeader(
@@ -468,9 +463,9 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                               ),
                             ),
                         ],
-                      ),
                     );
                   },
+                  ),
                 );
               },
             ),
@@ -503,42 +498,39 @@ class _CategoryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // פס צבעוני עבה (בצבע הקטגוריה עצמה, אותו צבע כמו העיגול הקטן
-    // ליד כל מוצר) ממש מעל כותרת הקטגוריה, בנוסף למסגרת הצבעונית
-    // שעוטפת את כל הקטגוריה - כדי שההפרדה תהיה ברורה וממשית.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(height: 8, color: categoryColor),
-        InkWell(
-          onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            color: AppColors.surface,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    ProductCategorizer.categoryNames[category] ?? '',
-                    style:
-                        AppTextStyles.heading2.copyWith(fontSize: 14, color: AppColors.primary),
-                  ),
+    // כל כותרת הקטגוריה (לרוחב מלא של המסך) צבועה בצבע הקטגוריה
+    // עצמה, אותו צבע כמו העיגול הקטן ליד כל מוצר - כדי שההפרדה בין
+    // קטגוריה לקטגוריה תהיה בולטת וברורה, לא רק קו דק.
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        color: categoryColor,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                ProductCategorizer.categoryNames[category] ?? '',
+                style: AppTextStyles.heading2.copyWith(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-                if (isComplete) ...[
-                  const Icon(Icons.check_circle, color: AppColors.itemPurchased, size: 18),
-                  const SizedBox(width: 4),
-                  Icon(
-                    isCollapsed ? Icons.expand_more : Icons.expand_less,
-                    color: AppColors.textSecondary,
-                    size: 20,
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+            if (isComplete) ...[
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 4),
+              Icon(
+                isCollapsed ? Icons.expand_more : Icons.expand_less,
+                color: Colors.white,
+                size: 20,
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -696,9 +688,6 @@ class _ShoppingItemTile extends StatelessWidget {
               ),
           ],
         ),
-        // רמז קטן שאפשר להחליק - הפעולות (לא נמצא/עריכה/מחיקה) נחשפות
-        // בהחלקה, ולא דרך תפריט כמו קודם.
-        trailing: const Icon(Icons.chevron_left, size: 20, color: AppColors.textSecondary),
       ),
     );
   }
