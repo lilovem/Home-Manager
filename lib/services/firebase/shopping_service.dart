@@ -98,6 +98,22 @@ class ShoppingService {
     });
   }
 
+  /// מבטל קנייה פעילה שהתחילה בטעות - מוחק את ה-session וה-
+  /// activeSessionId בפעולה אטומית אחת, בלי לגעת בפריטים ובלי
+  /// ליצור רשומת היסטוריה (בשונה מ-finishShopping).
+  Future<void> cancelShoppingSession({
+    required String householdId,
+    required String listId,
+    required String activeSessionId,
+  }) async {
+    final batch = _firestore.batch();
+    batch.delete(_sessionsCollection(householdId, listId).doc(activeSessionId));
+    batch.update(_listsCollection(householdId).doc(listId), {
+      'activeSessionId': null,
+    });
+    await batch.commit();
+  }
+
   /// מחזיר את מזהה רשימת הקניות של ה-household.
   /// אם עדיין אין לו רשימה (households שנוצרו לפני שלב זה), יוצר
   /// אחת חדשה ושומר את המזהה שלה על מסמך ה-household.
@@ -299,4 +315,3 @@ class ShoppingService {
             .toList());
   }
 }
-

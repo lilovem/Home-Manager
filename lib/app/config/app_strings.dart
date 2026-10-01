@@ -4,6 +4,19 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String homeTodayScheduleTitle = "היום בלוח השנה";
+  static const String confirmDeleteNoteMessage = "ההודעה תוסר מדף הבית אצל כל בני הבית. להמשיך?";
+  static const String confirmDeleteNoteTitle = "מחיקת ההודעה";
+  static const String homeNoteDeleteTooltip = "מחיקת ההודעה";
+  static const String homeNoteEditTooltip = "עריכת ההודעה";
+  static const String homeNoteSaveButton = "שמירה";
+  static const String homeNoteFieldHint = "מה תרצו להודיע לבני הבית?";
+  static const String homeNoteDialogTitle = "הודעה ללוח המודעות";
+  static const String homeNoteEmptyPrompt = "הוספת הודעה ללוח המודעות של הבית";
+  static const String cancelShoppingTooltip = "ביטול קנייה פעילה";
+  static const String cancelShoppingConfirmButton = "ביטול הקנייה";
+  static const String confirmCancelShoppingMessage = "הקנייה הפעילה תבוטל עבור כל בני הבית. להמשיך?";
+  static const String confirmCancelShoppingTitle = "ביטול קנייה פעילה";
   static const String saveNameButton = "שמירה";
   static const String enterNameTitle = "איך קוראים לך?";
   static const String nameRequiredError = "יש להזין שם";

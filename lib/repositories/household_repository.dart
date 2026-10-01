@@ -88,6 +88,19 @@ class HouseholdRepository {
     }
   }
 
+  /// מוסיף/מעדכן/מוחק (note == null) את ההודעה הידנית בלוח
+  /// המודעות של דף הבית.
+  Future<void> updateNote({
+    required String householdId,
+    required String? note,
+  }) async {
+    try {
+      await _service.updateNote(householdId: householdId, note: note);
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בעדכון ההודעה');
+    }
+  }
+
   Failure _mapError(FirebaseException e) {
     if (e.code == 'permission-denied') {
       return const PermissionFailure();
@@ -95,4 +108,3 @@ class HouseholdRepository {
     return const UnknownFailure();
   }
 }
-

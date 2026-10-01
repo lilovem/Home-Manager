@@ -274,6 +274,47 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
     }
   }
 
+  Future<void> _cancelShopping(
+    BuildContext context,
+    WidgetRef ref,
+    String activeSessionId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.confirmCancelShoppingTitle),
+        content: const Text(AppStrings.confirmCancelShoppingMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              AppStrings.cancelShoppingConfirmButton,
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(shoppingRepositoryProvider).cancelShoppingSession(
+            householdId: widget.householdId,
+            listId: widget.listId,
+            activeSessionId: activeSessionId,
+          );
+    } on Failure catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _openFinishShopping(
     BuildContext context,
     WidgetRef ref,
@@ -348,17 +389,24 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
               ? Container(
                   width: double.infinity,
                   color: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 4, 6),
                   child: Row(
                     children: [
                       const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
                       const SizedBox(width: 8),
-                      Text(
-                        AppStrings.activeShoppingBanner,
-                        style: AppTextStyles.body.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          AppStrings.activeShoppingBanner,
+                          style: AppTextStyles.body.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                        tooltip: AppStrings.cancelShoppingTooltip,
+                        onPressed: () => _cancelShopping(context, ref, activeSessionId!),
                       ),
                     ],
                   ),

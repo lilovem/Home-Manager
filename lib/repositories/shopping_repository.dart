@@ -61,6 +61,22 @@ class ShoppingRepository {
     }
   }
 
+  Future<void> cancelShoppingSession({
+    required String householdId,
+    required String listId,
+    required String activeSessionId,
+  }) async {
+    try {
+      await _service.cancelShoppingSession(
+        householdId: householdId,
+        listId: listId,
+        activeSessionId: activeSessionId,
+      );
+    } on FirebaseException {
+      throw const UnknownFailure('שגיאה בביטול הקנייה');
+    }
+  }
+
   Stream<List<ShoppingItem>> watchItems(String householdId, String listId) {
     return _service.watchItems(householdId, listId);
   }
@@ -206,4 +222,3 @@ class ShoppingRepository {
     return _service.watchHistory(householdId);
   }
 }
-

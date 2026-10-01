@@ -12,6 +12,7 @@ class Household {
   final DateTime? createdAt;
   final List<String> memberIds;
   final String? shoppingListId;
+  final String? note;
 
   const Household({
     required this.id,
@@ -20,6 +21,7 @@ class Household {
     required this.createdAt,
     required this.memberIds,
     this.shoppingListId,
+    this.note,
   });
 
   factory Household.fromFirestore(String id, Map<String, dynamic> data) {
@@ -30,6 +32,7 @@ class Household {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       memberIds: List<String>.from(data['memberIds'] as List? ?? []),
       shoppingListId: data['shoppingListId'] as String?,
+      note: data['note'] as String?,
     );
   }
 
@@ -42,4 +45,3 @@ class Household {
     };
   }
 }
-
