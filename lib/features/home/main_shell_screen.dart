@@ -338,13 +338,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                 ),
               ),
             if (_selectedTab == 0) ...[
+              // הברכה ("שלום, משפחת X!") ושם ה-household מוצגים עכשיו
+              // יחד בשורה אחת בתוך הכרטיסייה עצמה (ר. _HouseholdCard),
+              // במקום שורת ברכה נפרדת מעליה עם אותו שם פעמיים - גם
+              // חוסך מקום אנכי בדף וגם פחות חזרתי.
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Text('${AppStrings.greetingPrefix} ${household.name}!',
-                    style: AppTextStyles.heading2.copyWith(fontSize: 16)),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: _HouseholdCard(
                   name: household.name,
                   membersCount: household.memberIds.length,
@@ -501,7 +500,7 @@ class _HouseholdCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          name,
+                          '${AppStrings.greetingPrefix} $name!',
                           style: AppTextStyles.heading2.copyWith(fontSize: 15),
                           overflow: TextOverflow.ellipsis,
                         ),

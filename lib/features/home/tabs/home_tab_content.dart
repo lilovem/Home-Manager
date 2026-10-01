@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marquee/marquee.dart';
 import '../../../app/config/app_colors.dart';
 import '../../../app/config/app_text_styles.dart';
 import '../../../app/config/app_strings.dart';
@@ -15,12 +16,14 @@ import '../../bills/water_and_tax_screen.dart';
 import '../../vehicles/vehicle_calendar_provider.dart';
 import '../home_module.dart';
 
-/// תוכן טאב "בית" - בראש: באנר מזג אוויר (לפי מיקום הדפדפן) ולוח
-/// מודעות ידני (הודעה אחת, אפשר להוסיף/לערוך/למחוק) - שניהם מוצגים
-/// מתחת לבאנר "הפעלת התראות" של המסך הראשי ומעל הריבועים. אחריהם
-/// רשת 4 חלונות: קניות, לוח שנה, משימות, רכבים. קניות ולוח שנה
-/// זמינים גם כטאבים משלהם בסרגל התחתון - זה כאן בעצם קיצור דרך
-/// נוסף שנשאר מהעיצוב המקורי.
+/// תוכן טאב "בית" - בראש: באנר מזג אוויר (לפי מיקום הדפדפן), ומתחתיו
+/// "מודעות" - שורה אחת רצה (מימין לשמאל, בלי הפסקה) שמשלבת גם מה
+/// שמתוכנן היום בלוח השנה (קנייה/תשלום/רכב) וגם הודעה ידנית אחת
+/// שאפשר להוסיף בלי שום קשר ללוח השנה, דרך כפתור ה-"+" בצד שלה.
+/// שניהם מוצגים מתחת לבאנר "הפעלת התראות" של המסך הראשי ומעל
+/// הריבועים. אחריהם רשת 4 חלונות: קניות, לוח שנה, משימות, רכבים.
+/// קניות ולוח שנה זמינים גם כטאבים משלהם בסרגל התחתון - זה כאן
+/// בעצם קיצור דרך נוסף שנשאר מהעיצוב המקורי.
 class HomeTabContent extends ConsumerWidget {
   final String householdId;
   final List<HomeModule> tiles;
@@ -43,88 +46,22 @@ class HomeTabContent extends ConsumerWidget {
     );
   }
 
-  Future<void> _openNoteDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String? currentNote,
-  ) async {
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => _NoteEditDialog(initialText: currentNote ?? ''),
-    );
-    if (result == null) return;
-
-    try {
-      await ref.read(householdRepositoryProvider).updateNote(
-            householdId: householdId,
-            note: result.trim().isEmpty ? null : result.trim(),
-          );
-    } on Failure catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
-  }
-
-  Future<void> _confirmDeleteNote(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(AppStrings.confirmDeleteNoteTitle),
-        content: const Text(AppStrings.confirmDeleteNoteMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text(AppStrings.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(AppStrings.delete, style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await ref.read(householdRepositoryProvider).updateNote(
-            householdId: householdId,
-            note: null,
-          );
-    } on Failure catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final household = ref.watch(currentHouseholdProvider);
-    final note = household?.note;
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       children: [
         const _WeatherBanner(),
-        const SizedBox(height: 10),
-        _TodayScheduleBanner(householdId: householdId),
-        const SizedBox(height: 10),
-        _NoteBoard(
-          note: note,
-          onAdd: () => _openNoteDialog(context, ref, null),
-          onEdit: () => _openNoteDialog(context, ref, note),
-          onDelete: () => _confirmDeleteNote(context, ref),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
+        _AnnouncementsTicker(householdId: householdId),
+        const SizedBox(height: 6),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 2,
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
-          childAspectRatio: 1.9,
+          childAspectRatio: 2.3,
           children: [
             _Tile(
               module: tiles[0],
@@ -150,7 +87,7 @@ class HomeTabContent extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _BillsSection(householdId: householdId),
       ],
     );
@@ -175,14 +112,14 @@ class _WeatherBanner extends ConsumerWidget {
         final info = _weatherCodeInfo(weather.weatherCode);
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
-              Text(info.emoji, style: const TextStyle(fontSize: 22)),
+              Text(info.emoji, style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -217,27 +154,58 @@ _WeatherCodeInfo _weatherCodeInfo(int code) {
   return const _WeatherCodeInfo('🌡️', 'מזג אוויר');
 }
 
-/// באנר "היום בלוח השנה" - מציג בקצרה אם יש היום קנייה מתוכננת,
-/// תזכורת תשלום, או תאריך רכב (רישיון/ביטוח) - בלי קשר להודעה
-/// הידנית (לוח המודעות) שמוצגת בנפרד מתחתיו, ובלי קשר אם יש בה
-/// תוכן או לא. נבנה מאותם מקורות נתונים בדיוק כמו "לוח שנה" הכללי
-/// (ר' calendar_tab_content.dart), רק מסונן ליום הנוכחי. לא מוצג
-/// בכלל אם אין היום שום דבר - כדי לא לתפוס מקום סתם.
-class _TodayScheduleBanner extends ConsumerWidget {
+/// "מודעות" - שורה אחת רצה ברוחב המסך, נכנסת מימין וממשיכה לנוע
+/// שמאלה ברצף (חבילת marquee - בלי הפסקה, לא עוצרת ומחכה). מציגה
+/// ברצף אחד גם את מה שקיים היום בלוח השנה (קנייה מתוכננת, תזכורת
+/// תשלום, תאריך רכב - אותם מקורות בדיוק כמו "לוח שנה" הכללי) וגם
+/// הודעה ידנית אחת - אבל כפתור ה-"+" בצד תמיד זמין להוספה/עריכה
+/// של ההודעה הידנית, לגמרי בלי קשר אם יש משהו בלוח השנה היום או
+/// לא. אם אין שום דבר להציג (לא לוח שנה ולא הודעה) - מוצג טקסט
+/// סטטי "הוספת הודעה" במקום שורה ריקה רצה.
+class _AnnouncementsTicker extends ConsumerWidget {
   final String householdId;
 
-  const _TodayScheduleBanner({required this.householdId});
+  const _AnnouncementsTicker({required this.householdId});
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
     return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
+  Future<void> _openNoteDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String? currentNote,
+  ) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _NoteEditDialog(initialText: currentNote ?? ''),
+    );
+    if (result == null) return;
+
+    try {
+      await ref.read(householdRepositoryProvider).updateNote(
+            householdId: householdId,
+            note: result.trim().isEmpty ? null : result.trim(),
+          );
+    } on Failure catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final household = ref.watch(currentHouseholdProvider);
+    final note = household?.note;
+
     final lists = ref.watch(shoppingListsProvider(householdId)).value ?? const [];
     final reminders = ref.watch(allScheduledRemindersProvider(householdId)).value ?? const [];
     final vehicleEvents = ref.watch(vehicleDateEventsProvider(householdId));
+
+    final messages = <String>[];
+    if (note != null && note.trim().isNotEmpty) messages.add(note.trim());
 
     var todayShoppingCount = 0;
     for (final list in lists) {
@@ -248,162 +216,55 @@ class _TodayScheduleBanner extends ConsumerWidget {
           const [];
       if (items.isNotEmpty) todayShoppingCount++;
     }
+    if (todayShoppingCount > 0) messages.add(AppStrings.shoppingEventLabel);
 
-    final todayReminders =
-        reminders.where((b) => b.reminderAt != null && _isToday(b.reminderAt!)).toList();
-    final todayVehicleEvents = vehicleEvents.where((e) => _isToday(e.date)).toList();
-
-    if (todayShoppingCount == 0 && todayReminders.isEmpty && todayVehicleEvents.isEmpty) {
-      return const SizedBox.shrink();
+    for (final reminder in reminders) {
+      if (reminder.reminderAt != null && _isToday(reminder.reminderAt!)) {
+        messages.add(billCategoryDisplayName(reminder.category));
+      }
+    }
+    for (final event in vehicleEvents) {
+      if (_isToday(event.date)) {
+        messages.add('${event.dateLabel} · ${event.vehicleLabel}');
+      }
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.today_outlined, color: AppColors.primary, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                AppStrings.homeTodayScheduleTitle,
-                style: AppTextStyles.heading2.copyWith(fontSize: 13, color: AppColors.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (todayShoppingCount > 0)
-            _TodayScheduleLine(
-              icon: Icons.shopping_cart,
-              color: Colors.blue,
-              label: AppStrings.shoppingEventLabel,
-            ),
-          ...todayReminders.map(
-            (b) => _TodayScheduleLine(
-              icon: Icons.alarm,
-              color: Colors.green,
-              label: billCategoryDisplayName(b.category),
-            ),
-          ),
-          ...todayVehicleEvents.map(
-            (e) => _TodayScheduleLine(
-              icon: Icons.directions_car,
-              color: Colors.deepOrange,
-              label: '${e.dateLabel} · ${e.vehicleLabel}',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodayScheduleLine extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-
-  const _TodayScheduleLine({required this.icon, required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Expanded(child: Text(label, style: AppTextStyles.bodySecondary)),
-        ],
-      ),
-    );
-  }
-}
-
-/// "לוח מודעות" ידני - הודעה אחת שכל בן/בת משפחה יכולים להוסיף,
-/// לערוך או למחוק. נשמר על מסמך ה-household ב-Firestore, אז זה
-/// מסונכרן בזמן אמת אצל כולם.
-class _NoteBoard extends StatelessWidget {
-  final String? note;
-  final VoidCallback onAdd;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _NoteBoard({
-    required this.note,
-    required this.onAdd,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasNote = note != null && note!.trim().isNotEmpty;
-
-    if (!hasNote) {
-      return InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onAdd,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.divider, style: BorderStyle.solid),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.add_circle_outline, color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  AppStrings.homeNoteEmptyPrompt,
-                  style: AppTextStyles.body.copyWith(color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final hasMessages = messages.isNotEmpty;
+    final combinedText = messages.join('     •     ');
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: AppColors.itemNewBadge.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 2),
-            child: Icon(Icons.campaign_outlined, color: AppColors.itemNewBadge, size: 20),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add_circle, color: AppColors.primary, size: 24),
+            tooltip: AppStrings.homeNoteEmptyPrompt,
+            onPressed: () => _openNoteDialog(context, ref, note),
           ),
-          const SizedBox(width: 8),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text(note!, style: AppTextStyles.body),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            tooltip: AppStrings.homeNoteEditTooltip,
-            onPressed: onEdit,
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            tooltip: AppStrings.homeNoteDeleteTooltip,
-            onPressed: onDelete,
+            child: hasMessages
+                ? Marquee(
+                    text: combinedText,
+                    style: AppTextStyles.body,
+                    scrollAxis: Axis.horizontal,
+                    blankSpace: 50,
+                    velocity: 28,
+                    startPadding: 6,
+                    accelerationDuration: const Duration(milliseconds: 500),
+                    decelerationDuration: const Duration(milliseconds: 500),
+                  )
+                : Text(
+                    AppStrings.homeNoteEmptyPrompt,
+                    style: AppTextStyles.bodySecondary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
           ),
         ],
       ),
@@ -411,8 +272,8 @@ class _NoteBoard extends StatelessWidget {
   }
 }
 
-/// חלונית עריכה/הוספה של ההודעה - שדה טקסט פשוט, מחזירה את הטקסט
-/// שנבחר (או null אם בוטל).
+/// חלונית עריכה/הוספה של ההודעה הידנית - שדה טקסט פשוט, מחזירה את
+/// הטקסט שנבחר (או null אם בוטל). טקסט ריק ושמירה = מחיקת ההודעה.
 class _NoteEditDialog extends StatefulWidget {
   final String initialText;
 
@@ -472,7 +333,7 @@ class _BillsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
@@ -482,7 +343,7 @@ class _BillsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 13)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
