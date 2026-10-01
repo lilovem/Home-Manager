@@ -8,7 +8,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/household_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/share_provider.dart';
-import '../../providers/weather_provider.dart';
 import '../household/add_household_screen.dart';
 import '../household/household_members_screen.dart';
 import '../household/invite_partner_screen.dart';
@@ -279,15 +278,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                     ),
               )
             : null,
-        centerTitle: true,
-        // טמפרטורת מזג האוויר הועברה לכאן - למקום שהיה ריק ממילא
-        // (אמצע ה-AppBar), כך שהיא מוצגת תמיד, בלי להוסיף שורה
-        // נוספת לדף ובלי לגזול מקום מתוכן הטאב עצמו.
-        title: const _AppBarWeather(),
         actions: [
-          // "הפעלת התראות" עברה לשבת באותה שורה עליונה בדיוק כמו
+          // "הפעלת התראות" יושבת בשורה העליונה, בצד ימין, ממש ליד
           // שיתוף/ניתוק (לפי בקשה מפורשת) - בלי כפתור נפרד בצד: כל
-          // הטקסט "הפעלת התראות" עצמו הוא מה שלוחצים עליו.
+          // הטקסט "הפעלת התראות" עצמו הוא מה שלוחצים עליו. בלי צבע
+          // קבוע (היה לבן על רקע בהיר - בלתי נראה) - צבע ברירת
+          // המחדל של ה-AppBar, אותו צבע שבו שיתוף/ניתוק כבר מוצגים
+          // וברורים לעין.
           if (!isCalendarTab && _permissionStatus != 'granted')
             _NotificationAppBarAction(
               isBlocked: _permissionStatus == 'denied',
@@ -415,27 +412,31 @@ class _NotificationAppBarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // בלי צבע קבוע (לא לבן, לא שחור) - משתמשים בצבע ברירת המחדל
+    // שה-AppBar כבר נותן לאייקונים שלו (אותו צבע שבו שיתוף/ניתוק
+    // כבר מוצגים וברורים לעין, לידו ממש).
+    final defaultColor = IconTheme.of(context).color;
     if (isBlocked) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Tooltip(
           message: AppStrings.notificationsBlockedBody,
-          child: const Icon(Icons.notifications_off_outlined, color: Colors.white70, size: 20),
+          child: Icon(Icons.notifications_off_outlined, color: defaultColor, size: 20),
         ),
       );
     }
     return TextButton.icon(
       onPressed: onEnable,
       style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
+        foregroundColor: defaultColor,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       icon: const Icon(Icons.notifications_active_outlined, size: 18),
-      label: const Text(
+      label: Text(
         AppStrings.enableNotificationsTitle,
-        style: TextStyle(fontSize: 12),
+        style: TextStyle(fontSize: 12, color: defaultColor),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -559,42 +560,6 @@ class _HouseholdCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// באדג' מזג אוויר קומפקטי במרכז ה-AppBar (ר. מעלה) - משתמש באותם
-/// מקורות בדיוק כמו שהיה קודם בבאנר הנפרד בטאב הבית
-/// (currentWeatherProvider + weatherCodeInfo), רק שעכשיו זה תמיד
-/// גלוי בלי לתפוס שורה נוספת בעמוד.
-class _AppBarWeather extends ConsumerWidget {
-  const _AppBarWeather();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final weatherAsync = ref.watch(currentWeatherProvider);
-
-    return weatherAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (weather) {
-        final info = weatherCodeInfo(weather.weatherCode);
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(info.emoji, style: const TextStyle(fontSize: 17)),
-            const SizedBox(width: 6),
-            Text(
-              '${weather.temperatureCelsius.round()}°C',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

@@ -9,19 +9,21 @@ import '../../../models/bill_payment_model.dart';
 import '../../../providers/bills_provider.dart';
 import '../../../providers/household_provider.dart';
 import '../../../providers/shopping_provider.dart';
+import '../../../providers/weather_provider.dart';
 import '../../bills/electricity_screen.dart';
 import '../../bills/vaad_bayit_screen.dart';
 import '../../bills/water_and_tax_screen.dart';
 import '../../vehicles/vehicle_calendar_provider.dart';
 import '../home_module.dart';
 
-/// תוכן טאב "בית" - בראש: באנר מזג אוויר (לפי מיקום הדפדפן). "לוח
-/// המודעות" הרץ (AnnouncementsTicker, מחלקה ציבורית בהמשך הקובץ)
-/// עבר להיות חלק מהחלק הקבוע של המסך הראשי (main_shell_screen.dart),
-/// מיד מתחת ללוגו - ולכן כבר לא מופיע כאן בתוך ה-ListView. אחרי
-/// באנר מזג האוויר: רשת 4 חלונות (קניות, לוח שנה, משימות, רכבים),
-/// ואז מקטע החשבונות. קניות ולוח שנה זמינים גם כטאבים משלהם
-/// בסרגל התחתון - זה כאן בעצם קיצור דרך נוסף שנשאר מהעיצוב המקורי.
+/// תוכן טאב "בית" - בראש: באנר מזג אוויר (לפי מיקום הדפדפן) - חזר
+/// למקומו המקורי כאן אחרי ניסיון להעביר אותו ל-AppBar (לא נראה
+/// טוב שם). "לוח המודעות" הרץ (AnnouncementsTicker, מחלקה ציבורית
+/// בהמשך הקובץ) נשאר חלק מהחלק הקבוע של המסך הראשי
+/// (main_shell_screen.dart), מיד מתחת ללוגו. אחרי באנר מזג האוויר:
+/// רשת 4 חלונות (קניות, לוח שנה, משימות, רכבים), ואז מקטע החשבונות.
+/// קניות ולוח שנה זמינים גם כטאבים משלהם בסרגל התחתון - זה כאן
+/// בעצם קיצור דרך נוסף שנשאר מהעיצוב המקורי.
 class HomeTabContent extends ConsumerWidget {
   final String householdId;
   final List<HomeModule> tiles;
@@ -47,15 +49,17 @@ class HomeTabContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       children: [
+        const _WeatherBanner(),
+        const SizedBox(height: 5),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 2,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 2.3,
+          mainAxisSpacing: 7,
+          crossAxisSpacing: 7,
+          childAspectRatio: 2.5,
           children: [
             _Tile(
               module: tiles[0],
@@ -81,16 +85,55 @@ class HomeTabContent extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _BillsSection(householdId: householdId),
       ],
     );
   }
 }
 
-/// מידע על קוד מזג אוויר - אימוג'י ותיאור קצר. ציבורי כי עכשיו
-/// משמש גם את _AppBarWeather ב-main_shell_screen.dart (הבאנר הנפרד
-/// שהיה כאן הוסר - מזג האוויר מוצג עכשיו במרכז ה-AppBar במקום).
+/// באנר מזג אוויר קומפקטי לפי מיקום הדפדפן (Open-Meteo, חינמי,
+/// בלי מפתח API). אם אין הרשאת מיקום, הדפדפן לא תומך, או שהבקשה
+/// נכשלה - הבאנר פשוט לא מוצג בכלל (במקום הודעת שגיאה בולטת על
+/// פיצ'ר "נחמד שיש").
+class _WeatherBanner extends ConsumerWidget {
+  const _WeatherBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final weatherAsync = ref.watch(currentWeatherProvider);
+
+    return weatherAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (weather) {
+        final info = weatherCodeInfo(weather.weatherCode);
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Text(info.emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${weather.temperatureCelsius.round()}°C · ${info.label}',
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// מידע על קוד מזג אוויר - אימוג'י ותיאור קצר, בשימוש ע"י _WeatherBanner.
 class WeatherCodeInfo {
   final String emoji;
   final String label;
