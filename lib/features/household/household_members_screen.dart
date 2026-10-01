@@ -17,6 +17,10 @@ import '../../providers/household_provider.dart';
 ///
 /// מחיקת household בשלמותו כן מוגבלת רק לבעלים (isOwner) - זו פעולה
 /// הרסנית יותר (מוחקת גם רשימות/היסטוריה), לכן ההגבלה מחמירה יותר.
+///
+/// עיצוב מחודש (יותר מודרני): כל חבר מוצג ככרטיס עגול עם אווטאר
+/// גרדיאנט (תואם ללוגו/כרטיסיית הבית) ו"צ'יפ" תפקיד צבעוני במקום
+/// שורת טקסט רגילה, במקום ListTile שטוח עם קווי הפרדה.
 class HouseholdMembersScreen extends ConsumerWidget {
   final String householdId;
   final bool isOwner;
@@ -104,6 +108,7 @@ class HouseholdMembersScreen extends ConsumerWidget {
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text(AppStrings.manageMembers)),
       body: Column(
         children: [
@@ -113,33 +118,91 @@ class HouseholdMembersScreen extends ConsumerWidget {
               error: (e, st) => const ErrorView(),
               data: (members) {
                 return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   itemCount: members.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final member = members[index];
                     final isMe = member.uid == myUid;
+                    final isOwnerMember = member.role == 'owner';
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.primaryLight,
-                        child: Icon(
-                          member.role == 'owner' ? Icons.star : Icons.person,
-                          color: AppColors.primary,
-                        ),
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      title: Text(member.email, textDirection: TextDirection.ltr),
-                      subtitle: Text(
-                        member.role == 'owner' ? AppStrings.ownerLabel : AppStrings.memberLabel,
-                        style: AppTextStyles.bodySecondary,
-                      ),
-                      trailing: isMe
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.person_remove_outlined, color: AppColors.error),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isOwnerMember
+                                    ? [AppColors.primary, AppColors.primaryDark]
+                                    : [AppColors.itemNewBadge, AppColors.primary],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isOwnerMember ? Icons.star_rounded : Icons.person_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  member.email,
+                                  textDirection: TextDirection.ltr,
+                                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    isOwnerMember ? AppStrings.ownerLabel : AppStrings.memberLabel,
+                                    style: AppTextStyles.bodySecondary.copyWith(
+                                      fontSize: 11,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isMe)
+                            IconButton(
+                              icon: const Icon(Icons.person_remove_outlined,
+                                  color: AppColors.error, size: 20),
                               tooltip: AppStrings.removeMember,
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppColors.error.withValues(alpha: 0.08),
+                                shape: const CircleBorder(),
+                              ),
                               onPressed: () => _confirmRemove(context, ref, member),
                             ),
+                        ],
+                      ),
                     );
                   },
                 );
@@ -148,16 +211,21 @@ class HouseholdMembersScreen extends ConsumerWidget {
           ),
           if (isOwner)
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: OutlinedButton.icon(
-                onPressed: () => _confirmDeleteHousehold(context, ref),
-                icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                label: const Text(
-                  AppStrings.deleteHousehold,
-                  style: TextStyle(color: AppColors.error),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.error),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _confirmDeleteHousehold(context, ref),
+                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  label: const Text(
+                    AppStrings.deleteHousehold,
+                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
               ),
             ),
@@ -166,4 +234,3 @@ class HouseholdMembersScreen extends ConsumerWidget {
     );
   }
 }
-

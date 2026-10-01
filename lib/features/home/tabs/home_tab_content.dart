@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marquee/marquee.dart';
 import '../../../app/config/app_colors.dart';
 import '../../../app/config/app_text_styles.dart';
 import '../../../app/config/app_strings.dart';
@@ -9,7 +9,6 @@ import '../../../models/bill_payment_model.dart';
 import '../../../providers/bills_provider.dart';
 import '../../../providers/household_provider.dart';
 import '../../../providers/shopping_provider.dart';
-import '../../../providers/weather_provider.dart';
 import '../../bills/electricity_screen.dart';
 import '../../bills/vaad_bayit_screen.dart';
 import '../../bills/water_and_tax_screen.dart';
@@ -50,8 +49,6 @@ class HomeTabContent extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       children: [
-        const _WeatherBanner(),
-        const SizedBox(height: 6),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -91,64 +88,26 @@ class HomeTabContent extends ConsumerWidget {
   }
 }
 
-/// באנר מזג אוויר קומפקטי לפי מיקום הדפדפן (Open-Meteo, חינמי,
-/// בלי מפתח API). אם אין הרשאת מיקום, הדפדפן לא תומך, או שהבקשה
-/// נכשלה - הבאנר פשוט לא מוצג בכלל (במקום הודעת שגיאה בולטת על
-/// פיצ'ר "נחמד שיש").
-class _WeatherBanner extends ConsumerWidget {
-  const _WeatherBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final weatherAsync = ref.watch(currentWeatherProvider);
-
-    return weatherAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (weather) {
-        final info = _weatherCodeInfo(weather.weatherCode);
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Text(info.emoji, style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${weather.temperatureCelsius.round()}°C · ${info.label}',
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _WeatherCodeInfo {
+/// מידע על קוד מזג אוויר - אימוג'י ותיאור קצר. ציבורי כי עכשיו
+/// משמש גם את _AppBarWeather ב-main_shell_screen.dart (הבאנר הנפרד
+/// שהיה כאן הוסר - מזג האוויר מוצג עכשיו במרכז ה-AppBar במקום).
+class WeatherCodeInfo {
   final String emoji;
   final String label;
-  const _WeatherCodeInfo(this.emoji, this.label);
+  const WeatherCodeInfo(this.emoji, this.label);
 }
 
 /// ממפה קוד מזג אוויר של WMO (כמו שמחזיר Open-Meteo) לאימוג'י
 /// ותיאור קצר בעברית - לא כל הקודים, רק הקבוצות העיקריות.
-_WeatherCodeInfo _weatherCodeInfo(int code) {
-  if (code == 0) return const _WeatherCodeInfo('☀️', 'בהיר');
-  if (code <= 3) return const _WeatherCodeInfo('⛅', 'מעונן חלקית');
-  if (code == 45 || code == 48) return const _WeatherCodeInfo('🌫️', 'ערפילי');
-  if (code >= 51 && code <= 67) return const _WeatherCodeInfo('🌧️', 'גשום');
-  if (code >= 71 && code <= 77) return const _WeatherCodeInfo('❄️', 'שלג');
-  if (code >= 80 && code <= 82) return const _WeatherCodeInfo('🌦️', 'ממטרים');
-  if (code >= 95) return const _WeatherCodeInfo('⛈️', 'סופת רעמים');
-  return const _WeatherCodeInfo('🌡️', 'מזג אוויר');
+WeatherCodeInfo weatherCodeInfo(int code) {
+  if (code == 0) return const WeatherCodeInfo('☀️', 'בהיר');
+  if (code <= 3) return const WeatherCodeInfo('⛅', 'מעונן חלקית');
+  if (code == 45 || code == 48) return const WeatherCodeInfo('🌫️', 'ערפילי');
+  if (code >= 51 && code <= 67) return const WeatherCodeInfo('🌧️', 'גשום');
+  if (code >= 71 && code <= 77) return const WeatherCodeInfo('❄️', 'שלג');
+  if (code >= 80 && code <= 82) return const WeatherCodeInfo('🌦️', 'ממטרים');
+  if (code >= 95) return const WeatherCodeInfo('⛈️', 'סופת רעמים');
+  return const WeatherCodeInfo('🌡️', 'מזג אוויר');
 }
 
 /// "מודעות" - שורה אחת רצה ברוחב המסך, נכנסת מימין וממשיכה לנוע
@@ -265,16 +224,7 @@ class AnnouncementsTicker extends ConsumerWidget {
           ),
           Expanded(
             child: hasMessages
-                ? Marquee(
-                    text: combinedText,
-                    style: AppTextStyles.body,
-                    scrollAxis: Axis.horizontal,
-                    blankSpace: 50,
-                    velocity: 28,
-                    startPadding: 6,
-                    accelerationDuration: const Duration(milliseconds: 500),
-                    decelerationDuration: const Duration(milliseconds: 500),
-                  )
+                ? _ScrollingTickerText(text: combinedText)
                 : Text(
                     AppStrings.homeNoteEmptyPrompt,
                     style: AppTextStyles.bodySecondary,
@@ -283,6 +233,107 @@ class AnnouncementsTicker extends ConsumerWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// שורת הטיקר הרץ בפועל - מימוש עצמי (בלי חבילת marquee חיצונית)
+/// כדי לתמוך גם בגרירה ידנית, לפי בקשה מפורשת: אפשר לגרור את
+/// הטקסט אחורה/קדימה באצבע כדי לראות הודעה מסוימת, וברגע שמרפים
+/// את האצבע - הגלילה האוטומטית פשוט ממשיכה מאותה נקודה בדיוק, בלי
+/// לקפוץ בחזרה להתחלה. מבוסס על SingleChildScrollView רגיל (שכבר
+/// תומך בגרירה "בחינם") עם טיימר שמזיז את הגלילה לאט-לאט, ועם
+/// Listener (לא GestureDetector) כדי לתפוס את אירועי האצבע הגולמיים
+/// בלי "להתחרות" על המחווה מול הגלילה הפנימית. הטקסט מוכפל פעמיים
+/// ברצף כדי שהלולאה תהיה חלקה: כשמגיעים לאמצע, חוזרים ל-0 בלי
+/// שיהיה הבדל ויזואלי (כי שני ההעתקים זהים).
+class _ScrollingTickerText extends StatefulWidget {
+  final String text;
+
+  const _ScrollingTickerText({required this.text});
+
+  @override
+  State<_ScrollingTickerText> createState() => _ScrollingTickerTextState();
+}
+
+class _ScrollingTickerTextState extends State<_ScrollingTickerText> {
+  static const _gap = '          •          ';
+  static const _pixelsPerTick = 1.1;
+  static const _tickInterval = Duration(milliseconds: 30);
+
+  final ScrollController _controller = ScrollController();
+  Timer? _timer;
+  bool _paused = false;
+  double _singleWidth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureAndStart());
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScrollingTickerText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureAndStart());
+    }
+  }
+
+  void _measureAndStart() {
+    final painter = TextPainter(
+      text: TextSpan(text: '${widget.text}$_gap', style: AppTextStyles.body),
+      textDirection: TextDirection.rtl,
+    )..layout();
+    _singleWidth = painter.width;
+    if (_controller.hasClients) _controller.jumpTo(0);
+    _timer?.cancel();
+    _timer = Timer.periodic(_tickInterval, (_) => _tick());
+  }
+
+  void _tick() {
+    if (_paused || !_controller.hasClients || _singleWidth <= 0) return;
+    final next = (_controller.offset + _pixelsPerTick) % _singleWidth;
+    _controller.jumpTo(next);
+  }
+
+  void _stopMomentum() {
+    // jumpTo לאותו מיקום מבטל כל אנימציית גלילה ("תנופה") שעדיין
+    // רצה, כדי שהטיימר האוטומטי לא "יתחרה" איתה אחרי שמרפים אצבע.
+    if (_controller.hasClients) _controller.jumpTo(_controller.offset);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final doubled = '${widget.text}$_gap${widget.text}$_gap';
+    return Listener(
+      onPointerDown: (_) => _paused = true,
+      onPointerUp: (_) {
+        _stopMomentum();
+        _paused = false;
+      },
+      onPointerCancel: (_) {
+        _stopMomentum();
+        _paused = false;
+      },
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        physics: const ClampingScrollPhysics(),
+        child: Text(
+          doubled,
+          style: AppTextStyles.body,
+          maxLines: 1,
+          softWrap: false,
+        ),
       ),
     );
   }

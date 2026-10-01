@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/household_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/share_provider.dart';
+import '../../providers/weather_provider.dart';
 import '../household/add_household_screen.dart';
 import '../household/household_members_screen.dart';
 import '../household/invite_partner_screen.dart';
@@ -278,7 +279,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                     ),
               )
             : null,
+        centerTitle: true,
+        // טמפרטורת מזג האוויר הועברה לכאן - למקום שהיה ריק ממילא
+        // (אמצע ה-AppBar), כך שהיא מוצגת תמיד, בלי להוסיף שורה
+        // נוספת לדף ובלי לגזול מקום מתוכן הטאב עצמו.
+        title: const _AppBarWeather(),
         actions: [
+          // "הפעלת התראות" עברה לשבת באותה שורה עליונה בדיוק כמו
+          // שיתוף/ניתוק (לפי בקשה מפורשת) - בלי כפתור נפרד בצד: כל
+          // הטקסט "הפעלת התראות" עצמו הוא מה שלוחצים עליו.
+          if (!isCalendarTab && _permissionStatus != 'granted')
+            _NotificationAppBarAction(
+              isBlocked: _permissionStatus == 'denied',
+              onEnable: _requestPermission,
+            ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: AppStrings.inviteFriendToApp,
@@ -296,34 +310,24 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
           children: [
             // חלק עליון קבוע - לא בתוך גלילה, נשאר גלוי בכל הטאבים
             // (חוץ מטאב "לוח שנה", ר' isCalendarTab למטה - שם רק
-            // הלוגו נשאר, כדי שללוח השנה יהיה כמה שיותר מקום). לפי
-            // בקשה מפורשת, באנר "הפעלת התראות" עבר להיות הכי למעלה,
-            // מעל הלוגו.
-            if (!isCalendarTab && (_permissionStatus == 'default' || _permissionStatus == 'denied'))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                child: _NotificationBanner(
-                  isBlocked: _permissionStatus == 'denied',
-                  onEnable: _requestPermission,
-                ),
-              ),
+            // הלוגו נשאר, כדי שללוח השנה יהיה כמה שיותר מקום).
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(0, 4, 0, 2),
+                padding: const EdgeInsets.fromLTRB(0, 10, 0, 4),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [AppColors.primary, AppColors.primaryDark],
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.home_rounded, size: 26, color: Colors.white),
+                    const Icon(Icons.home_rounded, size: 38, color: Colors.white),
                     Transform.translate(
                       offset: const Offset(0, -6),
                       child: Text(
@@ -331,7 +335,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                         style: AppTextStyles.body.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 16,
                         ),
                       ),
                     ),
@@ -399,62 +403,50 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   }
 }
 
-/// באנר שמזמין להפעיל התראות, או מסביר איך לתקן אם נחסמו - שורה
-/// אחת דקה וקומפקטית (לא כרטיס גדול), כדי שלא תדחוף את שאר התוכן
-/// (למשל מקטע החשבונות בטאב הבית) מתחת לקיפול המסך. טקסט הכפתור
-/// קוצר (ר. app_strings) כדי שלא יחזור על אותה מילה כמו הכותרת.
-class _NotificationBanner extends StatelessWidget {
+/// פעולת "הפעלת התראות" בשורה העליונה של ה-AppBar, יחד עם שיתוף
+/// וניתוק - לפי בקשה מפורשת. אין כפתור נפרד בצד: כל הטקסט עצמו
+/// לחיץ. כשהחסימה קבועה בדפדפן (isBlocked) אי אפשר לבקש הרשאה
+/// שוב, אז מוצג רק אייקון לא-לחיץ עם טולטיפ שמסביר את זה.
+class _NotificationAppBarAction extends StatelessWidget {
   final bool isBlocked;
   final VoidCallback onEnable;
 
-  const _NotificationBanner({required this.isBlocked, required this.onEnable});
+  const _NotificationAppBarAction({required this.isBlocked, required this.onEnable});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isBlocked ? AppColors.surface : AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(10),
-        border: isBlocked ? Border.all(color: AppColors.divider) : null,
+    if (isBlocked) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Tooltip(
+          message: AppStrings.notificationsBlockedBody,
+          child: const Icon(Icons.notifications_off_outlined, color: Colors.white70, size: 20),
+        ),
+      );
+    }
+    return TextButton.icon(
+      onPressed: onEnable,
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-      child: Row(
-        children: [
-          Icon(
-            isBlocked ? Icons.notifications_off_outlined : Icons.notifications_active_outlined,
-            color: isBlocked ? AppColors.textSecondary : AppColors.primary,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              isBlocked
-                  ? AppStrings.notificationsBlockedBody
-                  : AppStrings.enableNotificationsTitle,
-              style: AppTextStyles.bodySecondary.copyWith(fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (!isBlocked)
-            TextButton(
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: onEnable,
-              child: const Text(AppStrings.enableNotificationsButton,
-                  style: TextStyle(fontSize: 12)),
-            ),
-        ],
+      icon: const Icon(Icons.notifications_active_outlined, size: 18),
+      label: const Text(
+        AppStrings.enableNotificationsTitle,
+        style: TextStyle(fontSize: 12),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 }
 
-/// כרטיסיית household - שם, מספר חברים, כפתור הזמנה.
+/// כרטיסיית household - שם, מספר חברים, כפתור הזמנה. עיצוב מחודש
+/// ומודרני יותר: אייקון בעיגול גרדיאנט (תואם ללוגו), שם המשפחה
+/// בולט יותר עם "צ'יפ" עגול ל"X חברים" (לחיץ בנפרד, פותח את רשימת
+/// החברים), וצל רך יותר בגוון הצבע הראשי במקום צל אפור שטוח.
 class _HouseholdCard extends StatelessWidget {
   final String name;
   final int membersCount;
@@ -477,29 +469,34 @@ class _HouseholdCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            color: AppColors.primary.withValues(alpha: 0.10),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 46,
+            height: 46,
             decoration: const BoxDecoration(
-              color: AppColors.primaryLight,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.primary, AppColors.primaryDark],
+              ),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.home_rounded, color: AppColors.primary, size: 20),
+            child: const Icon(Icons.home_rounded, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: InkWell(
+              borderRadius: BorderRadius.circular(12),
               onTap: onSwitchHousehold,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,26 +506,42 @@ class _HouseholdCard extends StatelessWidget {
                       Flexible(
                         child: Text(
                           '${AppStrings.greetingPrefix} $name!',
-                          style: AppTextStyles.heading2.copyWith(fontSize: 15),
+                          style: AppTextStyles.heading2.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.unfold_more, size: 15, color: AppColors.textSecondary),
+                      const Icon(Icons.unfold_more, size: 16, color: AppColors.textSecondary),
                     ],
                   ),
+                  const SizedBox(height: 4),
                   InkWell(
+                    borderRadius: BorderRadius.circular(20),
                     onTap: onManageMembers,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$membersCount ${AppStrings.membersCount}',
-                          style: AppTextStyles.bodySecondary.copyWith(fontSize: 12),
-                        ),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.people_alt_rounded, size: 13, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$membersCount ${AppStrings.membersCount}',
+                            style: AppTextStyles.bodySecondary.copyWith(
+                              fontSize: 12,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -546,6 +559,42 @@ class _HouseholdCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// באדג' מזג אוויר קומפקטי במרכז ה-AppBar (ר. מעלה) - משתמש באותם
+/// מקורות בדיוק כמו שהיה קודם בבאנר הנפרד בטאב הבית
+/// (currentWeatherProvider + weatherCodeInfo), רק שעכשיו זה תמיד
+/// גלוי בלי לתפוס שורה נוספת בעמוד.
+class _AppBarWeather extends ConsumerWidget {
+  const _AppBarWeather();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final weatherAsync = ref.watch(currentWeatherProvider);
+
+    return weatherAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (weather) {
+        final info = weatherCodeInfo(weather.weatherCode);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(info.emoji, style: const TextStyle(fontSize: 17)),
+            const SizedBox(width: 6),
+            Text(
+              '${weather.temperatureCelsius.round()}°C',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
