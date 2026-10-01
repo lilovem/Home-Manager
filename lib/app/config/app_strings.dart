@@ -4,6 +4,8 @@
 /// זה מכין את הקרקע להוספת תמיכה רב-לשונית (i18n) בעתיד בלי
 /// לשכתב מסכים - רק להחליף את המקור של המחלקה הזו.
 class AppStrings {
+  static const String homeTodaySuffix = "היום";
+  static const String homeNoteAddLineButton = "הוספת שורה";
   static const String homeTodayScheduleTitle = "היום בלוח השנה";
   static const String confirmDeleteNoteMessage = "ההודעה תוסר מדף הבית אצל כל בני הבית. להמשיך?";
   static const String confirmDeleteNoteTitle = "מחיקת ההודעה";
@@ -427,7 +429,7 @@ class AppStrings {
   static const String notFoundNotificationBody = 'לא נמצאו';
   static const String enableNotificationsTitle = 'הפעלת התראות';
   static const String enableNotificationsBody = 'קבלו התראה מיידית כשבן/בת הזוג מוסיפים מוצר בזמן קנייה';
-  static const String enableNotificationsButton = 'הפעל התראות';
+  static const String enableNotificationsButton = "הפעלה";
   static const String notificationsBlockedBody = 'התראות חסומות בדפדפן. יש לאפשר אותן ידנית בהגדרות האתר.';
   static const String testNotificationButton = 'שלח התראת בדיקה';
   static const String testNotificationTitle = 'התראת בדיקה';

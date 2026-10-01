@@ -88,16 +88,16 @@ class HouseholdRepository {
     }
   }
 
-  /// מוסיף/מעדכן/מוחק (note == null) את ההודעה הידנית בלוח
-  /// המודעות של דף הבית.
-  Future<void> updateNote({
+  /// מעדכן את כל רשימת ההודעות הידניות בלוח המודעות של דף הבית
+  /// (רשימה ריקה = בלי הודעות ידניות).
+  Future<void> updateNotes({
     required String householdId,
-    required String? note,
+    required List<String> notes,
   }) async {
     try {
-      await _service.updateNote(householdId: householdId, note: note);
+      await _service.updateNotes(householdId: householdId, notes: notes);
     } on FirebaseException {
-      throw const UnknownFailure('שגיאה בעדכון ההודעה');
+      throw const UnknownFailure('שגיאה בעדכון ההודעות');
     }
   }
 

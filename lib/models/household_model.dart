@@ -12,7 +12,12 @@ class Household {
   final DateTime? createdAt;
   final List<String> memberIds;
   final String? shoppingListId;
-  final String? note;
+
+  /// רשימת הודעות ידניות ("לוח מודעות") - כל הודעה היא שורה בודדת.
+  /// מוחלף מ-note (String? בודד) לרשימה, כדי לאפשר כמה הודעות
+  /// ממוספרות בבת אחת. שדה ישן 'note' ב-Firestore (אם קיים ממסמך
+  /// ישן) פשוט לא נקרא יותר - לא פוגע בכלום, רק לא בשימוש.
+  final List<String> notes;
 
   const Household({
     required this.id,
@@ -21,7 +26,7 @@ class Household {
     required this.createdAt,
     required this.memberIds,
     this.shoppingListId,
-    this.note,
+    this.notes = const [],
   });
 
   factory Household.fromFirestore(String id, Map<String, dynamic> data) {
@@ -32,7 +37,7 @@ class Household {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       memberIds: List<String>.from(data['memberIds'] as List? ?? []),
       shoppingListId: data['shoppingListId'] as String?,
-      note: data['note'] as String?,
+      notes: List<String>.from(data['notes'] as List? ?? const []),
     );
   }
 

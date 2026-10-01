@@ -296,12 +296,22 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
           children: [
             // חלק עליון קבוע - לא בתוך גלילה, נשאר גלוי בכל הטאבים
             // (חוץ מטאב "לוח שנה", ר' isCalendarTab למטה - שם רק
-            // הלוגו נשאר, כדי שללוח השנה יהיה כמה שיותר מקום).
+            // הלוגו נשאר, כדי שללוח השנה יהיה כמה שיותר מקום). לפי
+            // בקשה מפורשת, באנר "הפעלת התראות" עבר להיות הכי למעלה,
+            // מעל הלוגו.
+            if (!isCalendarTab && (_permissionStatus == 'default' || _permissionStatus == 'denied'))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: _NotificationBanner(
+                  isBlocked: _permissionStatus == 'denied',
+                  onEnable: _requestPermission,
+                ),
+              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
+                padding: const EdgeInsets.fromLTRB(0, 4, 0, 2),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -313,7 +323,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.home_rounded, size: 30, color: Colors.white),
+                    const Icon(Icons.home_rounded, size: 26, color: Colors.white),
                     Transform.translate(
                       offset: const Offset(0, -6),
                       child: Text(
@@ -329,21 +339,18 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                 ),
               ),
             ),
-            if (!isCalendarTab && (_permissionStatus == 'default' || _permissionStatus == 'denied'))
+            if (_selectedTab == 0) ...[
+              // "לוח המודעות" הרץ - ממש מתחת ללוגו, לפי בקשה מפורשת.
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                child: _NotificationBanner(
-                  isBlocked: _permissionStatus == 'denied',
-                  onEnable: _requestPermission,
-                ),
+                child: AnnouncementsTicker(householdId: household.id),
               ),
-            if (_selectedTab == 0) ...[
               // הברכה ("שלום, משפחת X!") ושם ה-household מוצגים עכשיו
               // יחד בשורה אחת בתוך הכרטיסייה עצמה (ר. _HouseholdCard),
               // במקום שורת ברכה נפרדת מעליה עם אותו שם פעמיים - גם
               // חוסך מקום אנכי בדף וגם פחות חזרתי.
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                 child: _HouseholdCard(
                   name: household.name,
                   membersCount: household.memberIds.length,
@@ -394,7 +401,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
 
 /// באנר שמזמין להפעיל התראות, או מסביר איך לתקן אם נחסמו - שורה
 /// אחת דקה וקומפקטית (לא כרטיס גדול), כדי שלא תדחוף את שאר התוכן
-/// (למשל מקטע החשבונות בטאב הבית) מתחת לקיפול המסך.
+/// (למשל מקטע החשבונות בטאב הבית) מתחת לקיפול המסך. טקסט הכפתור
+/// קוצר (ר. app_strings) כדי שלא יחזור על אותה מילה כמו הכותרת.
 class _NotificationBanner extends StatelessWidget {
   final bool isBlocked;
   final VoidCallback onEnable;

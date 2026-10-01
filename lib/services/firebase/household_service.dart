@@ -155,14 +155,14 @@ class HouseholdService {
     await batch.commit();
   }
 
-  /// מעדכן את ההודעה הידנית של ה-household (לוח מודעות קטן בדף
-  /// הבית, מתחת לבאנר "הפעלת התראות"). note == null מוחק את
-  /// ההודעה הקיימת - כל בני הבית רואים את זה מיידית כי הם כבר
-  /// מאזינים ל-household דרך myHouseholdsProvider/currentHouseholdProvider.
-  Future<void> updateNote({
+  /// מעדכן את רשימת ההודעות הידניות של ה-household ("לוח מודעות",
+  /// מוצג כעת בתוך הטיקר הרץ בראש דף הבית). רשימה ריקה = בלי הודעות
+  /// ידניות. כל בני הבית רואים את זה מיידית כי הם כבר מאזינים
+  /// ל-household דרך myHouseholdsProvider/currentHouseholdProvider.
+  Future<void> updateNotes({
     required String householdId,
-    required String? note,
+    required List<String> notes,
   }) {
-    return _households.doc(householdId).update({'note': note});
+    return _households.doc(householdId).update({'notes': notes});
   }
 }

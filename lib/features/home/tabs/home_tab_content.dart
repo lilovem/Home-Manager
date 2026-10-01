@@ -16,14 +16,13 @@ import '../../bills/water_and_tax_screen.dart';
 import '../../vehicles/vehicle_calendar_provider.dart';
 import '../home_module.dart';
 
-/// תוכן טאב "בית" - בראש: באנר מזג אוויר (לפי מיקום הדפדפן), ומתחתיו
-/// "מודעות" - שורה אחת רצה (מימין לשמאל, בלי הפסקה) שמשלבת גם מה
-/// שמתוכנן היום בלוח השנה (קנייה/תשלום/רכב) וגם הודעה ידנית אחת
-/// שאפשר להוסיף בלי שום קשר ללוח השנה, דרך כפתור ה-"+" בצד שלה.
-/// שניהם מוצגים מתחת לבאנר "הפעלת התראות" של המסך הראשי ומעל
-/// הריבועים. אחריהם רשת 4 חלונות: קניות, לוח שנה, משימות, רכבים.
-/// קניות ולוח שנה זמינים גם כטאבים משלהם בסרגל התחתון - זה כאן
-/// בעצם קיצור דרך נוסף שנשאר מהעיצוב המקורי.
+/// תוכן טאב "בית" - בראש: באנר מזג אוויר (לפי מיקום הדפדפן). "לוח
+/// המודעות" הרץ (AnnouncementsTicker, מחלקה ציבורית בהמשך הקובץ)
+/// עבר להיות חלק מהחלק הקבוע של המסך הראשי (main_shell_screen.dart),
+/// מיד מתחת ללוגו - ולכן כבר לא מופיע כאן בתוך ה-ListView. אחרי
+/// באנר מזג האוויר: רשת 4 חלונות (קניות, לוח שנה, משימות, רכבים),
+/// ואז מקטע החשבונות. קניות ולוח שנה זמינים גם כטאבים משלהם
+/// בסרגל התחתון - זה כאן בעצם קיצור דרך נוסף שנשאר מהעיצוב המקורי.
 class HomeTabContent extends ConsumerWidget {
   final String householdId;
   final List<HomeModule> tiles;
@@ -52,8 +51,6 @@ class HomeTabContent extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       children: [
         const _WeatherBanner(),
-        const SizedBox(height: 6),
-        _AnnouncementsTicker(householdId: householdId),
         const SizedBox(height: 6),
         GridView.count(
           shrinkWrap: true,
@@ -155,38 +152,49 @@ _WeatherCodeInfo _weatherCodeInfo(int code) {
 }
 
 /// "מודעות" - שורה אחת רצה ברוחב המסך, נכנסת מימין וממשיכה לנוע
-/// שמאלה ברצף (חבילת marquee - בלי הפסקה, לא עוצרת ומחכה). מציגה
-/// ברצף אחד גם את מה שקיים היום בלוח השנה (קנייה מתוכננת, תזכורת
-/// תשלום, תאריך רכב - אותם מקורות בדיוק כמו "לוח שנה" הכללי) וגם
-/// הודעה ידנית אחת - אבל כפתור ה-"+" בצד תמיד זמין להוספה/עריכה
-/// של ההודעה הידנית, לגמרי בלי קשר אם יש משהו בלוח השנה היום או
-/// לא. אם אין שום דבר להציג (לא לוח שנה ולא הודעה) - מוצג טקסט
-/// סטטי "הוספת הודעה" במקום שורה ריקה רצה.
-class _AnnouncementsTicker extends ConsumerWidget {
+/// שמאלה ברצף (חבילת marquee - בלי הפסקה, לא עוצרת ומחכה, וממשיכה
+/// ללולאה מהצד השני אוטומטית). מציגה ברצף אחד גם את מה שקיים היום
+/// בלוח השנה (קנייה מתוכננת, תזכורת תשלום, תאריך רכב - אותם מקורות
+/// בדיוק כמו "לוח שנה" הכללי), מנוסחים עם "...היום" בסוף, וגם כמה
+/// הודעות ידניות (רשימה ממוספרת) - כפתור ה-"+" בצד תמיד זמין
+/// לפתיחת עורך ההודעות הידניות, לגמרי בלי קשר אם יש משהו בלוח
+/// השנה היום או לא. כל הודעה (מכל מקור) מופיעה פעם אחת בלבד, גם
+/// אם יש כמה אירועים זהים באותו יום. אם אין שום דבר להציג - מוצג
+/// טקסט סטטי "הוספת הודעה" במקום שורה ריקה רצה. ממוקם עכשיו מיד
+/// מתחת ללוגו (ר. main_shell_screen.dart), ולכן הקלאס ציבורי.
+class AnnouncementsTicker extends ConsumerWidget {
   final String householdId;
 
-  const _AnnouncementsTicker({required this.householdId});
+  const AnnouncementsTicker({super.key, required this.householdId});
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
     return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
-  Future<void> _openNoteDialog(
+  /// מוסיף הודעה לרשימה רק אם אין בה כבר הודעה זהה - כך לא יוצג
+  /// אותו טקסט פעמיים (למשל שני תזכורות תשלום מאותה קטגוריה).
+  void _addUnique(List<String> messages, String text) {
+    if (!messages.contains(text)) messages.add(text);
+  }
+
+  String _withTodaySuffix(String label) => '$label ${AppStrings.homeTodaySuffix}';
+
+  Future<void> _openNotesDialog(
     BuildContext context,
     WidgetRef ref,
-    String? currentNote,
+    List<String> currentNotes,
   ) async {
-    final result = await showDialog<String>(
+    final result = await showDialog<List<String>>(
       context: context,
-      builder: (dialogContext) => _NoteEditDialog(initialText: currentNote ?? ''),
+      builder: (dialogContext) => _NotesEditDialog(initialNotes: currentNotes),
     );
     if (result == null) return;
 
     try {
-      await ref.read(householdRepositoryProvider).updateNote(
+      await ref.read(householdRepositoryProvider).updateNotes(
             householdId: householdId,
-            note: result.trim().isEmpty ? null : result.trim(),
+            notes: result,
           );
     } on Failure catch (e) {
       if (context.mounted) {
@@ -198,14 +206,17 @@ class _AnnouncementsTicker extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final household = ref.watch(currentHouseholdProvider);
-    final note = household?.note;
+    final notes = household?.notes ?? const <String>[];
 
     final lists = ref.watch(shoppingListsProvider(householdId)).value ?? const [];
     final reminders = ref.watch(allScheduledRemindersProvider(householdId)).value ?? const [];
     final vehicleEvents = ref.watch(vehicleDateEventsProvider(householdId));
 
     final messages = <String>[];
-    if (note != null && note.trim().isNotEmpty) messages.add(note.trim());
+    for (final noteText in notes) {
+      final trimmed = noteText.trim();
+      if (trimmed.isNotEmpty) _addUnique(messages, trimmed);
+    }
 
     var todayShoppingCount = 0;
     for (final list in lists) {
@@ -216,16 +227,21 @@ class _AnnouncementsTicker extends ConsumerWidget {
           const [];
       if (items.isNotEmpty) todayShoppingCount++;
     }
-    if (todayShoppingCount > 0) messages.add(AppStrings.shoppingEventLabel);
+    if (todayShoppingCount > 0) {
+      _addUnique(messages, _withTodaySuffix(AppStrings.shoppingEventLabel));
+    }
 
     for (final reminder in reminders) {
       if (reminder.reminderAt != null && _isToday(reminder.reminderAt!)) {
-        messages.add(billCategoryDisplayName(reminder.category));
+        _addUnique(messages, _withTodaySuffix(billCategoryDisplayName(reminder.category)));
       }
     }
     for (final event in vehicleEvents) {
       if (_isToday(event.date)) {
-        messages.add('${event.dateLabel} · ${event.vehicleLabel}');
+        _addUnique(
+          messages,
+          _withTodaySuffix('${event.dateLabel} · ${event.vehicleLabel}'),
+        );
       }
     }
 
@@ -245,7 +261,7 @@ class _AnnouncementsTicker extends ConsumerWidget {
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.add_circle, color: AppColors.primary, size: 24),
             tooltip: AppStrings.homeNoteEmptyPrompt,
-            onPressed: () => _openNoteDialog(context, ref, note),
+            onPressed: () => _openNotesDialog(context, ref, notes),
           ),
           Expanded(
             child: hasMessages
@@ -272,41 +288,103 @@ class _AnnouncementsTicker extends ConsumerWidget {
   }
 }
 
-/// חלונית עריכה/הוספה של ההודעה הידנית - שדה טקסט פשוט, מחזירה את
-/// הטקסט שנבחר (או null אם בוטל). טקסט ריק ושמירה = מחיקת ההודעה.
-class _NoteEditDialog extends StatefulWidget {
-  final String initialText;
+/// חלונית עריכה של רשימת ההודעות הידניות - רשימה ממוספרת (1. 2.
+/// 3. וכו'), כל שורה היא הודעה נפרדת. אפשר להוסיף שורה ("+ הוספת
+/// שורה") או למחוק שורה בודדת (ה-X בסוף השורה). רק טקסט לא-ריק
+/// נשמר בפועל; שורות ריקות מסוננות אוטומטית בשמירה. מחזירה את
+/// הרשימה הסופית, או null אם בוטל.
+class _NotesEditDialog extends StatefulWidget {
+  final List<String> initialNotes;
 
-  const _NoteEditDialog({required this.initialText});
+  const _NotesEditDialog({required this.initialNotes});
 
   @override
-  State<_NoteEditDialog> createState() => _NoteEditDialogState();
+  State<_NotesEditDialog> createState() => _NotesEditDialogState();
 }
 
-class _NoteEditDialogState extends State<_NoteEditDialog> {
-  late final TextEditingController _controller;
+class _NotesEditDialogState extends State<_NotesEditDialog> {
+  late List<TextEditingController> _controllers;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialText);
+    _controllers = widget.initialNotes.isEmpty
+        ? [TextEditingController()]
+        : widget.initialNotes.map((note) => TextEditingController(text: note)).toList();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  void _addRow() {
+    setState(() => _controllers.add(TextEditingController()));
+  }
+
+  void _removeRow(int index) {
+    setState(() {
+      _controllers[index].dispose();
+      _controllers.removeAt(index);
+      if (_controllers.isEmpty) _controllers.add(TextEditingController());
+    });
+  }
+
+  void _save() {
+    final notes = _controllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+    Navigator.of(context).pop(notes);
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text(AppStrings.homeNoteDialogTitle),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: 3,
-        decoration: const InputDecoration(hintText: AppStrings.homeNoteFieldHint),
+      content: SizedBox(
+        width: 360,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _controllers.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Text('${i + 1}.', style: AppTextStyles.body),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: TextField(
+                          controller: _controllers[i],
+                          autofocus: i == 0,
+                          decoration: const InputDecoration(
+                            hintText: AppStrings.homeNoteFieldHint,
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+                        tooltip: AppStrings.homeNoteDeleteTooltip,
+                        onPressed: () => _removeRow(i),
+                      ),
+                    ],
+                  ),
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _addRow,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text(AppStrings.homeNoteAddLineButton),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       actions: [
         TextButton(
@@ -314,7 +392,7 @@ class _NoteEditDialogState extends State<_NoteEditDialog> {
           child: const Text(AppStrings.cancel),
         ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
+          onPressed: _save,
           child: const Text(AppStrings.homeNoteSaveButton),
         ),
       ],
