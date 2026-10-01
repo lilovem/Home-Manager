@@ -4,6 +4,7 @@ import '../../../app/config/app_colors.dart';
 import '../../../app/config/app_text_styles.dart';
 import '../../../app/config/app_strings.dart';
 import '../../../core/errors/failures.dart';
+import '../../../models/bill_payment_model.dart';
 import '../../../providers/bills_provider.dart';
 import '../../../providers/household_provider.dart';
 import '../../../providers/shopping_provider.dart';
