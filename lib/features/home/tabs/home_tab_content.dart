@@ -46,48 +46,104 @@ class HomeTabContent extends ConsumerWidget {
     );
   }
 
+  List<Widget> _tileWidgets(BuildContext context) => [
+        _Tile(
+          module: tiles[0],
+          color: AppColors.itemPurchased,
+          onTap: () => onSelectTab(1),
+        ),
+        _Tile(
+          module: tiles[1],
+          color: AppColors.primary,
+          onTap: () => onSelectTab(2),
+        ),
+        _Tile(
+          module: tiles[2],
+          color: AppColors.itemNewBadge,
+          onTap: () => onSelectTab(3),
+        ),
+        _Tile(
+          module: tiles[3],
+          color: AppColors.itemNotFound,
+          onTap: tiles[3].screenBuilder != null
+              ? () => _openModule(context, tiles[3])
+              : null,
+        ),
+      ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      children: [
-        const _WeatherBanner(),
-        const SizedBox(height: 5),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 7,
-          crossAxisSpacing: 7,
-          childAspectRatio: 2.5,
-          children: [
-            _Tile(
-              module: tiles[0],
-              color: AppColors.itemPurchased,
-              onTap: () => onSelectTab(1),
-            ),
-            _Tile(
-              module: tiles[1],
-              color: AppColors.primary,
-              onTap: () => onSelectTab(2),
-            ),
-            _Tile(
-              module: tiles[2],
-              color: AppColors.itemNewBadge,
-              onTap: () => onSelectTab(3),
-            ),
-            _Tile(
-              module: tiles[3],
-              color: AppColors.itemNotFound,
-              onTap: tiles[3].screenBuilder != null
-                  ? () => _openModule(context, tiles[3])
-                  : null,
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        _BillsSection(householdId: householdId),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tileWidgets = _tileWidgets(context);
+
+        // מסך נמוך מאוד - חוזרים לפריסה הקומפקטית הגלילה הרגילה, כדי
+        // לא לדחוס את התוכן מעבר לנקודה סבירה.
+        if (constraints.maxHeight < 330) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+            children: [
+              const _WeatherBanner(),
+              const SizedBox(height: 5),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 7,
+                crossAxisSpacing: 7,
+                childAspectRatio: 2.5,
+                children: tileWidgets,
+              ),
+              const SizedBox(height: 5),
+              _BillsSection(householdId: householdId),
+            ],
+          );
+        }
+
+        // פריסה שממלאת את כל הגובה הפנוי עד סרגל הניווט התחתון:
+        // 4 הריבועים (2x2) תופסים חלק יחסי, וכרטיס החשבונות את השאר -
+        // כך אין רווח ריק בתחתית הדף.
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+          child: Column(
+            children: [
+              const _WeatherBanner(),
+              const SizedBox(height: 6),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: tileWidgets[0]),
+                          const SizedBox(width: 8),
+                          Expanded(child: tileWidgets[1]),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: tileWidgets[2]),
+                          const SizedBox(width: 8),
+                          Expanded(child: tileWidgets[3]),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                flex: 4,
+                child: _BillsSection(householdId: householdId, expand: true),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -499,7 +555,11 @@ class _NotesEditDialogState extends State<_NotesEditDialog> {
 class _BillsSection extends StatelessWidget {
   final String householdId;
 
-  const _BillsSection({required this.householdId});
+  /// כשהוא true - הכרטיס ממלא את כל הגובה שנשאר (עד סרגל הניווט
+  /// התחתון) והעמודות בו גדולות יותר, במקום להיות "דחוס" בגובה מינימלי.
+  final bool expand;
+
+  const _BillsSection({required this.householdId, this.expand = false});
 
   @override
   Widget build(BuildContext context) {
@@ -513,13 +573,15 @@ class _BillsSection extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 13)),
           const SizedBox(height: 6),
-          Row(
+          _maybeExpanded(Row(
             children: [
               Expanded(
                 child: _BillColumn(
+                  large: expand,
                   icon: Icons.apartment_outlined,
                   label: AppStrings.vaadBayitTitle,
                   available: true,
@@ -532,6 +594,7 @@ class _BillsSection extends StatelessWidget {
               ),
               Expanded(
                 child: _BillColumn(
+                  large: expand,
                   icon: Icons.bolt_outlined,
                   label: AppStrings.electricityTitle,
                   available: true,
@@ -544,6 +607,7 @@ class _BillsSection extends StatelessWidget {
               ),
               Expanded(
                 child: _BillColumn(
+                  large: expand,
                   icon: Icons.water_drop_outlined,
                   label: AppStrings.waterAndTaxTitle,
                   available: true,
@@ -555,20 +619,24 @@ class _BillsSection extends StatelessWidget {
                 ),
               ),
             ],
-          ),
+          )),
         ],
       ),
     );
   }
+
+  Widget _maybeExpanded(Widget child) => expand ? Expanded(child: child) : child;
 }
 
 class _BillColumn extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool available;
+  final bool large;
   final VoidCallback? onTap;
 
   const _BillColumn({
+    this.large = false,
     required this.icon,
     required this.label,
     required this.available,
@@ -585,18 +653,21 @@ class _BillColumn extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: large ? 56 : 36,
+                height: large ? 56 : 36,
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(large ? 16 : 10),
                 ),
-                child: Icon(icon, color: AppColors.primary, size: 18),
+                child: Icon(icon, color: AppColors.primary, size: large ? 28 : 18),
               ),
-              const SizedBox(height: 4),
-              Text(label, style: AppTextStyles.body.copyWith(fontSize: 11), textAlign: TextAlign.center),
+              SizedBox(height: large ? 8 : 4),
+              Text(label,
+                  style: AppTextStyles.body.copyWith(fontSize: large ? 13 : 11),
+                  textAlign: TextAlign.center),
               if (!available)
                 Text(AppStrings.comingSoon,
                     style: AppTextStyles.bodySecondary.copyWith(fontSize: 9)),
@@ -635,7 +706,7 @@ class _Tile extends StatelessWidget {
               border: Border.all(color: AppColors.divider),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
                   width: 34,
