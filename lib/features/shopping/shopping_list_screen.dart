@@ -6,6 +6,7 @@ import '../../app/config/app_strings.dart';
 import '../../app/config/app_text_styles.dart';
 import '../../core/errors/failures.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/utils/category_order_store.dart';
 import '../../core/utils/product_categorizer.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/error_view.dart';
@@ -56,6 +57,33 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
   /// להציץ. בלי זה, קטגוריה שלמה תמיד מכווצת אוטומטית. קטגוריה
   /// שעדיין לא שלמה (יש בה פריט ממתין) תמיד מוצגת פתוחה.
   final Set<ProductCategory> _expandedOverride = {};
+
+  /// סדר הקטגוריות המותאם אישית (כל סופר והסדר שלו) - נטען מהזיכרון
+  /// של הדפדפן, ונשמר מחדש בכל הזזה של קטגוריה למעלה/למטה.
+  late List<ProductCategory> _categoryOrder =
+      CategoryOrderStore.load(widget.householdId);
+
+  /// מזיזה קטגוריה צעד אחד למעלה (delta=-1) או למטה (delta=1) ביחס
+  /// לקטגוריות שמוצגות כרגע בלבד (כך שקטגוריות ריקות שמוסתרות לא
+  /// גורמות ללחיצה שלא קורית בה כלום).
+  void _moveCategory(
+    ProductCategory category,
+    int delta,
+    List<ProductCategory> visible,
+  ) {
+    final visibleIndex = visible.indexOf(category);
+    final neighborIndex = visibleIndex + delta;
+    if (visibleIndex < 0 || neighborIndex < 0 || neighborIndex >= visible.length) return;
+
+    final neighbor = visible[neighborIndex];
+    final a = _categoryOrder.indexOf(category);
+    final b = _categoryOrder.indexOf(neighbor);
+    setState(() {
+      _categoryOrder[a] = neighbor;
+      _categoryOrder[b] = category;
+    });
+    CategoryOrderStore.save(widget.householdId, _categoryOrder);
+  }
 
   Future<void> _confirmDeleteList(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
@@ -437,7 +465,7 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                 for (final item in items) {
                   itemsByCategory.putIfAbsent(item.category, () => []).add(item);
                 }
-                final categoriesToShow = ProductCategorizer.displayOrder
+                final categoriesToShow = _categoryOrder
                     .where((category) => itemsByCategory.containsKey(category))
                     .toList();
 
@@ -476,6 +504,12 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
                             categoryColor: categoryColor,
                             isComplete: isComplete,
                             isCollapsed: isCollapsed,
+                            onMoveUp: categoryIndex > 0
+                                ? () => _moveCategory(category, -1, categoriesToShow)
+                                : null,
+                            onMoveDown: categoryIndex < categoriesToShow.length - 1
+                                ? () => _moveCategory(category, 1, categoriesToShow)
+                                : null,
                             onTap: isComplete
                                 ? () => setState(() {
                                       if (_expandedOverride.contains(category)) {
@@ -535,6 +569,8 @@ class _CategoryHeader extends StatelessWidget {
   final bool isComplete;
   final bool isCollapsed;
   final VoidCallback? onTap;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   const _CategoryHeader({
     required this.category,
@@ -542,7 +578,24 @@ class _CategoryHeader extends StatelessWidget {
     required this.isComplete,
     required this.isCollapsed,
     this.onTap,
+    this.onMoveUp,
+    this.onMoveDown,
   });
+
+  Widget _arrow(IconData icon, VoidCallback? onPressed) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        iconSize: 22,
+        icon: Icon(icon),
+        color: Colors.white,
+        disabledColor: Colors.white.withValues(alpha: 0.3),
+        onPressed: onPressed,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -575,7 +628,11 @@ class _CategoryHeader extends StatelessWidget {
                 color: Colors.white,
                 size: 20,
               ),
+              const SizedBox(width: 6),
             ],
+            // הזזת הקטגוריה למעלה/למטה - כל סופר והסדר שלו.
+            _arrow(Icons.keyboard_arrow_up, onMoveUp),
+            _arrow(Icons.keyboard_arrow_down, onMoveDown),
           ],
         ),
       ),
