@@ -323,10 +323,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
             ),
             if (_selectedTab == 0) ...[
               // "לוח המודעות" הרץ - ממש מתחת ללוגו, לפי בקשה מפורשת.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                child: AnnouncementsTicker(householdId: household.id),
-              ),
+              AnnouncementsTicker(householdId: household.id),
               // הברכה ("שלום, משפחת X!") ושם ה-household מוצגים עכשיו
               // יחד בשורה אחת בתוך הכרטיסייה עצמה (ר. _HouseholdCard),
               // במקום שורת ברכה נפרדת מעליה עם אותו שם פעמיים - גם

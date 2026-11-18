@@ -135,18 +135,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
+                  // פס כחול מלבני לכל רוחב המסך (יוצא מהריפוד של הטופס).
+                  SizedBox(
+                    height: 170,
+                    child: OverflowBox(
+                    minWidth: MediaQuery.of(context).size.width,
+                    maxWidth: MediaQuery.of(context).size.width,
+                    minHeight: 170,
+                    maxHeight: 170,
+                    child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                    height: 170,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [AppColors.primary, AppColors.primaryDark],
                       ),
-                      borderRadius: BorderRadius.circular(24),
                     ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.home_rounded, size: 56, color: Colors.white),
                         const Text(
@@ -164,6 +172,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           style: AppTextStyles.tagline(color: Colors.white70, fontSize: 14),
                         ),
                       ],
+                    ),
+                    ),
                     ),
                   ),
                   const SizedBox(height: 32),

@@ -100,34 +100,41 @@ class TasksTabContent extends ConsumerWidget {
         ),
       ),
       data: (notes) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final w = constraints.maxWidth;
-            final columns = w >= 900 ? 4 : (w >= 600 ? 3 : 2);
-            return GridView.builder(
-              padding: const EdgeInsets.all(12),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 1,
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              child: _AddNoteTile(
+                onTap: () => _open(context, householdId, null, newColor: notes.length),
               ),
-              itemCount: notes.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _AddNoteTile(
-                    onTap: () => _open(context, householdId, null, newColor: notes.length),
+            ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final w = constraints.maxWidth;
+                  final columns = w >= 900 ? 4 : (w >= 600 ? 3 : 2);
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 1,
+                    ),
+                    itemCount: notes.length,
+                    itemBuilder: (context, index) {
+                      final note = notes[index];
+                      return _NoteCard(
+                        note: note,
+                        onTap: () => _open(context, householdId, note),
+                        onLongPress: () => _showActions(context, householdId, note),
+                      );
+                    },
                   );
-                }
-                final note = notes[index - 1];
-                return _NoteCard(
-                  note: note,
-                  onTap: () => _open(context, householdId, note),
-                  onLongPress: () => _showActions(context, householdId, note),
-                );
-              },
-            );
-          },
+                },
+              ),
+            ),
+          ],
         );
       },
     );
@@ -140,31 +147,22 @@ class _AddNoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      splashColor: kNotePressColor,
-      highlightColor: kNotePressColor,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.primary, width: 1.5),
-          color: AppColors.primary.withOpacity(0.06),
+    // כפתור קטן בלי מסגרת וריבוע מסביב, בצד ימין למעלה.
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton.icon(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          overlayColor: kNotePressColor,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          minimumSize: const Size(0, 34),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_circle_outline, size: 38, color: AppColors.primary),
-            const SizedBox(height: 6),
-            Text(
-              'פתק חדש',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-          ],
+        icon: const Icon(Icons.add_circle_outline, size: 20),
+        label: const Text(
+          'פתק חדש',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),
     );

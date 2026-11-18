@@ -60,6 +60,8 @@ class HomeTabContent extends ConsumerWidget {
         _Tile(
           module: tiles[2],
           color: AppColors.itemNewBadge,
+          titleOverride: 'פתקים',
+          subtitleOverride: 'כתיבה ושיתוף פתקים',
           onTap: () => onSelectTab(3),
         ),
         _Tile(
@@ -81,67 +83,74 @@ class HomeTabContent extends ConsumerWidget {
         // לא לדחוס את התוכן מעבר לנקודה סבירה.
         if (constraints.maxHeight < 330) {
           return ListView(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+            padding: EdgeInsets.zero,
             children: [
               const _WeatherBanner(),
-              const SizedBox(height: 5),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 7,
-                crossAxisSpacing: 7,
-                childAspectRatio: 2.5,
-                children: tileWidgets,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                child: Column(
+                  children: [
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 7,
+                      crossAxisSpacing: 7,
+                      childAspectRatio: 2.5,
+                      children: tileWidgets,
+                    ),
+                    const SizedBox(height: 5),
+                    _BillsSection(householdId: householdId),
+                  ],
+                ),
               ),
-              const SizedBox(height: 5),
-              _BillsSection(householdId: householdId),
             ],
           );
         }
 
-        // פריסה שממלאת את כל הגובה הפנוי עד סרגל הניווט התחתון:
-        // 4 הריבועים (2x2) תופסים חלק יחסי, וכרטיס החשבונות את השאר -
-        // כך אין רווח ריק בתחתית הדף.
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-          child: Column(
-            children: [
-              const _WeatherBanner(),
-              const SizedBox(height: 6),
-              Expanded(
-                flex: 5,
+        // פריסה שממלאת את כל הגובה הפנוי: באנר מזג האוויר לכל רוחב
+        // המסך, 4 הריבועים (2x2) תופסים את רוב המקום, וכרטיס החשבונות
+        // הקומפקטי יושב מתחתיהם, עם רווח קטן עד סרגל הניווט.
+        return Column(
+          children: [
+            const _WeatherBanner(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                 child: Column(
                   children: [
                     Expanded(
-                      child: Row(
+                      child: Column(
                         children: [
-                          Expanded(child: tileWidgets[0]),
-                          const SizedBox(width: 8),
-                          Expanded(child: tileWidgets[1]),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(child: tileWidgets[0]),
+                                const SizedBox(width: 8),
+                                Expanded(child: tileWidgets[1]),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(child: tileWidgets[2]),
+                                const SizedBox(width: 8),
+                                Expanded(child: tileWidgets[3]),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Expanded(child: tileWidgets[2]),
-                          const SizedBox(width: 8),
-                          Expanded(child: tileWidgets[3]),
-                        ],
-                      ),
-                    ),
+                    _BillsSection(householdId: householdId),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                flex: 4,
-                child: _BillsSection(householdId: householdId, expand: true),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -166,10 +175,9 @@ class _WeatherBanner extends ConsumerWidget {
         final info = weatherCodeInfo(weather.weatherCode);
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: const BoxDecoration(
             color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
@@ -307,11 +315,11 @@ class AnnouncementsTicker extends ConsumerWidget {
     final combinedText = messages.join('     •     ');
 
     return Container(
-      height: 42,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      height: 44,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: AppColors.itemNewBadge.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.itemNewBadge.withValues(alpha: 0.18),
       ),
       child: Row(
         children: [
@@ -565,7 +573,7 @@ class _BillsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
@@ -573,11 +581,9 @@ class _BillsSection extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(AppStrings.billsSectionTitle, style: AppTextStyles.heading2.copyWith(fontSize: 13)),
-          const SizedBox(height: 6),
-          _maybeExpanded(Row(
+          Row(
             children: [
               Expanded(
                 child: _BillColumn(
@@ -619,13 +625,11 @@ class _BillsSection extends StatelessWidget {
                 ),
               ),
             ],
-          )),
+          ),
         ],
       ),
     );
   }
-
-  Widget _maybeExpanded(Widget child) => expand ? Expanded(child: child) : child;
 }
 
 class _BillColumn extends StatelessWidget {
@@ -656,17 +660,17 @@ class _BillColumn extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: large ? 56 : 36,
-                height: large ? 56 : 36,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(large ? 16 : 10),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(icon, color: AppColors.primary, size: large ? 28 : 18),
+                child: Icon(icon, color: AppColors.primary, size: 24),
               ),
-              SizedBox(height: large ? 8 : 4),
+              const SizedBox(height: 4),
               Text(label,
-                  style: AppTextStyles.body.copyWith(fontSize: large ? 13 : 11),
+                  style: AppTextStyles.body.copyWith(fontSize: 12),
                   textAlign: TextAlign.center),
               if (!available)
                 Text(AppStrings.comingSoon,
@@ -685,11 +689,25 @@ class _Tile extends StatelessWidget {
   final int? badgeCount;
   final VoidCallback? onTap;
 
-  const _Tile({required this.module, required this.color, this.badgeCount, this.onTap});
+  /// דריסת כותרת/תת-כותרת (למשל "משימות" -> "פתקים") בלי לגעת בהגדרת
+  /// המודולים עצמה.
+  final String? titleOverride;
+  final String? subtitleOverride;
+
+  const _Tile({
+    required this.module,
+    required this.color,
+    this.badgeCount,
+    this.onTap,
+    this.titleOverride,
+    this.subtitleOverride,
+  });
 
   @override
   Widget build(BuildContext context) {
     final bool available = onTap != null;
+    final title = titleOverride ?? module.title;
+    final subtitle = subtitleOverride ?? module.subtitle;
 
     return Material(
       color: AppColors.background,
@@ -700,44 +718,60 @@ class _Tile extends StatelessWidget {
         child: Opacity(
           opacity: available ? 1 : 0.55,
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.divider),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(10),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // האייקון למעלה, מתחתיו הכותרת, ומתחת תת-כותרת קטנה (עד
+                // שתי שורות, בלי שלוש נקודות). אם התא נמוך - הכל מתכווץ
+                // יחד במקום לגלוש.
+                return Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: constraints.maxWidth,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(module.icon, color: color, size: 27),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.heading2.copyWith(fontSize: 16),
+                          ),
+                          const SizedBox(height: 2),
+                          if (badgeCount != null)
+                            Text('$badgeCount',
+                                style: AppTextStyles.heading1.copyWith(fontSize: 20))
+                          else if (!available)
+                            Text(AppStrings.comingSoon,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodySecondary.copyWith(fontSize: 11))
+                          else
+                            Text(subtitle,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                softWrap: true,
+                                style: AppTextStyles.bodySecondary
+                                    .copyWith(fontSize: 11, height: 1.2)),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Icon(module.icon, color: color, size: 19),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(module.title, style: AppTextStyles.heading2.copyWith(fontSize: 13)),
-                      const SizedBox(height: 1),
-                      if (badgeCount != null)
-                        Text('$badgeCount', style: AppTextStyles.heading1.copyWith(fontSize: 20))
-                      else if (!available)
-                        Text(AppStrings.comingSoon,
-                            style: AppTextStyles.bodySecondary.copyWith(fontSize: 11))
-                      else
-                        Text(module.subtitle,
-                            style: AppTextStyles.bodySecondary.copyWith(fontSize: 11),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),
