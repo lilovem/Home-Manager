@@ -79,8 +79,7 @@ class HomeTabContent extends ConsumerWidget {
       builder: (context, constraints) {
         final tileWidgets = _tileWidgets(context);
 
-        // מסך נמוך מאוד - חוזרים לפריסה הקומפקטית הגלילה הרגילה, כדי
-        // לא לדחוס את התוכן מעבר לנקודה סבירה.
+        // מסך נמוך מאוד - גלילה רגילה עם אריחים בגובה קבוע.
         if (constraints.maxHeight < 330) {
           return ListView(
             padding: EdgeInsets.zero,
@@ -96,11 +95,14 @@ class HomeTabContent extends ConsumerWidget {
                       crossAxisCount: 2,
                       mainAxisSpacing: 7,
                       crossAxisSpacing: 7,
-                      childAspectRatio: 2.5,
+                      childAspectRatio: 2.2,
                       children: tileWidgets,
                     ),
-                    const SizedBox(height: 5),
-                    _BillsSection(householdId: householdId),
+                    const SizedBox(height: 7),
+                    SizedBox(
+                      height: 84,
+                      child: _BillsRow(householdId: householdId),
+                    ),
                   ],
                 ),
               ),
@@ -108,46 +110,50 @@ class HomeTabContent extends ConsumerWidget {
           );
         }
 
-        // פריסה שממלאת את כל הגובה הפנוי: באנר מזג האוויר לכל רוחב
-        // המסך, 4 הריבועים (2x2) תופסים את רוב המקום, וכרטיס החשבונות
-        // הקומפקטי יושב מתחתיהם, עם רווח קטן עד סרגל הניווט.
+        // שלוש שורות אריחים באותו גודל בדיוק: קניות+לוח שנה, פתקים+רכבים,
+        // וועד בית+חשמל+מים/ארנונה. הגובה פרופורציונלי למסך אבל מוגבל,
+        // כך שהאריחים לא נהיים ענקיים; הרווח הפנוי מתחלק ביניהם.
         return Column(
           children: [
             const _WeatherBanner(),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(child: tileWidgets[0]),
-                                const SizedBox(width: 8),
-                                Expanded(child: tileWidgets[1]),
-                              ],
-                            ),
+              child: LayoutBuilder(
+                builder: (context, inner) {
+                  const gap = 8.0;
+                  final rowH = ((inner.maxHeight - 28 - 2 * gap) / 3).clamp(76.0, 100.0).toDouble();
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        SizedBox(
+                          height: rowH,
+                          child: Row(
+                            children: [
+                              Expanded(child: tileWidgets[0]),
+                              const SizedBox(width: gap),
+                              Expanded(child: tileWidgets[1]),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(child: tileWidgets[2]),
-                                const SizedBox(width: 8),
-                                Expanded(child: tileWidgets[3]),
-                              ],
-                            ),
+                        ),
+                        SizedBox(
+                          height: rowH,
+                          child: Row(
+                            children: [
+                              Expanded(child: tileWidgets[2]),
+                              const SizedBox(width: gap),
+                              Expanded(child: tileWidgets[3]),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(
+                          height: rowH,
+                          child: _BillsRow(householdId: householdId),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    _BillsSection(householdId: householdId),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ],
@@ -168,18 +174,32 @@ class _WeatherBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final weatherAsync = ref.watch(currentWeatherProvider);
 
+    Widget bar(Widget child, {VoidCallback? onTap}) => InkWell(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(color: AppColors.primaryLight),
+            child: child,
+          ),
+        );
+
     return weatherAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      loading: () => bar(Text(
+        'טוען מזג אוויר...',
+        style: AppTextStyles.bodySecondary,
+      )),
+      error: (_, __) => bar(
+        Text(
+          'מזג האוויר לא זמין - לחצו לניסיון חוזר (נדרש אישור מיקום בדפדפן)',
+          style: AppTextStyles.bodySecondary.copyWith(fontSize: 12),
+        ),
+        onTap: () => ref.invalidate(currentWeatherProvider),
+      ),
       data: (weather) {
         final info = weatherCodeInfo(weather.weatherCode);
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: const BoxDecoration(
-            color: AppColors.primaryLight,
-          ),
-          child: Row(
+        return bar(
+          Row(
             children: [
               Text(info.emoji, style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 10),
@@ -683,14 +703,133 @@ class _BillColumn extends StatelessWidget {
   }
 }
 
+/// אריח אחיד: אייקון למעלה, כותרת, ותת-כותרת קטנה (אופציונלית).
+class _MiniTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onTap;
+
+  const _MiniTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final available = onTap != null;
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Opacity(
+          opacity: available ? 1 : 0.55,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: constraints.maxWidth,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(icon, color: color, size: 22),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.heading2.copyWith(fontSize: 13),
+                          ),
+                          if (subtitle != null && subtitle!.isNotEmpty)
+                            Text(
+                              subtitle!,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: AppTextStyles.bodySecondary
+                                  .copyWith(fontSize: 10, height: 1.2),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// שורת החשבונות: שלושה אריחים באותו עיצוב וגודל של האריחים שמעליהם.
+class _BillsRow extends StatelessWidget {
+  final String householdId;
+  const _BillsRow({required this.householdId});
+
+  @override
+  Widget build(BuildContext context) {
+    void open(Widget screen) =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    return Row(
+      children: [
+        Expanded(
+          child: _MiniTile(
+            icon: Icons.apartment_outlined,
+            color: AppColors.primary,
+            title: AppStrings.vaadBayitTitle,
+            onTap: () => open(VaadBayitScreen(householdId: householdId)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MiniTile(
+            icon: Icons.bolt_outlined,
+            color: AppColors.primary,
+            title: AppStrings.electricityTitle,
+            onTap: () => open(ElectricityScreen(householdId: householdId)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MiniTile(
+            icon: Icons.water_drop_outlined,
+            color: AppColors.primary,
+            title: AppStrings.waterAndTaxTitle,
+            onTap: () => open(WaterAndTaxScreen(householdId: householdId)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _Tile extends StatelessWidget {
   final HomeModule module;
   final Color color;
   final int? badgeCount;
   final VoidCallback? onTap;
-
-  /// דריסת כותרת/תת-כותרת (למשל "משימות" -> "פתקים") בלי לגעת בהגדרת
-  /// המודולים עצמה.
   final String? titleOverride;
   final String? subtitleOverride;
 
@@ -705,76 +844,254 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool available = onTap != null;
-    final title = titleOverride ?? module.title;
-    final subtitle = subtitleOverride ?? module.subtitle;
+    return _MiniTile(
+      icon: module.icon,
+      color: color,
+      title: titleOverride ?? module.title,
+      subtitle: onTap == null
+          ? AppStrings.comingSoon
+          : (subtitleOverride ?? module.subtitle),
+      onTap: onTap,
+    );
+  }
+}
 
-    return Material(
-      color: AppColors.background,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Opacity(
-          opacity: available ? 1 : 0.55,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // האייקון למעלה, מתחתיו הכותרת, ומתחת תת-כותרת קטנה (עד
-                // שתי שורות, בלי שלוש נקודות). אם התא נמוך - הכל מתכווץ
-                // יחד במקום לגלוש.
-                return Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: SizedBox(
-                      width: constraints.maxWidth,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(module.icon, color: color, size: 27),
+bash setup_shopping_master_v1.shDART_EOF_MARKER
+
+echo "📄 כותב lib/features/household/household_members_screen.dart ..."
+cat > lib/features/household/household_members_screen.dart <<'DART_EOF_MARKER'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/config/app_colors.dart';
+import '../../app/config/app_strings.dart';
+import '../../app/config/app_text_styles.dart';
+import '../../core/errors/failures.dart';
+import '../../core/widgets/error_view.dart';
+import '../../core/widgets/loading_indicator.dart';
+import '../../models/household_member_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/household_provider.dart';
+
+/// מסך ניהול חברי household - מציג את כל החברים ומאפשר להסיר מישהו.
+/// כל חבר יכול להסיר כל חבר אחר (כולל את "הבעלים") - זו פשטות
+/// מכוונת עבור household משפחתי קטן, לא היררכיית הרשאות מורכבת.
+/// אי אפשר להסיר את עצמך מהמסך הזה (אין עדיין פיצ'ר "עזיבת household").
+///
+/// מחיקת household בשלמותו כן מוגבלת רק לבעלים (isOwner) - זו פעולה
+/// הרסנית יותר (מוחקת גם רשימות/היסטוריה), לכן ההגבלה מחמירה יותר.
+///
+/// עיצוב מחודש (יותר מודרני): כל חבר מוצג ככרטיס עגול עם אווטאר
+/// גרדיאנט (תואם ללוגו/כרטיסיית הבית) ו"צ'יפ" תפקיד צבעוני במקום
+/// שורת טקסט רגילה, במקום ListTile שטוח עם קווי הפרדה.
+class HouseholdMembersScreen extends ConsumerWidget {
+  final String householdId;
+  final bool isOwner;
+
+  const HouseholdMembersScreen({
+    super.key,
+    required this.householdId,
+    this.isOwner = false,
+  });
+
+  Future<void> _confirmRemove(
+    BuildContext context,
+    WidgetRef ref,
+    HouseholdMember member,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.confirmRemoveMemberTitle),
+        content: Text('${member.email}\n${AppStrings.confirmRemoveMemberMessage}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.delete, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(householdRepositoryProvider).removeMember(
+            householdId: householdId,
+            memberUid: member.uid,
+          );
+    } on Failure catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteHousehold(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.confirmDeleteHouseholdTitle),
+        content: const Text(AppStrings.confirmDeleteHouseholdMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(AppStrings.deleteHousehold, style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(householdRepositoryProvider).deleteHousehold(householdId);
+      // ה-household נעלם אוטומטית מ-myHouseholdsProvider; חוזרים
+      // למסך הבית (currentHouseholdProvider יבחר household אחר או
+      // יעביר למסך יצירה/הצטרפות אם לא נשאר אף אחד).
+      if (context.mounted) Navigator.of(context).pop();
+    } on Failure catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(householdMembersProvider(householdId));
+    final myUid = ref.watch(authStateChangesProvider).value?.uid;
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text(AppStrings.manageMembers)),
+      body: Column(
+        children: [
+          Expanded(
+            child: membersAsync.when(
+              loading: () => const LoadingIndicator(),
+              error: (e, st) => const ErrorView(),
+              data: (members) {
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  itemCount: members.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final member = members[index];
+                    final isMe = member.uid == myUid;
+                    final isOwnerMember = member.role == 'owner';
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.heading2.copyWith(fontSize: 16),
-                          ),
-                          const SizedBox(height: 2),
-                          if (badgeCount != null)
-                            Text('$badgeCount',
-                                style: AppTextStyles.heading1.copyWith(fontSize: 20))
-                          else if (!available)
-                            Text(AppStrings.comingSoon,
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.bodySecondary.copyWith(fontSize: 11))
-                          else
-                            Text(subtitle,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                softWrap: true,
-                                style: AppTextStyles.bodySecondary
-                                    .copyWith(fontSize: 11, height: 1.2)),
                         ],
                       ),
-                    ),
-                  ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isOwnerMember
+                                    ? [AppColors.primary, AppColors.primaryDark]
+                                    : [AppColors.itemNewBadge, AppColors.primary],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isOwnerMember ? Icons.star_rounded : Icons.person_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  member.email,
+                                  textDirection: TextDirection.ltr,
+                                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    isOwnerMember ? AppStrings.ownerLabel : AppStrings.memberLabel,
+                                    style: AppTextStyles.bodySecondary.copyWith(
+                                      fontSize: 11,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isMe)
+                            IconButton(
+                              icon: const Icon(Icons.person_remove_outlined,
+                                  color: AppColors.error, size: 20),
+                              tooltip: AppStrings.removeMember,
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppColors.error.withValues(alpha: 0.08),
+                                shape: const CircleBorder(),
+                              ),
+                              onPressed: () => _confirmRemove(context, ref, member),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
-        ),
+          if (isOwner)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _confirmDeleteHousehold(context, ref),
+                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  label: const Text(
+                    AppStrings.deleteHousehold,
+                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
