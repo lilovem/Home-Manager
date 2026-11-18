@@ -303,26 +303,38 @@ class _ForecastCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // בסגנון אפליקציות מזג אוויר: מספר גדול = הטמפרטורה הגבוהה של היום,
-    // מתחתיו מספר קטן ואפור = הנמוכה.
+    // הגבוהה (מודגשת) מימין והנמוכה (אפורה) משמאלה, באותה שורה -
+    // כך התא נשאר נמוך ולא גולש מעבר לקו התחתון.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(title,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13)),
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          Text(high,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 17)),
-          if (low.isNotEmpty)
-            Text(low,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                style: AppTextStyles.bodySecondary.copyWith(fontSize: 12)),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title,
+                  style: AppTextStyles.body
+                      .copyWith(fontWeight: FontWeight.bold, fontSize: 12)),
+              Text(emoji, style: const TextStyle(fontSize: 22)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(high,
+                      maxLines: 1,
+                      style: AppTextStyles.body
+                          .copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
+                  if (low.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Text(low,
+                        maxLines: 1,
+                        style: AppTextStyles.bodySecondary.copyWith(fontSize: 12)),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
