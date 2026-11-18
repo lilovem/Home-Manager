@@ -267,76 +267,57 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        leading: _permissionStatus == 'granted'
-            ? IconButton(
-                icon: const Icon(Icons.notifications_active_outlined),
-                tooltip: AppStrings.notificationsInfoTooltip,
-                onPressed: () => ref.read(browserNotificationServiceProvider).show(
-                      title: AppStrings.testNotificationTitle,
-                      body: AppStrings.testNotificationBody,
-                    ),
-              )
-            : null,
-        actions: [
-          // "הפעלת התראות" יושבת בשורה העליונה, בצד ימין, ממש ליד
-          // שיתוף/ניתוק (לפי בקשה מפורשת) - בלי כפתור נפרד בצד: כל
-          // הטקסט "הפעלת התראות" עצמו הוא מה שלוחצים עליו. בלי צבע
-          // קבוע (היה לבן על רקע בהיר - בלתי נראה) - צבע ברירת
-          // המחדל של ה-AppBar, אותו צבע שבו שיתוף/ניתוק כבר מוצגים
-          // וברורים לעין.
-          if (!isCalendarTab && _permissionStatus != 'granted')
-            _NotificationAppBarAction(
-              isBlocked: _permissionStatus == 'denied',
-              onEnable: _requestPermission,
-            ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: AppStrings.inviteFriendToApp,
-            onPressed: () => _showInviteFriendSheet(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: AppStrings.signOut,
-            onPressed: () => _confirmSignOut(context),
-          ),
-        ],
-      ),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            // חלק עליון קבוע - לא בתוך גלילה, נשאר גלוי בכל הטאבים
-            // (חוץ מטאב "לוח שנה", ר' isCalendarTab למטה - שם רק
-            // הלוגו נשאר, כדי שללוח השנה יהיה כמה שיותר מקום).
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(0, 10, 0, 4),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                  ),
-                  borderRadius: BorderRadius.circular(18),
+            // פס כחול מלבני לכל רוחב המסך: יציאה משמאל, הלוגו באמצע,
+            // שיתוף מימין.
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.primaryDark],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.home_rounded, size: 38, color: Colors.white),
-                    Transform.translate(
-                      offset: const Offset(0, -6),
-                      child: Text(
-                        AppStrings.appName,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 16,
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: SizedBox(
+                  height: 56,
+                  child: Row(
+                    children: [
+                      _HeaderButton(
+                        icon: Icons.logout,
+                        tooltip: AppStrings.signOut,
+                        onPressed: () => _confirmSignOut(context),
+                      ),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.home_rounded,
+                                size: 30, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              AppStrings.appName,
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      _HeaderButton(
+                        icon: Icons.share_outlined,
+                        tooltip: AppStrings.inviteFriendToApp,
+                        onPressed: () => _showInviteFriendSheet(context, ref),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -560,6 +541,28 @@ class _HouseholdCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HeaderButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  const _HeaderButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(icon, color: Colors.white),
+      tooltip: tooltip,
+      splashColor: Colors.white30,
+      highlightColor: Colors.white24,
+      onPressed: onPressed,
     );
   }
 }

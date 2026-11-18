@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../providers/notes_provider.dart';
@@ -10,7 +9,15 @@ class NoteEditorScreen extends StatefulWidget {
   final String householdId;
   final NotePage? note;
 
-  const NoteEditorScreen({super.key, required this.householdId, this.note});
+  /// צבע לפתק חדש (נקבע לפי מספר הפתקים הקיימים).
+  final int newColor;
+
+  const NoteEditorScreen({
+    super.key,
+    required this.householdId,
+    this.note,
+    this.newColor = 0,
+  });
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -31,13 +38,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final col = notesCollection(widget.householdId);
     _ref = widget.note != null ? col.doc(widget.note!.id) : col.doc();
     _exists = widget.note != null;
-    _color = widget.note?.color ?? Random().nextInt(kNoteColors.length);
+    _color = widget.note?.color ?? widget.newColor;
     _controller = TextEditingController(text: widget.note?.text ?? '');
     _controller.selection =
         TextSelection.collapsed(offset: _controller.text.length);
   }
 
   void _onChanged(String _) {
+    setState(() {});
     _dirty = true;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), _save);
@@ -111,10 +119,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: kNoteTextColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'חזרה',
+          splashColor: kNotePressColor,
+          highlightColor: kNotePressColor,
+          onPressed: () => Navigator.maybePop(context),
+        ),
         title: const Text('פתק'),
         actions: [
           IconButton(
             tooltip: 'מחיקת הפתק',
+            splashColor: kNotePressColor,
+            highlightColor: kNotePressColor,
             icon: const Icon(Icons.delete_outline),
             onPressed: _confirmDelete,
           ),
@@ -131,6 +148,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             expands: true,
             keyboardType: TextInputType.multiline,
             textAlignVertical: TextAlignVertical.top,
+            textDirection: noteDirection(_controller.text),
             onChanged: _onChanged,
             style: const TextStyle(
               fontSize: 18,
