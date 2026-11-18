@@ -352,7 +352,7 @@ class AppStrings {
   static const String tabHome = 'בית';
   static const String tabShopping = 'קניות';
   static const String tabCalendar = 'לוח שנה';
-  static const String tabTasks = 'משימות';
+  static const String tabTasks = "פתקים";
   static const String tabMore = 'עוד';
   static const String confirmSignOutTitle = 'להתנתק?';
   static const String confirmSignOutMessage = 'תצטרך להתחבר שוב כדי להיכנס לאפליקציה.';

@@ -392,7 +392,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
               icon: Icon(Icons.shopping_cart_outlined), label: AppStrings.tabShopping),
           NavigationDestination(
               icon: Icon(Icons.calendar_month_outlined), label: AppStrings.tabCalendar),
-          NavigationDestination(icon: Icon(Icons.checklist_outlined), label: AppStrings.tabTasks),
+          NavigationDestination(icon: Icon(Icons.sticky_note_2_outlined), label: AppStrings.tabTasks),
           NavigationDestination(icon: Icon(Icons.more_horiz), label: AppStrings.tabMore),
         ],
       ),
