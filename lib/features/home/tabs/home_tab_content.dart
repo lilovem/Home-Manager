@@ -239,8 +239,9 @@ class _WeatherBanner extends ConsumerWidget {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // 4.5 תאים בשורה: חצי תא "מציץ" ורומז שאפשר להחליק לראות עוד.
-              final cellW = constraints.maxWidth / 4.5;
+              // בדיוק 4 תאים בשורה: היום + 3 ימים, כולם נראים במלואם.
+              // אפשר להחליק הצידה כדי לראות עוד ימים.
+              final cellW = constraints.maxWidth / 4;
               // מימין לשמאל: "היום" קבוע מימין, והשאר גוללים לצדדים.
               return Directionality(
                 textDirection: TextDirection.rtl,
@@ -248,32 +249,20 @@ class _WeatherBanner extends ConsumerWidget {
                   children: [
                     boxed(todayCell, cellW),
                     Expanded(
-                      child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(
-                          dragDevices: {
-                            PointerDeviceKind.touch,
-                            PointerDeviceKind.mouse,
-                            PointerDeviceKind.trackpad,
-                          },
-                        ),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: futureDays.length,
-                          itemExtent: cellW,
-                          itemBuilder: (context, i) {
-                            final d = futureDays[i];
-                            final dayName = dayNames[d.date.weekday - 1];
-                            return boxed(
+                      child: _ForecastScroller(
+                        cellW: cellW,
+                        children: [
+                          for (final d in futureDays)
+                            boxed(
                               _ForecastCell(
-                                title: dayName,
+                                title: dayNames[d.date.weekday - 1],
                                 emoji: weatherCodeInfo(d.weatherCode).emoji,
                                 high: '${d.maxCelsius.round()}°',
                                 low: '${d.minCelsius.round()}°',
                               ),
                               cellW,
-                            );
-                          },
-                        ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -283,6 +272,91 @@ class _WeatherBanner extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// רשימת הימים הגוללת. כל עוד היא בתחילתה, מוצג חץ קטן וחצי שקוף בקצה
+/// השמאלי שרומז שאפשר להחליק לראות עוד ימים; הוא נעלם אחרי שמחליקים
+/// וחוזר כשחוזרים להתחלה.
+class _ForecastScroller extends StatefulWidget {
+  final double cellW;
+  final List<Widget> children;
+
+  const _ForecastScroller({required this.cellW, required this.children});
+
+  @override
+  State<_ForecastScroller> createState() => _ForecastScrollerState();
+}
+
+class _ForecastScrollerState extends State<_ForecastScroller> {
+  final ScrollController _controller = ScrollController();
+  bool _atStart = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final atStart = !_controller.hasClients || _controller.offset <= 4;
+    if (atStart != _atStart) setState(() => _atStart = atStart);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onScroll);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            dragDevices: {
+              PointerDeviceKind.touch,
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.trackpad,
+            },
+          ),
+          child: ListView(
+            controller: _controller,
+            scrollDirection: Axis.horizontal,
+            itemExtent: widget.cellW,
+            children: widget.children,
+          ),
+        ),
+        Positioned(
+          left: 2,
+          top: 0,
+          bottom: 0,
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: _atStart && widget.children.length > 3 ? 0.7 : 0,
+              child: Center(
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    shape: BoxShape.circle,
+                  ),
+                  // ltr כדי שהחץ יצביע שמאלה (לכיוון שאליו מחליקים).
+                  child: const Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Icon(Icons.chevron_left, size: 20, color: AppColors.primary),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
