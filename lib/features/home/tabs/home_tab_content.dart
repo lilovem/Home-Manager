@@ -223,10 +223,10 @@ class _WeatherBanner extends ConsumerWidget {
         final todayCell = _ForecastCell(
           title: 'היום',
           emoji: info.emoji,
-          label: info.label,
-          temps: today == null
+          high: today == null
               ? '${weather.temperatureCelsius.round()}°'
-              : '${weather.temperatureCelsius.round()}°  (${today.maxCelsius.round()}° / ${today.minCelsius.round()}°)',
+              : '${today.maxCelsius.round()}°',
+          low: today == null ? '' : '${today.minCelsius.round()}°',
         );
         final futureDays = weather.daily.skip(1).toList();
 
@@ -265,11 +265,10 @@ class _WeatherBanner extends ConsumerWidget {
                             final dayName = dayNames[d.date.weekday - 1];
                             return boxed(
                               _ForecastCell(
-                                title: '$dayName ${d.date.day}/${d.date.month}',
+                                title: dayName,
                                 emoji: weatherCodeInfo(d.weatherCode).emoji,
-                                label: weatherCodeInfo(d.weatherCode).label,
-                                temps:
-                                    '${d.maxCelsius.round()}° / ${d.minCelsius.round()}°',
+                                high: '${d.maxCelsius.round()}°',
+                                low: '${d.minCelsius.round()}°',
                               ),
                               cellW,
                             );
@@ -292,18 +291,20 @@ class _WeatherBanner extends ConsumerWidget {
 class _ForecastCell extends StatelessWidget {
   final String title;
   final String emoji;
-  final String label;
-  final String temps;
+  final String high;
+  final String low;
 
   const _ForecastCell({
     required this.title,
     required this.emoji,
-    required this.label,
-    required this.temps,
+    required this.high,
+    required this.low,
   });
 
   @override
   Widget build(BuildContext context) {
+    // בסגנון אפליקציות מזג אוויר: מספר גדול = הטמפרטורה הגבוהה של היום,
+    // מתחתיו מספר קטן ואפור = הנמוכה.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
       child: Column(
@@ -311,16 +312,16 @@ class _ForecastCell extends StatelessWidget {
         children: [
           Text(title,
               style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13)),
-          Text(emoji, style: const TextStyle(fontSize: 22)),
-          Text(label,
+          Text(emoji, style: const TextStyle(fontSize: 24)),
+          Text(high,
               textAlign: TextAlign.center,
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodySecondary.copyWith(fontSize: 10)),
-          Text(temps,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, fontSize: 11)),
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, fontSize: 17)),
+          if (low.isNotEmpty)
+            Text(low,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                style: AppTextStyles.bodySecondary.copyWith(fontSize: 12)),
         ],
       ),
     );
