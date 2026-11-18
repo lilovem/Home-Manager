@@ -232,7 +232,7 @@ class _WeatherBanner extends ConsumerWidget {
 
         return Container(
           width: double.infinity,
-          height: 92,
+          height: 62,
           decoration: BoxDecoration(
             color: AppColors.primaryLight,
             border: Border(bottom: BorderSide(color: lineColor, width: 1)),
@@ -377,27 +377,33 @@ class _ForecastCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // הגבוהה (מודגשת) מימין והנמוכה (אפורה) משמאלה, באותה שורה -
-    // כך התא נשאר נמוך ולא גולש מעבר לקו התחתון.
+    // שורה קצרה: שם היום והאימוג'י באותה שורה, והטמפרטורות מתחתיהן -
+    // הגבוהה (מודגשת) מימין והנמוכה (אפורה) משמאלה.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
       child: Center(
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title,
-                  style: AppTextStyles.body
-                      .copyWith(fontWeight: FontWeight.bold, fontSize: 12)),
-              Text(emoji, style: const TextStyle(fontSize: 22)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title,
+                      style: AppTextStyles.body
+                          .copyWith(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const SizedBox(width: 4),
+                  Text(emoji, style: const TextStyle(fontSize: 18)),
+                ],
+              ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(high,
                       maxLines: 1,
                       style: AppTextStyles.body
-                          .copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
+                          .copyWith(fontWeight: FontWeight.w800, fontSize: 15)),
                   if (low.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Text(low,
