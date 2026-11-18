@@ -81,7 +81,9 @@ class HomeTabContent extends ConsumerWidget {
 
         // מסך נמוך מאוד - גלילה רגילה עם אריחים בגובה קבוע.
         if (constraints.maxHeight < 330) {
-          return ListView(
+          return Container(
+            color: AppColors.primaryLight,
+            child: ListView(
             padding: EdgeInsets.zero,
             children: [
               const _WeatherBanner(),
@@ -107,13 +109,18 @@ class HomeTabContent extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
           );
         }
 
         // שלוש שורות אריחים באותו גודל בדיוק: קניות+לוח שנה, פתקים+רכבים,
         // וועד בית+חשמל+מים/ארנונה. הגובה פרופורציונלי למסך אבל מוגבל,
         // כך שהאריחים לא נהיים ענקיים; הרווח הפנוי מתחלק ביניהם.
-        return Column(
+        // כל האזור (כולל באנר מזג האוויר) על רקע כחול בהיר אחד, עד סרגל
+        // הניווט; האריחים נשארים לבנים מעליו.
+        return Container(
+          color: AppColors.primaryLight,
+          child: Column(
           children: [
             const _WeatherBanner(),
             Expanded(
@@ -157,6 +164,7 @@ class HomeTabContent extends ConsumerWidget {
               ),
             ),
           ],
+          ),
         );
       },
     );
