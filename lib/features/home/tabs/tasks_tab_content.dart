@@ -150,19 +150,28 @@ class _AddNoteTile extends StatelessWidget {
     // כפתור קטן בלי מסגרת וריבוע מסביב, בצד ימין למעלה.
     return Align(
       alignment: Alignment.centerRight,
-      child: TextButton.icon(
-        onPressed: onTap,
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          overlayColor: kNotePressColor,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          minimumSize: const Size(0, 34),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        icon: const Icon(Icons.add_circle_outline, size: 20),
-        label: const Text(
-          'פתק חדש',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        splashColor: kNotePressColor,
+        highlightColor: kNotePressColor,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_circle_outline, size: 20, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(
+                'פתק חדש',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
