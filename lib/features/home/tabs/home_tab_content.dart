@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/config/app_colors.dart';
@@ -206,21 +207,122 @@ class _WeatherBanner extends ConsumerWidget {
       ),
       data: (weather) {
         final info = weatherCodeInfo(weather.weatherCode);
-        return bar(
-          Row(
-            children: [
-              Text(info.emoji, style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${weather.temperatureCelsius.round()}°C · ${info.label}',
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
-                ),
+        const dayNames = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון'];
+        final today = weather.daily.isNotEmpty ? weather.daily.first : null;
+
+        final lineColor = AppColors.primary.withValues(alpha: 0.28);
+
+        Widget boxed(Widget cell, double width) => Container(
+              width: width,
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: lineColor, width: 1)),
               ),
-            ],
+              child: cell,
+            );
+
+        final todayCell = _ForecastCell(
+          title: 'היום',
+          emoji: info.emoji,
+          label: info.label,
+          temps: today == null
+              ? '${weather.temperatureCelsius.round()}°'
+              : '${weather.temperatureCelsius.round()}°  (${today.maxCelsius.round()}° / ${today.minCelsius.round()}°)',
+        );
+        final futureDays = weather.daily.skip(1).toList();
+
+        return Container(
+          width: double.infinity,
+          height: 92,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            border: Border(bottom: BorderSide(color: lineColor, width: 1)),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 4.5 תאים בשורה: חצי תא "מציץ" ורומז שאפשר להחליק לראות עוד.
+              final cellW = constraints.maxWidth / 4.5;
+              // מימין לשמאל: "היום" קבוע מימין, והשאר גוללים לצדדים.
+              return Directionality(
+                textDirection: TextDirection.rtl,
+                child: Row(
+                  children: [
+                    boxed(todayCell, cellW),
+                    Expanded(
+                      child: ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(
+                          dragDevices: {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.mouse,
+                            PointerDeviceKind.trackpad,
+                          },
+                        ),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: futureDays.length,
+                          itemExtent: cellW,
+                          itemBuilder: (context, i) {
+                            final d = futureDays[i];
+                            final dayName = dayNames[d.date.weekday - 1];
+                            return boxed(
+                              _ForecastCell(
+                                title: '$dayName ${d.date.day}/${d.date.month}',
+                                emoji: weatherCodeInfo(d.weatherCode).emoji,
+                                label: weatherCodeInfo(d.weatherCode).label,
+                                temps:
+                                    '${d.maxCelsius.round()}° / ${d.minCelsius.round()}°',
+                              ),
+                              cellW,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
+    );
+  }
+}
+
+/// תא אחד בשורת התחזית - כל התאים באותו רוחב.
+class _ForecastCell extends StatelessWidget {
+  final String title;
+  final String emoji;
+  final String label;
+  final String temps;
+
+  const _ForecastCell({
+    required this.title,
+    required this.emoji,
+    required this.label,
+    required this.temps,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          Text(label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySecondary.copyWith(fontSize: 10)),
+          Text(temps,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, fontSize: 11)),
+        ],
+      ),
     );
   }
 }
